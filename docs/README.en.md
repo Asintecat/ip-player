@@ -26,6 +26,10 @@ M3U playlist player with full support for **DASH**, **HLS**, and **Smooth Stream
 - **Inline Editing**: Rename playlists and categories directly by clicking titles, reorder categories, drag channels between categories, and access channel context menus (edit, move, copy to list, delete).
 - **Internationalization (i18n)**: Full UI localization in Spanish, English, Catalan, Basque, French, and Portuguese (Portugal and Brazil via dialect submenu). Locales live in `locales/<lang>.json` structured as `{ "Spanish text": "Translation" }`.
 - **Stream Proxy (HTTP, HTTPS, SOCKS4, SOCKS5)**: Route streams and playlists through a proxy. Configure a general proxy in ? (Help) → *Options* (with live "Test connection" check), or specify a per-channel custom proxy in *Advanced options* → *Proxy*. Supports `user:password` basic authentication for HTTP/HTTPS. An active proxy is indicated by a **Proxy** badge in the now-playing metadata.
+- **Built-in TV Guide (EPG)**: Full support for XMLTV electronic program guides in plain text (`.xml`) and gzip-compressed (`.xml.gz`, decompressed natively using the browser's `DecompressionStream`). If an M3U playlist defines `#EXTM3U url-tvg="..."` or `x-tvg-url="..."`, the EPG is automatically downloaded, parsed, and mapped to channels.
+  - **Now Playing Overlay**: Live broadcast progress bar, start/stop times, and upcoming program preview in the player bar.
+  - **Interactive TV Guide Grid** ("TV Guide" button in header or `G` shortcut): Dedicated timeline grid across 24 hours with date selector tabs, category filters, real-time "Now" red vertical indicator, program modal with full synopsis, and one-click channel playback.
+  - **IndexedDB Persistence**: Automatically caches guide data locally for instant startup and offline resilience.
 
 ### Keyboard Shortcuts
 
@@ -39,8 +43,8 @@ M3U playlist player with full support for **DASH**, **HLS**, and **Smooth Stream
 | `F` | Toggle fullscreen (or double click) |
 | `PageUp` / `PageDown` | Previous / Next channel |
 | `/` | Search channels |
-| `L` | Show / Hide playlist drawer |
-| `↑` `↓` `Enter` (in list) | Navigate and select channels |
+| `G` | TV Guide (EPG) |
+| `N` | Add a channel |
 | `?` | Help and shortcut cheat sheet |
 
 - **Context Menu**: Right-click any URL on any web page → "Play in IP Player" or "Load as M3U Playlist".
@@ -48,6 +52,8 @@ M3U playlist player with full support for **DASH**, **HLS**, and **Smooth Stream
 ## Supported M3U Tags
 
 | Tag | Attributes / Syntax |
+|---|---|
+| `#EXTM3U` | `url-tvg="https://…/guide.xml.gz"`, `x-tvg-url="…"` |
 |---|---|
 | `#EXTINF` | `tvg-id`, `tvg-name`, `tvg-logo`, `group-title`, `tvg-chno`, `user-agent`, `http-referrer` |
 | `#EXTGRP` | `#EXTGRP:Sports` |

@@ -1,4 +1,4 @@
-#EXTM3U
+#EXTM3U url-tvg="sample/guia.xml.gz"
 #EXTINF:-1 tvg-id="angel-dash" group-title="Sin DRM",Angel One (DASH)
 https://storage.googleapis.com/shaka-demo-assets/angel-one/dash.mpd
 

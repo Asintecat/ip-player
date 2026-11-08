@@ -25,7 +25,11 @@ Reprodutor de listas de reprodução M3U com suporte completo para **DASH**, **H
 - **Ação única «Adicionar»**: Botão centralizado para adicionar canal (com seleção de lista e categoria no próprio formulário), categoria, lista M3U (link, arquivo ou texto) ou lista personalizada.
 - **Edição em tempo real**: Renomeie listas e categorias clicando diretamente nos títulos, reordene categorias, arraste canais entre categorias e acesse o menu de opções ⋯ de cada canal (editar, mover, salvar em outra lista, excluir).
 - **Idiomas da interface**: Espanhol, inglês, catalão, basco, francês e português (Portugal e Brasil através de submenu). Cada idioma é um arquivo `locales/<código>.json` no formato `{ "texto em espanhol": "tradução" }`.
-- **Proxy para streams (HTTP, HTTPS, SOCKS4 e SOCKS5)**: Permite carregar transmissões e manifestos através de um proxy. Configure um proxy geral em ? (Ajuda) → *Opções* (com botão para testar conexão) ou defina um proxy exclusivo por canal em *Opções avançadas* → *Proxy*. Suporta autenticação básica de usuário e senha em HTTP/HTTPS. Quando um canal utiliza proxy, o selo **Proxy** é exibido nos metadados de reprodução.
+- **Proxy para streams (HTTP, HTTPS, SOCKS4 e SOCKS5)**: Permet carregar transmissões e manifestos através de um proxy. Configure um proxy geral em ? (Ajuda) → *Opções* (com botão para testar conexão) ou defina um proxy exclusivo por canal em *Opções avançadas* → *Proxy*. Suporta autenticação básica de usuário e senha em HTTP/HTTPS. Quando um canal utiliza proxy, o selo **Proxy** é exibido nos metadados de reprodução.
+- **Guia de TV (EPG) integrado**: Suporte completo para guias de programação XMLTV em texto (`.xml`) ou compactado em gzip (`.xml.gz`, descompressão nativa no navegador com `DecompressionStream`). Se uma lista M3U incluir `#EXTM3U url-tvg="..."` ou `x-tvg-url="..."`, o guia é baixado e associado aos canais automaticamente.
+  - **Em reprodução**: mostra o programa em exibição com barra de progresso em tempo real, horários e prévia do próximo programa.
+  - **Grade interativa do Guia de TV** (botão «Guia de TV» ou atalho `G`): visualização dedicada em linha do tempo de 24 horas com abas de datas, categorias, busca, linha vermelha «Agora», modal de detalhes e reprodução imediata.
+  - **Persistência no IndexedDB**: armazena os dados do guia localmente para carregamento instantâneo a cada abertura.
 
 ### Atalhos de teclado
 
@@ -39,8 +43,8 @@ Reprodutor de listas de reprodução M3U com suporte completo para **DASH**, **H
 | `F` | Tela cheia (ou clique duplo) |
 | `PageUp` / `PageDown` | Canal anterior / seguinte |
 | `/` | Buscar canal |
-| `L` | Mostrar / Ocultar gaveta de listas |
-| `↑` `↓` `Enter` (na lista) | Navegar e reproduzir canais |
+| `G` | Guia de TV (EPG) |
+| `N` | Adicionar um canal |
 | `?` | Ajuda e lista de atalhos |
 
 - **Menu de contexto**: Clique com o botão direito em qualquer link da web → «Reproduzir no IP Player» ou «Carregar como lista M3U».
@@ -48,6 +52,8 @@ Reprodutor de listas de reprodução M3U com suporte completo para **DASH**, **H
 ## Tags M3U suportadas
 
 | Tag | Atributos / Sintaxe |
+|---|---|
+| `#EXTM3U` | `url-tvg="https://…/guia.xml.gz"`, `x-tvg-url="…"` |
 |---|---|
 | `#EXTINF` | `tvg-id`, `tvg-name`, `tvg-logo`, `group-title`, `tvg-chno`, `user-agent`, `http-referrer` |
 | `#EXTGRP` | `#EXTGRP:Esportes` |

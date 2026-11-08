@@ -26,6 +26,10 @@ Reproductor de llistes M3U amb suport complet per a **DASH**, **HLS** i **Smooth
 - **Edició directa a la vista**: Canvi de nom de llistes i categories fent clic sobre el seu títol, reordenació de categories, arrossegament de canals entre categories i menú d'opcions ⋯ per canal (editar, moure, desar en una altra llista, suprimir).
 - **Idiomes de la interfície**: Castellà, anglès, català, euskera, francès i portuguès (de Portugal i Brasil en un submenú). Cada idioma és un fitxer `locales/<codi>.json` amb format `{ "text en castellà": "traducció" }`.
 - **Proxy per a streams (HTTP, HTTPS, SOCKS4 i SOCKS5)**: Permet carregar els streams i els seus manifests mitjançant un servidor intermediari. Es pot configurar un proxy general a ? (Ajuda) → *Opcions* (amb botó per provar la connexió), o assignar un proxy exclusiu a un canal individual des d'«Opcions avançades» (*Proxy*). Admet autenticació bàsica d'usuari i contrasenya en HTTP/HTTPS. Quan un canal empra proxy, s'indica amb l'etiqueta **Proxy** a la informació de reproducció.
+- **Guia TV (EPG) integrada**: Suport complet per a guies de programació XMLTV en text (`.xml`) i comprimit amb gzip (`.xml.gz`, descompressió nativa al navegador amb `DecompressionStream`). Si una llista M3U incorpora `#EXTM3U url-tvg="..."` o `x-tvg-url="..."`, la guia es descarrega i s'associa automàticament als canals.
+  - **En reproducció**: mostra el programa en emissió amb barra de progrés en temps real, horaris i avanç del proper programa.
+  - **Graella interactiva de Guia TV** (botó «Guia TV» o drecera `G`): vista dedicada de 24 hores amb selector de dates, filtre per categories, cercador, línia vermella «Ara», finestra de detall de programa i reproducció directa.
+  - **Persistència a IndexedDB**: desa les dades localment per a una càrrega instantània en cada inici.
 
 ### Dreceres de teclat
 
@@ -39,8 +43,8 @@ Reproductor de llistes M3U amb suport complet per a **DASH**, **HLS** i **Smooth
 | `F` | Pantalla completa (o doble clic) |
 | `RePàg` / `AvPàg` | Canal anterior / següent |
 | `/` | Cerca canals |
-| `L` | Mostra / Amaga calaix de llistes |
-| `↑` `↓` `Retorn` (a la llista) | Navega i selecciona canals |
+| `G` | Guia TV (EPG) |
+| `N` | Afegeix un canal |
 | `?` | Ajuda i llista de dreceres |
 
 - **Menú contextual**: Clic dret sobre qualsevol enllaç web → «Reprodueix a IP Player» o «Carrega com a llista M3U».
@@ -48,6 +52,8 @@ Reproductor de llistes M3U amb suport complet per a **DASH**, **HLS** i **Smooth
 ## Etiquetes M3U suportades
 
 | Etiqueta | Atributs / Sintaxi |
+|---|---|
+| `#EXTM3U` | `url-tvg="https://…/guia.xml.gz"`, `x-tvg-url="…"` |
 |---|---|
 | `#EXTINF` | `tvg-id`, `tvg-name`, `tvg-logo`, `group-title`, `tvg-chno`, `user-agent`, `http-referrer` |
 | `#EXTGRP` | `#EXTGRP:Esports` |

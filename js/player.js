@@ -18,6 +18,10 @@ import { cleanChannel, groupsOf, parseLibraryJSON, exportList } from './library.
 import { t, getLang, setLang, detectLang, LANGS, initI18n, translateStatic, locale } from './i18n.js';
 import { enhanceSelects, refreshSelects } from './select.js';
 import { parseProxy, setProxy, ensureUrl, clearProxy, describeProxy, proxyControl, isProxyAvailable, activeProxy } from './proxy.js';
+import {
+  loadCachedEpg, loadEpgFromUrl, loadEpgFromFile, clearEpg,
+  getNowAndNext, getChannelSchedule, getEpgStats, hasEpg
+} from './epg.js';
 
 const $ = (sel) => document.querySelector(sel);
 const typeLabel = (type) => t(TYPE_LABEL[type] || 'Auto');
@@ -38,7 +42,11 @@ const state = {
   editing: null,
   recents: [],
   // Diálogo de stream: 'open' (solo reproducir), 'add' (nuevo canal) o 'edit' (canal de una lista propia)
-  streamMode: { kind: 'open' }
+  streamMode: { kind: 'open' },
+  view: 'browse', // 'browse' | 'epg'
+  epgDate: new Date(),
+  epgCategory: '',
+  epgQuery: ''
 };
 
 let player = null;
@@ -615,10 +623,21 @@ async function selectPlaylist(id, { refresh = false, keepGroup = false } = {}) {
         setStatus(t('No se pudo cargar «{name}»: {msg}', { name: pl.name, msg: err.message }), 'err');
       }
     }
+    // Auto-carga de EPG si la lista lo incluye y no está cargado ya
+    if (pl.epg && getEpgStats().url !== pl.epg) {
+      loadEpgFromUrl(pl.epg, { name: pl.name }).then(() => {
+        updateNowPlayingEpg();
+        if (state.view === 'epg') renderEpgView();
+        if (state.view === 'browse') renderBrowse();
+      }).catch((err) => {
+        console.warn('Auto-carga de EPG falló:', err);
+      });
+    }
   }
   if (state.group && !groupNames().includes(state.group)) state.group = '';
   renderListPicker();
   renderBrowse({ animate: true });
+  if (state.view === 'epg') renderEpgView();
   store.patchState({ playlistId: id, group: state.group });
 }
 
@@ -647,7 +666,12 @@ function parsedChannels(pl) {
   const key = `${pl.id}|${pl.updatedAt}|${pl.text.length}`;
   let channels = parseCache.get(pl.id)?.key === key ? parseCache.get(pl.id).channels : null;
   if (!channels) {
-    channels = parseM3U(pl.text, pl.url).channels;
+    const res = parseM3U(pl.text, pl.url);
+    channels = res.channels;
+    if (res.epg && !pl.epg) {
+      pl.epg = res.epg;
+      store.savePlaylists(state.playlists).catch(() => {});
+    }
     parseCache.set(pl.id, { key, channels });
   }
   return channels;
@@ -820,6 +844,7 @@ function renderNowPlaying() {
     $('#fsTitle').textContent = '';
     $('#btnFav').classList.remove('on');
     document.title = 'IP Player';
+    updateNowPlayingEpg();
     return;
   }
   logo.replaceWith(Object.assign(logoEl('np-logo', c), { id: 'npLogo' }));
@@ -835,6 +860,7 @@ function renderNowPlaying() {
   if (c.group && c.group !== drmLabel(c.drm) && c.group !== TYPE_LABEL[type]) badge(c.group);
   $('#btnFav').classList.toggle('on', isFav(c));
   $('#btnFav').dataset.tip = t(isFav(c) ? 'Quitar de favoritos' : 'Añadir a favoritos');
+  updateNowPlayingEpg();
 }
 
 /** Marca la tarjeta del canal en reproducción sin volver a pintar la cuadrícula. */
@@ -1566,6 +1592,14 @@ function cardEl(channel, ctx, i) {
 
   const body = el('span', 'card-body');
   body.appendChild(el('span', 'card-name', channel.name));
+  if (hasEpg()) {
+    const liveInfo = getNowAndNext(channel);
+    if (liveInfo?.now?.title) {
+      const epgEl = el('span', 'card-epg', liveInfo.now.title);
+      epgEl.title = `${liveInfo.now.title} (${formatTime(new Date(liveInfo.now.start))} - ${formatTime(new Date(liveInfo.now.stop))})`;
+      body.appendChild(epgEl);
+    }
+  }
   const type = detectType(channel.url, channel.type);
   const meta = [type !== 'auto' ? typeLabel(type) : '', drmLabel(channel.drm)].filter(Boolean).join(' · ');
   body.appendChild(el('span', 'card-meta', meta || (ctx.group == null && channel.group ? channel.group : t('Stream'))));
@@ -2376,7 +2410,7 @@ async function onCategorySubmit(e) {
 let addTab = 'url';
 
 function resetAddPlaylist() {
-  for (const id of ['pUrl', 'pText', 'pName']) $('#' + id).value = '';
+  for (const id of ['pUrl', 'pText', 'pName', 'pEpg']) $('#' + id).value = '';
   $('#pFile').value = '';
   $('#pFileName').textContent = '';
   showFormError('playlistError', '');
@@ -2416,7 +2450,7 @@ function setAddTab(tab) {
   playlistTodo();
 }
 
-async function addPlaylist({ name, url, text }) {
+async function addPlaylist({ name, url, text, epg }) {
   const lib = text ? parseLibraryJSON(text) : null;
   if (lib) {
     const created = await createManualList(name || lib.name || t('Lista importada'), lib);
@@ -2424,7 +2458,7 @@ async function addPlaylist({ name, url, text }) {
     toast(t('«{name}» importada: {n} canales', { name: created.name, n: created.channels.length }));
     return created;
   }
-  const pl = { id: store.newId(), name: '', source: url ? 'url' : 'text', url: url || '', text: text || '', updatedAt: '' };
+  const pl = { id: store.newId(), name: '', source: url ? 'url' : 'text', url: url || '', text: text || '', updatedAt: '', epg: epg || '' };
   if (url) {
     await fetchPlaylist(pl);
   } else {
@@ -2433,8 +2467,10 @@ async function addPlaylist({ name, url, text }) {
   if (looksLikeHlsManifest(pl.text)) {
     throw new Error(t('Esto parece un stream HLS, no una lista de canales. Añádelo como «Canal».'));
   }
-  const { channels } = parseM3U(pl.text, pl.url);
+  const parsed = parseM3U(pl.text, pl.url);
+  const channels = parsed.channels;
   if (!channels.length) throw new Error(t('La lista no contiene canales.'));
+  if (!pl.epg && parsed.epg) pl.epg = parsed.epg;
   pl.name = name || nameFromUrl(url) || t('Lista {n}', { n: state.playlists.length + 1 });
   state.playlists.push(pl);
   await store.savePlaylists(state.playlists);
@@ -2455,6 +2491,7 @@ function nameFromUrl(url) {
 async function onAddPlaylistClick() {
   showFormError('playlistError', '');
   const name = $('#pName').value.trim();
+  const epg = $('#pEpg')?.value?.trim() || '';
   const btn = $('#btnAddPlaylist');
   btn.disabled = true;
   try {
@@ -2462,15 +2499,15 @@ async function onAddPlaylistClick() {
       const file = $('#pFile').files[0];
       if (!file) throw new Error(t('Elige un archivo .m3u, .m3u8 o .json.'));
       const text = await file.text();
-      await addPlaylist({ name: name || (parseLibraryJSON(text) ? '' : file.name.replace(/\.(m3u8?|txt|json)$/i, '')), text });
+      await addPlaylist({ name: name || (parseLibraryJSON(text) ? '' : file.name.replace(/\.(m3u8?|txt|json)$/i, '')), text, epg });
     } else if (addTab === 'text') {
       const text = $('#pText').value.trim();
       if (!text) throw new Error(t('Pega el contenido de la lista.'));
-      await addPlaylist({ name, text });
+      await addPlaylist({ name, text, epg });
     } else {
       const url = $('#pUrl').value.trim();
       if (!url) throw new Error(t('Pega el enlace de la lista.'));
-      await addPlaylist({ name, url });
+      await addPlaylist({ name, url, epg });
     }
     $('#manageDialog').close();
   } catch (err) {
@@ -2481,8 +2518,9 @@ async function onAddPlaylistClick() {
 }
 
 async function addSamplePlaylist() {
-  const text = await (await fetch(chrome.runtime.getURL('sample/ejemplos.m3u'))).text();
-  await addPlaylist({ name: t('Ejemplos (DASH · HLS · MSS · DRM)'), text });
+  const sampleUrl = typeof chrome !== 'undefined' && chrome.runtime?.getURL ? chrome.runtime.getURL('sample/ejemplos.m3u') : 'sample/ejemplos.m3u';
+  const text = await (await fetch(sampleUrl)).text();
+  await addPlaylist({ name: t('Ejemplos (DASH · HLS · MSS · DRM)'), text, url: sampleUrl });
 }
 
 // ======================================================================
@@ -2514,6 +2552,467 @@ function syncMini() {
   if (on === (app.dataset.mini === '1')) return;
   app.dataset.mini = on ? '1' : '';
   controls?.closeMenu();
+}
+
+// ======================================================================
+// Guía TV (EPG)
+// ======================================================================
+
+const pad2 = (n) => String(n).padStart(2, '0');
+function formatTime(d) {
+  if (!(d instanceof Date) || isNaN(d)) return '';
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+function formatDateLabel(d) {
+  if (!(d instanceof Date) || isNaN(d)) return '';
+  const now = new Date();
+  const isToday = d.toDateString() === now.toDateString();
+  const yesterday = new Date(now); yesterday.setDate(yesterday.getDate() - 1);
+  const isYesterday = d.toDateString() === yesterday.toDateString();
+  const tomorrow = new Date(now); tomorrow.setDate(tomorrow.getDate() + 1);
+  const isTomorrow = d.toDateString() === tomorrow.toDateString();
+
+  const weekday = d.toLocaleDateString(locale(), { weekday: 'short' });
+  const day = d.getDate();
+  const month = d.toLocaleDateString(locale(), { month: 'short' });
+
+  if (isToday) return `${t('Hoy')} (${day} ${month})`;
+  if (isYesterday) return `${t('Ayer')} (${day} ${month})`;
+  if (isTomorrow) return `${t('Mañana')} (${day} ${month})`;
+  return `${weekday.charAt(0).toUpperCase() + weekday.slice(1)} ${day} ${month}`;
+}
+
+function updateNowPlayingEpg() {
+  const npEpg = $('#npEpg');
+  if (!npEpg) return;
+  const c = state.current;
+  if (!c || !hasEpg()) {
+    npEpg.hidden = true;
+    return;
+  }
+  const info = getNowAndNext(c);
+  if (!info || !info.now) {
+    npEpg.hidden = true;
+    return;
+  }
+  npEpg.hidden = false;
+  $('#npEpgTitle').textContent = info.now.title;
+  $('#npEpgTime').textContent = `${formatTime(new Date(info.now.start))} - ${formatTime(new Date(info.now.stop))}`;
+  $('#npEpgFill').style.width = `${info.progress}%`;
+  const nextEl = $('#npEpgNext');
+  if (info.next) {
+    nextEl.hidden = false;
+    nextEl.textContent = t('A continuación ({time}): {title}', {
+      time: formatTime(new Date(info.next.start)),
+      title: info.next.title
+    });
+  } else {
+    nextEl.hidden = true;
+  }
+}
+
+function toggleEpgView(forced) {
+  const nextView = typeof forced === 'boolean' ? (forced ? 'epg' : 'browse') : (state.view === 'epg' ? 'browse' : 'epg');
+  state.view = nextView;
+  const isEpg = nextView === 'epg';
+  $('#browse').hidden = isEpg;
+  $('#epgView').hidden = !isEpg;
+  $('#btnToggleEpg').classList.toggle('active', isEpg);
+  if (isEpg) {
+    renderEpgView();
+    requestAnimationFrame(() => scrollToEpgNow());
+  }
+}
+
+const EPG_SLOT_WIDTH = 110;
+const EPG_SLOTS_TOTAL = 48;
+const EPG_TIMELINE_WIDTH = EPG_SLOT_WIDTH * EPG_SLOTS_TOTAL;
+const EPG_CH_CELL_WIDTH = 220;
+
+function renderEpgView() {
+  const stats = getEpgStats();
+  const empty = $('#epgEmpty');
+  const container = $('#epgContainer');
+  const toolbar = $('#epgDates')?.closest('.epg-toolbar');
+  const chipsBar = $('#epgChipsBar');
+
+  if (!hasEpg()) {
+    empty.hidden = false;
+    container.hidden = true;
+    if (toolbar) toolbar.hidden = true;
+    if (chipsBar) chipsBar.hidden = true;
+    $('#epgSub').textContent = t('No hay ninguna guía cargada');
+    return;
+  }
+
+  empty.hidden = true;
+  container.hidden = false;
+  if (toolbar) toolbar.hidden = false;
+  if (chipsBar) chipsBar.hidden = false;
+
+  const countStr = t('{ch} canales · {pr} programas', { ch: stats.channelCount, pr: stats.programCount });
+  $('#epgSub').textContent = stats.name ? `${stats.name} · ${countStr}` : countStr;
+
+  renderEpgDates();
+  renderEpgCategories();
+  renderEpgGrid();
+}
+
+function renderEpgDates() {
+  const wrap = $('#epgDates');
+  if (!wrap) return;
+  wrap.replaceChildren();
+  const curDateStr = new Date(state.epgDate).toDateString();
+  const now = new Date();
+
+  for (let offset = -1; offset <= 3; offset++) {
+    const d = new Date(now);
+    d.setDate(d.getDate() + offset);
+    d.setHours(0, 0, 0, 0);
+
+    const btn = el('button', 'epg-date-btn' + (d.toDateString() === curDateStr ? ' active' : ''));
+    btn.type = 'button';
+    btn.role = 'tab';
+    btn.textContent = formatDateLabel(d);
+    btn.addEventListener('click', () => {
+      state.epgDate = d;
+      renderEpgDates();
+      renderEpgGrid();
+    });
+    wrap.appendChild(btn);
+  }
+}
+
+function renderEpgCategories() {
+  const wrap = $('#epgChips');
+  if (!wrap) return;
+  wrap.replaceChildren();
+  const stats = getEpgStats();
+  const cats = ['', ...stats.categories];
+
+  for (const cat of cats) {
+    const btn = el('button', 'chip' + (state.epgCategory === cat ? ' active' : ''));
+    btn.type = 'button';
+    btn.role = 'tab';
+    btn.textContent = cat || t('Todas');
+    btn.addEventListener('click', () => {
+      state.epgCategory = cat;
+      renderEpgCategories();
+      renderEpgGrid();
+    });
+    wrap.appendChild(btn);
+  }
+}
+
+function renderEpgGrid() {
+  const grid = $('#epgGrid');
+  if (!grid) return;
+  grid.replaceChildren();
+
+  const dayStart = new Date(state.epgDate);
+  dayStart.setHours(0, 0, 0, 0);
+  const fromMs = dayStart.getTime();
+  const toMs = fromMs + 24 * 3600 * 1000;
+
+  // Cabecera horaria fija (epg-ruler)
+  const ruler = el('div', 'epg-ruler');
+  const corner = el('div', 'epg-ruler-corner', t('Canales'));
+  const slotsWrap = el('div', 'epg-ruler-slots');
+  slotsWrap.style.width = `${EPG_TIMELINE_WIDTH}px`;
+
+  for (let s = 0; s < EPG_SLOTS_TOTAL; s++) {
+    const slotTime = new Date(fromMs + s * 30 * 60 * 1000);
+    const slotEl = el('div', 'epg-slot', formatTime(slotTime));
+    slotEl.style.width = `${EPG_SLOT_WIDTH}px`;
+    slotsWrap.appendChild(slotEl);
+  }
+  ruler.append(corner, slotsWrap);
+  grid.appendChild(ruler);
+
+  // Línea roja "Ahora" si la fecha seleccionada corresponde al día de hoy
+  const now = Date.now();
+  if (now >= fromMs && now <= toMs) {
+    const nowPct = (now - fromMs) / (toMs - fromMs);
+    const nowLine = el('div', 'epg-now-line');
+    nowLine.id = 'epgNowLine';
+    nowLine.style.left = `${EPG_CH_CELL_WIDTH + nowPct * EPG_TIMELINE_WIDTH}px`;
+    grid.appendChild(nowLine);
+  }
+
+  // Canales a listar: los de la lista activa o favoritos
+  let channelList = state.channels;
+  if (!channelList.length) {
+    channelList = state.playlists.flatMap((p) => (p.source === 'manual' ? channelsOf(p) : parsedChannels(p)));
+  }
+
+  const q = (state.epgQuery || '').trim().toLowerCase();
+
+  for (const ch of channelList) {
+    const schedules = getChannelSchedule(ch, fromMs, toMs);
+    if (q) {
+      const matchName = ch.name.toLowerCase().includes(q);
+      const matchProg = schedules.some((p) => p.title.toLowerCase().includes(q) || (p.desc && p.desc.toLowerCase().includes(q)));
+      if (!matchName && !matchProg) continue;
+    }
+    if (state.epgCategory) {
+      const matchCat = schedules.some((p) => p.category === state.epgCategory);
+      if (!matchCat) continue;
+    }
+
+    const row = el('div', 'epg-row');
+
+    const chCell = el('div', 'epg-ch-cell');
+    chCell.title = t('Reproducir {name}', { name: ch.name });
+    chCell.addEventListener('click', () => {
+      play(ch);
+      toggleEpgView(false);
+    });
+
+    chCell.appendChild(logoEl('epg-ch-logo', ch));
+    const chInfo = el('div', 'epg-ch-info');
+    chInfo.appendChild(el('span', 'epg-ch-name', ch.name));
+    if (ch.group) chInfo.appendChild(el('span', 'epg-ch-group', ch.group));
+    chCell.appendChild(chInfo);
+    row.appendChild(chCell);
+
+    const tracks = el('div', 'epg-tracks');
+    tracks.style.width = `${EPG_TIMELINE_WIDTH}px`;
+
+    for (const p of schedules) {
+      if (state.epgCategory && p.category && p.category !== state.epgCategory) continue;
+
+      const pStart = Math.max(fromMs, p.start);
+      const pStop = Math.min(toMs, p.stop);
+      const left = ((pStart - fromMs) / (toMs - fromMs)) * EPG_TIMELINE_WIDTH;
+      const width = Math.max(28, ((pStop - pStart) / (toMs - fromMs)) * EPG_TIMELINE_WIDTH);
+
+      const isLive = now >= p.start && now < p.stop;
+      const card = el('div', 'epg-prog-card' + (isLive ? ' live' : ''));
+      card.style.left = `${left}px`;
+      card.style.width = `${width - 3}px`;
+      card.title = `${p.title} (${formatTime(new Date(p.start))} - ${formatTime(new Date(p.stop))})`;
+
+      const pTitle = el('div', 'epg-prog-card-title', p.title);
+      const pTime = el('div', 'epg-prog-card-time', `${formatTime(new Date(p.start))} - ${formatTime(new Date(p.stop))}`);
+      card.append(pTitle, pTime);
+
+      if (isLive) {
+        const liveBar = el('div', 'epg-prog-card-live-bar');
+        const liveFill = el('div', 'epg-prog-card-live-fill');
+        const dur = Math.max(1, p.stop - p.start);
+        const elapsed = Math.max(0, now - p.start);
+        liveFill.style.width = `${Math.min(100, Math.round((elapsed / dur) * 100))}%`;
+        liveBar.appendChild(liveFill);
+        card.appendChild(liveBar);
+      }
+
+      card.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openProgramDetails(ch, p);
+      });
+
+      tracks.appendChild(card);
+    }
+
+    row.appendChild(tracks);
+    grid.appendChild(row);
+  }
+}
+
+function scrollToEpgNow() {
+  const container = $('#epgContainer');
+  if (!container) return;
+  const dayStart = new Date(state.epgDate);
+  dayStart.setHours(0, 0, 0, 0);
+  const fromMs = dayStart.getTime();
+  const toMs = fromMs + 24 * 3600 * 1000;
+  const now = Date.now();
+  if (now >= fromMs && now <= toMs) {
+    const pct = (now - fromMs) / (toMs - fromMs);
+    const targetLeft = pct * EPG_TIMELINE_WIDTH;
+    container.scrollTo({ left: Math.max(0, targetLeft - container.clientWidth / 3), behavior: 'smooth' });
+  }
+}
+
+function updateEpgNowLine() {
+  const line = $('#epgNowLine');
+  if (!line) return;
+  const dayStart = new Date(state.epgDate);
+  dayStart.setHours(0, 0, 0, 0);
+  const fromMs = dayStart.getTime();
+  const toMs = fromMs + 24 * 3600 * 1000;
+  const now = Date.now();
+  if (now >= fromMs && now <= toMs) {
+    const pct = (now - fromMs) / (toMs - fromMs);
+    line.style.left = `${EPG_CH_CELL_WIDTH + pct * EPG_TIMELINE_WIDTH}px`;
+    line.hidden = false;
+  } else {
+    line.hidden = true;
+  }
+}
+
+let selectedProgChannel = null;
+function openProgramDetails(channel, p) {
+  selectedProgChannel = channel;
+  $('#progChLogo').replaceChildren(logoEl('epg-ch-logo', channel));
+  $('#progChName').textContent = channel.name;
+  $('#progChGroup').textContent = channel.group || '';
+  $('#progTitle').textContent = p.title;
+
+  const catEl = $('#progCategory');
+  if (p.category) {
+    catEl.hidden = false;
+    catEl.textContent = p.category;
+  } else {
+    catEl.hidden = true;
+  }
+
+  const startDate = new Date(p.start);
+  const stopDate = new Date(p.stop);
+  $('#progTime').textContent = `${formatDateLabel(startDate)} · ${formatTime(startDate)} - ${formatTime(stopDate)}`;
+
+  const durMin = Math.max(1, Math.round((p.stop - p.start) / 60000));
+  $('#progDuration').textContent = `(${durMin} min)`;
+
+  const isLive = Date.now() >= p.start && Date.now() < p.stop;
+  const barWrap = $('#progBarWrap');
+  if (isLive) {
+    barWrap.hidden = false;
+    const dur = Math.max(1, p.stop - p.start);
+    const elapsed = Math.max(0, Date.now() - p.start);
+    $('#progBarFill').style.width = `${Math.min(100, Math.round((elapsed / dur) * 100))}%`;
+  } else {
+    barWrap.hidden = true;
+  }
+
+  $('#progSubtitle').textContent = p.subTitle || '';
+  $('#progSubtitle').hidden = !p.subTitle;
+  $('#progDesc').textContent = p.desc || t('Sin descripción disponible.');
+
+  $('#programDialog').showModal();
+}
+
+function openEpgDialog() {
+  const stats = getEpgStats();
+  if (stats.loaded) {
+    $('#epgStatusName').textContent = stats.name || t('Guía cargada');
+    const updateTime = stats.updatedAt ? new Date(stats.updatedAt).toLocaleTimeString(locale()) : '';
+    $('#epgStatusDesc').textContent = `${stats.channelCount} ${t('canales')} · ${stats.programCount} ${t('programas')}${updateTime ? ' · ' + updateTime : ''}`;
+  } else {
+    $('#epgStatusName').textContent = t('Guía no cargada');
+    $('#epgStatusDesc').textContent = t('Introduce una URL o archivo XMLTV');
+  }
+  $('#cfgEpgUrl').value = stats.url || '';
+  $('#cfgEpgFileName').textContent = '';
+  $('#epgError').hidden = true;
+  $('#epgDialog').showModal();
+}
+
+function bindEpgEvents() {
+  $('#btnToggleEpg').addEventListener('click', () => toggleEpgView());
+  $('#btnEpgBack').addEventListener('click', () => toggleEpgView(false));
+  $('#btnEpgNow').addEventListener('click', () => {
+    state.epgDate = new Date();
+    renderEpgDates();
+    renderEpgGrid();
+    scrollToEpgNow();
+  });
+  $('#btnEpgConfig').addEventListener('click', openEpgDialog);
+
+  $('#epgSearch').addEventListener('input', (e) => {
+    state.epgQuery = e.target.value;
+    renderEpgGrid();
+  });
+
+  $('#btnProgPlay').addEventListener('click', () => {
+    if (selectedProgChannel) {
+      play(selectedProgChannel);
+      $('#programDialog').close();
+      toggleEpgView(false);
+    }
+  });
+
+  $('#btnLoadEpgUrl').addEventListener('click', async () => {
+    const url = $('#epgUrlInput').value.trim();
+    if (!url) return;
+    try {
+      setStatus(t('Descargando Guía TV…'));
+      const stats = await loadEpgFromUrl(url);
+      toast(t('EPG cargado: {n} canales y {p} programas', { n: stats.channelCount, p: stats.programCount }));
+      setStatus(t('Guía TV actualizada'), 'ok');
+      updateNowPlayingEpg();
+      renderEpgView();
+      renderBrowse();
+    } catch (err) {
+      toast(t('No se pudo cargar el EPG: {msg}', { msg: err.message }));
+      setStatus(t('Error al cargar EPG'), 'err');
+    }
+  });
+
+  $('#btnPickEpgFile').addEventListener('click', () => $('#epgFileInput').click());
+  $('#epgFileInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      setStatus(t('Procesando Guía TV…'));
+      const stats = await loadEpgFromFile(file);
+      toast(t('EPG cargado: {n} canales y {p} programas', { n: stats.channelCount, p: stats.programCount }));
+      setStatus(t('Guía TV cargada'), 'ok');
+      updateNowPlayingEpg();
+      renderEpgView();
+      renderBrowse();
+    } catch (err) {
+      toast(t('No se pudo cargar el EPG: {msg}', { msg: err.message }));
+      setStatus(t('Error al cargar EPG'), 'err');
+    }
+  });
+
+  $('#btnCfgPickFile').addEventListener('click', () => $('#cfgEpgFile').click());
+  $('#cfgEpgFile').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    $('#cfgEpgFileName').textContent = file.name;
+    try {
+      const stats = await loadEpgFromFile(file);
+      $('#epgDialog').close();
+      toast(t('EPG cargado: {n} canales y {p} programas', { n: stats.channelCount, p: stats.programCount }));
+      updateNowPlayingEpg();
+      renderEpgView();
+      renderBrowse();
+    } catch (err) {
+      $('#epgError').textContent = err.message;
+      $('#epgError').hidden = false;
+    }
+  });
+
+  $('#btnEpgUpdate').addEventListener('click', async () => {
+    const url = $('#cfgEpgUrl').value.trim();
+    if (!url) return;
+    try {
+      $('#btnEpgUpdate').disabled = true;
+      const stats = await loadEpgFromUrl(url);
+      $('#epgDialog').close();
+      toast(t('EPG cargado: {n} canales y {p} programas', { n: stats.channelCount, p: stats.programCount }));
+      updateNowPlayingEpg();
+      renderEpgView();
+      renderBrowse();
+    } catch (err) {
+      $('#epgError').textContent = err.message;
+      $('#epgError').hidden = false;
+    } finally {
+      $('#btnEpgUpdate').disabled = false;
+    }
+  });
+
+  $('#btnEpgClear').addEventListener('click', async () => {
+    await clearEpg();
+    $('#epgDialog').close();
+    toast(t('EPG borrado'));
+    updateNowPlayingEpg();
+    renderEpgView();
+    renderBrowse();
+  });
 }
 
 // ======================================================================
@@ -2897,6 +3396,9 @@ function bindEvents() {
   $('#btnMiniBack').addEventListener('click', () => $('#main').scrollTo({ top: 0, behavior: 'smooth' }));
   $('#btnMiniClose').addEventListener('click', stopPlayback);
 
+  // Eventos de la Guía TV (EPG)
+  bindEpgEvents();
+
   // Atajos de teclado (sin animaciones: se repiten mucho)
   document.addEventListener('keydown', (e) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -2914,6 +3416,7 @@ function bindEvents() {
       m: () => controls.toggleMute(),
       c: () => controls.toggleSubtitles(),
       n: () => openAddChannel(),
+      g: () => toggleEpgView(),
       '?': () => openHelp(),
       ArrowLeft: () => (onButton ? false : controls.seekBy(-10)),
       ArrowRight: () => (onButton ? false : controls.seekBy(10)),
@@ -2924,7 +3427,7 @@ function bindEvents() {
     if (fn && fn() !== false) {
       e.preventDefault();
       controls.wake();
-      if (controls.enabled && key !== 'n') osdFor(key);
+      if (controls.enabled && key !== 'n' && key !== 'g') osdFor(key);
     }
   });
 }
@@ -2944,6 +3447,12 @@ async function main() {
   prefs = { ...prefs, ...(await store.getPrefs()) };
   await initPlayer();
   await loadData();
+  await loadCachedEpg();
+  updateNowPlayingEpg();
+  setInterval(() => {
+    updateNowPlayingEpg();
+    if (state.view === 'epg') updateEpgNowLine();
+  }, 30000);
 
   const saved = await store.getState();
   if ((await store.get('ui', {})).beginner === undefined && !saved.tourDone) await applyUiPrefs({ beginner: true });

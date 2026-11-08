@@ -2036,3 +2036,480 @@ html[data-large="1"] .toast { zoom: 1.15; }
 .badge.proxy { color: var(--ok); background: rgba(74, 222, 128, 0.1); }
 .proxy-general { gap: 8px; margin: 2px 0 6px; }
 .proxy-general > span { color: var(--text-2); font-size: 12.5px; font-weight: 500; }
+
+/* =====================================================================
+   Guía TV (EPG)
+   ===================================================================== */
+
+/* Programa en curso en la barra Now Playing */
+.np-epg {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 4px 0 2px;
+  padding: 6px 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+.np-epg:hover {
+  background: var(--surface-3);
+  border-color: var(--border-strong);
+}
+.np-epg-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.np-epg-live-dot {
+  width: 7px;
+  height: 7px;
+  background: var(--live);
+  border-radius: 50%;
+  flex: none;
+  box-shadow: 0 0 6px var(--live);
+  animation: pulse-live 2s infinite ease-in-out;
+}
+@keyframes pulse-live {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}
+.np-epg-prog {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+.np-epg-time {
+  font-size: 11.5px;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+.np-epg-bar {
+  height: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+.np-epg-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 300ms ease;
+}
+.np-epg-next {
+  font-size: 11.5px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Indicador de programa actual en tarjetas */
+.card-epg {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--accent-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 3px;
+}
+
+/* Botón de Guía TV en barra superior */
+.nav-btn.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: rgba(91, 124, 250, 0.3);
+}
+
+/* Vista principal de Guía TV */
+.epg-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: 16px var(--gutter) 24px;
+  max-width: var(--maxw);
+  margin: 0 auto;
+  width: 100%;
+}
+.epg-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.epg-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.epg-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.epg-sub {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-2);
+}
+.epg-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Barra de herramientas y selector de fecha */
+.epg-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.epg-dates {
+  display: flex;
+  gap: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 4px;
+  border-radius: 9px;
+  overflow-x: auto;
+}
+.epg-date-btn {
+  padding: 5px 12px;
+  font-size: 12.5px;
+  font-weight: 500;
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  border-radius: 6px;
+  transition: all 140ms ease;
+  white-space: nowrap;
+}
+.epg-date-btn:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+.epg-date-btn.active {
+  background: var(--surface-3);
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+.epg-search {
+  max-width: 260px;
+}
+
+/* Contenedor de la parrilla */
+.epg-container {
+  flex: 1;
+  min-height: 420px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: auto;
+  position: relative;
+}
+
+.epg-grid-inner {
+  display: flex;
+  flex-direction: column;
+  min-width: max-content;
+  position: relative;
+}
+
+/* Cabecera de horas fija (Sticky) */
+.epg-ruler {
+  display: flex;
+  position: sticky;
+  top: 0;
+  z-index: 15;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border-strong);
+  height: 38px;
+}
+.epg-ruler-corner {
+  position: sticky;
+  left: 0;
+  z-index: 20;
+  width: 220px;
+  flex: none;
+  background: var(--surface-2);
+  border-right: 1px solid var(--border-strong);
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+.epg-ruler-slots {
+  display: flex;
+  position: relative;
+  height: 100%;
+}
+.epg-slot {
+  height: 100%;
+  border-left: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding-left: 8px;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-2);
+  font-weight: 500;
+  box-sizing: border-box;
+}
+
+/* Línea roja vertical para "Ahora" */
+.epg-now-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--live);
+  z-index: 12;
+  pointer-events: none;
+}
+.epg-now-line::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -4px;
+  width: 10px;
+  height: 10px;
+  background: var(--live);
+  border-radius: 50%;
+}
+
+/* Filas de la parrilla (cada canal) */
+.epg-row {
+  display: flex;
+  position: relative;
+  height: 64px;
+  border-bottom: 1px solid var(--border);
+  transition: background-color 140ms ease;
+}
+.epg-row:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+.epg-ch-cell {
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  width: 220px;
+  flex: none;
+  background: var(--surface);
+  border-right: 1px solid var(--border-strong);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 140ms ease;
+}
+.epg-row:hover .epg-ch-cell {
+  background: var(--surface-2);
+}
+.epg-ch-cell:hover {
+  background: var(--surface-3);
+}
+.epg-ch-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: var(--surface-3);
+  display: grid;
+  place-items: center;
+  flex: none;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.epg-ch-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.epg-ch-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.epg-ch-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.epg-ch-group {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Pista horizontal con bloques de programas */
+.epg-tracks {
+  position: relative;
+  height: 100%;
+  flex: 1;
+}
+.epg-prog-card {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  cursor: pointer;
+  overflow: hidden;
+  transition: background-color 140ms ease, border-color 140ms ease, transform 140ms ease;
+  user-select: none;
+  box-sizing: border-box;
+}
+.epg-prog-card:hover {
+  background: var(--surface-3);
+  border-color: var(--border-strong);
+  z-index: 5;
+  transform: translateY(-1px);
+}
+.epg-prog-card.live {
+  border-color: rgba(91, 124, 250, 0.4);
+  background: rgba(91, 124, 250, 0.08);
+}
+.epg-prog-card.live:hover {
+  border-color: var(--accent);
+  background: rgba(91, 124, 250, 0.14);
+}
+.epg-prog-card-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.epg-prog-card-time {
+  font-size: 11px;
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+.epg-prog-card-live-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2.5px;
+  background: rgba(255, 255, 255, 0.1);
+}
+.epg-prog-card-live-fill {
+  height: 100%;
+  background: var(--accent);
+}
+
+/* Modal de detalle de programa */
+.epg-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+.epg-detail-header .epg-ch-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+}
+.epg-detail-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 10px 0 12px;
+}
+.epg-detail-time {
+  font-size: 13px;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+.epg-detail-desc {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text-2);
+  margin: 10px 0;
+}
+
+/* Estado de bienvenida y opciones de EPG */
+.epg-welcome {
+  margin: 30px auto;
+  max-width: 540px;
+}
+.epg-form-box {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 20px;
+  text-align: left;
+}
+.epg-status-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 14px;
+}
+.epg-status-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--surface-3);
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+}
+.epg-status-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.epg-status-info strong {
+  font-size: 13.5px;
+}
+.epg-status-info span {
+  font-size: 12px;
+  color: var(--text-2);
+}
+

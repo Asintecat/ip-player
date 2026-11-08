@@ -26,6 +26,10 @@ M3U erreprodukzio-zerrenden erreproduzitzailea **DASH**, **HLS** eta **Smooth St
 - **Zuzeneko edizioa**: Berrizendatu zerrendak eta kategoriak izenburuan klik eginez, berrantolatu kategoriak, arrastatu kanalak kategorien artean eta erabili kanal bakoitzaren aukera-menua ⋯ (editatu, mugitu, beste zerrenda batera bikoiztu, ezabatu).
 - **Interfazearen hizkuntzak**: Gaztelania, ingelesa, katalana, euskara, frantsesa eta portugesa (Portugal eta Brasil azpimenu bidez). Hizkuntza bakoitza `locales/<kodea>.json` fitxategi batean dago `{ "gaztelaniazko testua": "itzulpena" }` egiturarekin.
 - **Stream-etarako proxy-a (HTTP, HTTPS, SOCKS4 eta SOCKS5)**: Stream-ak eta haien manifestuak proxy baten bidez kargatzeko aukera ematen du. Proxy orokorra ezar daiteke ? (Laguntza) → *Aukerak* atalean («Probatu konexioa» botoiarekin), edo kanal bakoitzari proxy propioa esleitu «Aukera aurreratuak» atalean (*Proxy-a*). Erabiltzaile eta pasahitz bidezko oinarrizko autentifikazioa onartzen du HTTP/HTTPS-n. Erreprodukzioan **Proxy** txaparen bidez adierazten da.
+- **Telebista-gida (EPG) integratua**: XMLTV programazio-giden bateragarritasun osoa, `.xml` testuan zein gzip bidez konprimituta (`.xml.gz`, nabigatzailean bertan natiboki deskonprimitua `DecompressionStream` bidez). M3U zerrenda batek `#EXTM3U url-tvg="..."` edo `x-tvg-url="..."` badu, gida automatikoki deskargatzen eta kanalekin lotzen da.
+  - **Erreprodukzioan**: uneko saioa, aurrerapen-barra zuzenean, ordutegiak eta hurrengo saioaren aurrebista erakusten ditu.
+  - **Telebista-gidaren sareta interaktiboa** («Telebista-gida» botoia edo `G` lasterbidea): 24 orduko denbora-eskala dedikatua, data-hautatzailea, kategoria-iragazkiak, bilatzailea, «Orain» lerro gorria, saio bakoitzaren xehetasun-leihoa eta erreprodukzio zuzena.
+  - **IndexedDB iraunkortasuna**: gida lokalean gordetzen du abiarazte bakoitzean berehala kargatzeko.
 
 ### Teklatuko lasterbideak
 
@@ -39,8 +43,8 @@ M3U erreprodukzio-zerrenden erreproduzitzailea **DASH**, **HLS** eta **Smooth St
 | `F` | Pantaila osoa (edo klik bikoitza) |
 | `OrrGora` / `OrrBehera` | Aurreko / Hurrengo kanala |
 | `/` | Bilatu kanala |
-| `L` | Erakutsi / Ezkutatu zerrenda |
-| `↑` `↓` `Sartu` (zerrendan) | Nabigatu eta hautatu kanala |
+| `G` | Telebista-gida (EPG) |
+| `N` | Gehitu kanal bat |
 | `?` | Laguntza eta lasterbideen taula |
 
 - **Testuinguru-menua**: Egin klik eskuineko botoiaz web orri bateko edozein estekatan → «Erreproduzitu IP Player-en» edo «Kargatu M3U zerrenda gisa».
@@ -48,6 +52,8 @@ M3U erreprodukzio-zerrenden erreproduzitzailea **DASH**, **HLS** eta **Smooth St
 ## Onartutako M3U etiketak
 
 | Etiketa | Atributuak / Sintaxia |
+|---|---|
+| `#EXTM3U` | `url-tvg="https://…/guia.xml.gz"`, `x-tvg-url="…"` |
 |---|---|
 | `#EXTINF` | `tvg-id`, `tvg-name`, `tvg-logo`, `group-title`, `tvg-chno`, `user-agent`, `http-referrer` |
 | `#EXTGRP` | `#EXTGRP:Kirolak` |

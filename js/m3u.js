@@ -131,8 +131,11 @@ export function parseM3U(text, baseUrl) {
     if (!line) continue;
 
     if (line.startsWith('#EXTM3U')) {
-      const m = line.match(/(?:url-tvg|x-tvg-url)\s*=\s*"([^"]*)"/i);
-      if (m) epg = m[1];
+      const m = line.match(/(?:url-tvg|x-tvg-url)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
+      if (m) {
+        const raw = (m[1] ?? m[2] ?? m[3] ?? '').split(',')[0].trim();
+        if (raw) epg = resolveUrl(raw, baseUrl);
+      }
       continue;
     }
     if (line.startsWith('#EXTINF')) {

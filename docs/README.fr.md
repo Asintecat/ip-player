@@ -26,6 +26,10 @@ Lecteur de listes de lecture M3U avec prise en charge complète de **DASH**, **H
 - **Édition directe** : Renommez listes et catégories en cliquant directement sur leurs titres, réorganisez les catégories, déplacez les chaînes par glisser-déposer et accédez au menu contextuel ⋯ de chaque chaîne (modifier, déplacer, dupliquer, supprimer).
 - **Langues de l'interface** : Espagnol, anglais, catalan, basque, français et portugais (Portugal et Brésil via sous-menu). Chaque langue est définie dans `locales/<code_langue>.json` selon la structure `{ "texte espagnol": "traduction" }`.
 - **Proxy pour les flux (HTTP, HTTPS, SOCKS4 et SOCKS5)** : Permet de router les flux et leurs manifestes via un proxy. Configurez un proxy général dans ? (Aide) → *Options* (avec bouton de test de connexion), ou définissez un proxy spécifique par chaîne dans *Options avancées* → *Proxy*. Prend en charge l'authentification par identifiant et mot de passe en HTTP/HTTPS. La présence d'un proxy actif est signalée par le badge **Proxy** dans les métadonnées de lecture.
+- **Guide TV (EPG) intégré** : Prise en charge complète des grilles de programmes XMLTV en texte clair (`.xml`) ou compressées avec gzip (`.xml.gz`, décompression native dans le navigateur avec `DecompressionStream`). Si une liste M3U contient la directive `#EXTM3U url-tvg="..."` ou `x-tvg-url="..."`, le guide est automatiquement téléchargé, analysé et associé aux chaînes.
+  - **Superposition en cours de lecture** : Barre de progression en direct, horaires et aperçu du programme suivant dans le lecteur.
+  - **Grille interactive du Guide TV** (bouton « Guide TV » ou raccourci `G`) : Vue dédiée sur 24 heures avec sélection de dates, filtres par catégorie, champ de recherche, indicateur vertical rouge « Maintenant », détails complets du programme et lecture immédiate.
+  - **Persistance dans IndexedDB** : Mise en cache locale des données du guide pour un affichage instantané dès l'ouverture.
 
 ### Raccourcis clavier
 
@@ -39,8 +43,8 @@ Lecteur de listes de lecture M3U avec prise en charge complète de **DASH**, **H
 | `F` | Plein écran (ou double-clic) |
 | `PageUp` / `PageDown` | Chaîne précédente / suivante |
 | `/` | Rechercher une chaîne |
-| `L` | Afficher / Masquer le volet des listes |
-| `↑` `↓` `Entrée` (dans la liste) | Naviguer et sélectionner les chaînes |
+| `G` | Guide TV (EPG) |
+| `N` | Ajouter une chaîne |
 | `?` | Aide et tableau des raccourcis |
 
 - **Menu contextuel** : Clic droit sur n'importe quel lien web → « Lire dans IP Player » ou « Charger comme liste M3U ».
@@ -48,6 +52,8 @@ Lecteur de listes de lecture M3U avec prise en charge complète de **DASH**, **H
 ## Balises M3U prises en charge
 
 | Balise | Attributs / Syntaxe |
+|---|---|
+| `#EXTM3U` | `url-tvg="https://…/guide.xml.gz"`, `x-tvg-url="…"` |
 |---|---|
 | `#EXTINF` | `tvg-id`, `tvg-name`, `tvg-logo`, `group-title`, `tvg-chno`, `user-agent`, `http-referrer` |
 | `#EXTGRP` | `#EXTGRP:Sport` |

@@ -1,0 +1,1460 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tv generator-info-name="IP-Player-EPG" source-info-name="GuiaTV">
+  <channel id="angel-dash">
+    <display-name>Angel One (DASH)</display-name>
+    <display-name>Angel One</display-name>
+  </channel>
+  <channel id="angel-hls">
+    <display-name>Angel One (HLS)</display-name>
+    <display-name>Angel One</display-name>
+  </channel>
+  <channel id="bbb-hls">
+    <display-name>Big Buck Bunny (HLS TS)</display-name>
+    <display-name>Big Buck Bunny</display-name>
+    <display-name>BBB</display-name>
+  </channel>
+  <channel id="speedway">
+    <display-name>Super Speedway (Smooth Streaming)</display-name>
+    <display-name>Super Speedway</display-name>
+  </channel>
+  <programme channel="bbb-hls" start="20261107000000 +0000" stop="20261107023000 +0000">
+    <title lang="es">Big Buck Bunny: La Gran Aventura</title>
+    <sub-title lang="es">Película de animación</sub-title>
+    <desc lang="es">Un conejo gigante de buen corazón decide darle una lección a tres traviesos roedores que perturban la paz del bosque.</desc>
+    <category lang="es">Cine</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261107023000 +0000" stop="20261107040000 +0000">
+    <title lang="es">Noche de Cortometrajes Abiertos</title>
+    <sub-title lang="es">Cine de autor</sub-title>
+    <desc lang="es">Selección especial de producciones de código abierto y cine independiente en alta definición.</desc>
+    <category lang="es">Cine</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261107040000 +0000" stop="20261107060000 +0000">
+    <title lang="es">Mundo Digital y Creatividad</title>
+    <sub-title lang="es">Documental</sub-title>
+    <desc lang="es">Artistas digitales debaten sobre el futuro del renderizado en tiempo real.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261107060000 +0000" stop="20261107083000 +0000">
+    <title lang="es">Descanso Musical y Paisajes</title>
+    <sub-title lang="es">Música y relax</sub-title>
+    <desc lang="es">Paisajes naturales acompañados de melodías sinfónicas.</desc>
+    <category lang="es">Música</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261107083000 +0000" stop="20261107103000 +0000">
+    <title lang="es">El Despertar del Bosque</title>
+    <sub-title lang="es">Corto animado</sub-title>
+    <desc lang="es">Aventuras matinales de los animales en el claro del bosque.</desc>
+    <category lang="es">Infantil</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261107103000 +0000" stop="20261107120000 +0000">
+    <title lang="es">Taller de Animación Abierta</title>
+    <sub-title lang="es">Especial Blender</sub-title>
+    <desc lang="es">Técnicas de modelado 3D e iluminación en software libre.</desc>
+    <category lang="es">Tecnología</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261107120000 +0000" stop="20261107143000 +0000">
+    <title lang="es">Big Buck Bunny: La Gran Aventura</title>
+    <sub-title lang="es">Película de animación</sub-title>
+    <desc lang="es">Un conejo gigante de buen corazón decide darle una lección a tres traviesos roedores que perturban la paz del bosque.</desc>
+    <category lang="es">Cine</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261107143000 +0000" stop="20261107160000 +0000">
+    <title lang="es">Noche de Cortometrajes Abiertos</title>
+    <sub-title lang="es">Cine de autor</sub-title>
+    <desc lang="es">Selección especial de producciones de código abierto y cine independiente en alta definición.</desc>
+    <category lang="es">Cine</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261107160000 +0000" stop="20261107180000 +0000">
+    <title lang="es">Mundo Digital y Creatividad</title>
+    <sub-title lang="es">Documental</sub-title>
+    <desc lang="es">Artistas digitales debaten sobre el futuro del renderizado en tiempo real.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261107180000 +0000" stop="20261107203000 +0000">
+    <title lang="es">Descanso Musical y Paisajes</title>
+    <sub-title lang="es">Música y relax</sub-title>
+    <desc lang="es">Paisajes naturales acompañados de melodías sinfónicas.</desc>
+    <category lang="es">Música</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261107203000 +0000" stop="20261107223000 +0000">
+    <title lang="es">El Despertar del Bosque</title>
+    <sub-title lang="es">Corto animado</sub-title>
+    <desc lang="es">Aventuras matinales de los animales en el claro del bosque.</desc>
+    <category lang="es">Infantil</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261107223000 +0000" stop="20261108000000 +0000">
+    <title lang="es">Taller de Animación Abierta</title>
+    <sub-title lang="es">Especial Blender</sub-title>
+    <desc lang="es">Técnicas de modelado 3D e iluminación en software libre.</desc>
+    <category lang="es">Tecnología</category>
+  </programme>
+  <programme channel="angel-dash" start="20261107000000 +0000" stop="20261107023000 +0000">
+    <title lang="es">Noticias del Cosmos</title>
+    <sub-title lang="es">Informativo</sub-title>
+    <desc lang="es">Últimas novedades de la astrofísica y descubrimientos de exoplanetas.</desc>
+    <category lang="es">Noticias</category>
+  </programme>
+  <programme channel="angel-dash" start="20261107023000 +0000" stop="20261107040000 +0000">
+    <title lang="es">Odisea Interestelar</title>
+    <sub-title lang="es">Ciencia Ficción</sub-title>
+    <desc lang="es">Un grupo de exploradores viaja a través de un agujero de gusano en busca de un nuevo hogar.</desc>
+    <category lang="es">Ciencia Ficción</category>
+  </programme>
+  <programme channel="angel-dash" start="20261107040000 +0000" stop="20261107060000 +0000">
+    <title lang="es">Ingeniería Espacial</title>
+    <sub-title lang="es">Especial técnico</sub-title>
+    <desc lang="es">Cómo se diseñan las estaciones orbitales y los sistemas de soporte vital.</desc>
+    <category lang="es">Tecnología</category>
+  </programme>
+  <programme channel="angel-dash" start="20261107060000 +0000" stop="20261107083000 +0000">
+    <title lang="es">Star Trek: La Nueva Generación</title>
+    <sub-title lang="es">Temporada 1 · Episodio 14: Angel One</sub-title>
+    <desc lang="es">El Enterprise visita el planeta Angel One, gobernado por una sociedad matriarcal, para rescatar a la tripulación de un carguero estrellado.</desc>
+    <category lang="es">Series</category>
+  </programme>
+  <programme channel="angel-dash" start="20261107083000 +0000" stop="20261107103000 +0000">
+    <title lang="es">Exploración Espacial y Futuro</title>
+    <sub-title lang="es">Documental astronómico</sub-title>
+    <desc lang="es">Misiones interplanetarias, telescopios de espacio profundo y tecnología de propulsión de próxima generación.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="angel-dash" start="20261107103000 +0000" stop="20261107120000 +0000">
+    <title lang="es">Noticias del Cosmos</title>
+    <sub-title lang="es">Informativo</sub-title>
+    <desc lang="es">Últimas novedades de la astrofísica y descubrimientos de exoplanetas.</desc>
+    <category lang="es">Noticias</category>
+  </programme>
+  <programme channel="angel-dash" start="20261107120000 +0000" stop="20261107143000 +0000">
+    <title lang="es">Odisea Interestelar</title>
+    <sub-title lang="es">Ciencia Ficción</sub-title>
+    <desc lang="es">Un grupo de exploradores viaja a través de un agujero de gusano en busca de un nuevo hogar.</desc>
+    <category lang="es">Ciencia Ficción</category>
+  </programme>
+  <programme channel="angel-dash" start="20261107143000 +0000" stop="20261107160000 +0000">
+    <title lang="es">Ingeniería Espacial</title>
+    <sub-title lang="es">Especial técnico</sub-title>
+    <desc lang="es">Cómo se diseñan las estaciones orbitales y los sistemas de soporte vital.</desc>
+    <category lang="es">Tecnología</category>
+  </programme>
+  <programme channel="angel-dash" start="20261107160000 +0000" stop="20261107180000 +0000">
+    <title lang="es">Star Trek: La Nueva Generación</title>
+    <sub-title lang="es">Temporada 1 · Episodio 14: Angel One</sub-title>
+    <desc lang="es">El Enterprise visita el planeta Angel One, gobernado por una sociedad matriarcal, para rescatar a la tripulación de un carguero estrellado.</desc>
+    <category lang="es">Series</category>
+  </programme>
+  <programme channel="angel-dash" start="20261107180000 +0000" stop="20261107203000 +0000">
+    <title lang="es">Exploración Espacial y Futuro</title>
+    <sub-title lang="es">Documental astronómico</sub-title>
+    <desc lang="es">Misiones interplanetarias, telescopios de espacio profundo y tecnología de propulsión de próxima generación.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="angel-dash" start="20261107203000 +0000" stop="20261107223000 +0000">
+    <title lang="es">Noticias del Cosmos</title>
+    <sub-title lang="es">Informativo</sub-title>
+    <desc lang="es">Últimas novedades de la astrofísica y descubrimientos de exoplanetas.</desc>
+    <category lang="es">Noticias</category>
+  </programme>
+  <programme channel="angel-dash" start="20261107223000 +0000" stop="20261108000000 +0000">
+    <title lang="es">Odisea Interestelar</title>
+    <sub-title lang="es">Ciencia Ficción</sub-title>
+    <desc lang="es">Un grupo de exploradores viaja a través de un agujero de gusano en busca de un nuevo hogar.</desc>
+    <category lang="es">Ciencia Ficción</category>
+  </programme>
+  <programme channel="angel-hls" start="20261107000000 +0000" stop="20261107023000 +0000">
+    <title lang="es">Noticias del Cosmos</title>
+    <sub-title lang="es">Informativo</sub-title>
+    <desc lang="es">Últimas novedades de la astrofísica y descubrimientos de exoplanetas.</desc>
+    <category lang="es">Noticias</category>
+  </programme>
+  <programme channel="angel-hls" start="20261107023000 +0000" stop="20261107040000 +0000">
+    <title lang="es">Odisea Interestelar</title>
+    <sub-title lang="es">Ciencia Ficción</sub-title>
+    <desc lang="es">Un grupo de exploradores viaja a través de un agujero de gusano en busca de un nuevo hogar.</desc>
+    <category lang="es">Ciencia Ficción</category>
+  </programme>
+  <programme channel="angel-hls" start="20261107040000 +0000" stop="20261107060000 +0000">
+    <title lang="es">Ingeniería Espacial</title>
+    <sub-title lang="es">Especial técnico</sub-title>
+    <desc lang="es">Cómo se diseñan las estaciones orbitales y los sistemas de soporte vital.</desc>
+    <category lang="es">Tecnología</category>
+  </programme>
+  <programme channel="angel-hls" start="20261107060000 +0000" stop="20261107083000 +0000">
+    <title lang="es">Star Trek: La Nueva Generación</title>
+    <sub-title lang="es">Temporada 1 · Episodio 14: Angel One</sub-title>
+    <desc lang="es">El Enterprise visita el planeta Angel One, gobernado por una sociedad matriarcal, para rescatar a la tripulación de un carguero estrellado.</desc>
+    <category lang="es">Series</category>
+  </programme>
+  <programme channel="angel-hls" start="20261107083000 +0000" stop="20261107103000 +0000">
+    <title lang="es">Exploración Espacial y Futuro</title>
+    <sub-title lang="es">Documental astronómico</sub-title>
+    <desc lang="es">Misiones interplanetarias, telescopios de espacio profundo y tecnología de propulsión de próxima generación.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="angel-hls" start="20261107103000 +0000" stop="20261107120000 +0000">
+    <title lang="es">Noticias del Cosmos</title>
+    <sub-title lang="es">Informativo</sub-title>
+    <desc lang="es">Últimas novedades de la astrofísica y descubrimientos de exoplanetas.</desc>
+    <category lang="es">Noticias</category>
+  </programme>
+  <programme channel="angel-hls" start="20261107120000 +0000" stop="20261107143000 +0000">
+    <title lang="es">Odisea Interestelar</title>
+    <sub-title lang="es">Ciencia Ficción</sub-title>
+    <desc lang="es">Un grupo de exploradores viaja a través de un agujero de gusano en busca de un nuevo hogar.</desc>
+    <category lang="es">Ciencia Ficción</category>
+  </programme>
+  <programme channel="angel-hls" start="20261107143000 +0000" stop="20261107160000 +0000">
+    <title lang="es">Ingeniería Espacial</title>
+    <sub-title lang="es">Especial técnico</sub-title>
+    <desc lang="es">Cómo se diseñan las estaciones orbitales y los sistemas de soporte vital.</desc>
+    <category lang="es">Tecnología</category>
+  </programme>
+  <programme channel="angel-hls" start="20261107160000 +0000" stop="20261107180000 +0000">
+    <title lang="es">Star Trek: La Nueva Generación</title>
+    <sub-title lang="es">Temporada 1 · Episodio 14: Angel One</sub-title>
+    <desc lang="es">El Enterprise visita el planeta Angel One, gobernado por una sociedad matriarcal, para rescatar a la tripulación de un carguero estrellado.</desc>
+    <category lang="es">Series</category>
+  </programme>
+  <programme channel="angel-hls" start="20261107180000 +0000" stop="20261107203000 +0000">
+    <title lang="es">Exploración Espacial y Futuro</title>
+    <sub-title lang="es">Documental astronómico</sub-title>
+    <desc lang="es">Misiones interplanetarias, telescopios de espacio profundo y tecnología de propulsión de próxima generación.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="angel-hls" start="20261107203000 +0000" stop="20261107223000 +0000">
+    <title lang="es">Noticias del Cosmos</title>
+    <sub-title lang="es">Informativo</sub-title>
+    <desc lang="es">Últimas novedades de la astrofísica y descubrimientos de exoplanetas.</desc>
+    <category lang="es">Noticias</category>
+  </programme>
+  <programme channel="angel-hls" start="20261107223000 +0000" stop="20261108000000 +0000">
+    <title lang="es">Odisea Interestelar</title>
+    <sub-title lang="es">Ciencia Ficción</sub-title>
+    <desc lang="es">Un grupo de exploradores viaja a través de un agujero de gusano en busca de un nuevo hogar.</desc>
+    <category lang="es">Ciencia Ficción</category>
+  </programme>
+  <programme channel="speedway" start="20261107000000 +0000" stop="20261107023000 +0000">
+    <title lang="es">Historia de los Grandes Premios</title>
+    <sub-title lang="es">Documental deportivo</sub-title>
+    <desc lang="es">Los circuitos más legendarios del automovilismo y sus pilotos más célebres.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="speedway" start="20261107023000 +0000" stop="20261107040000 +0000">
+    <title lang="es">Mundo Motor: Novedades y Pruebas</title>
+    <sub-title lang="es">Revista de motor</sub-title>
+    <desc lang="es">Pruebas a fondo de superdeportivos y las últimas innovaciones en competición híbrida y eléctrica.</desc>
+    <category lang="es">Motor</category>
+  </programme>
+  <programme channel="speedway" start="20261107040000 +0000" stop="20261107060000 +0000">
+    <title lang="es">Paddock Abierto</title>
+    <sub-title lang="es">Tertulia deportiva</sub-title>
+    <desc lang="es">Expertos y mecánicos analizan la telemetría y estrategias de carrera.</desc>
+    <category lang="es">Deportes</category>
+  </programme>
+  <programme channel="speedway" start="20261107060000 +0000" stop="20261107083000 +0000">
+    <title lang="es">Super Speedway: Campeonato Mundial</title>
+    <sub-title lang="es">Carrera en directo</sub-title>
+    <desc lang="es">Las mejores carreras de automovilismo en circuitos ovales a más de 350 km/h con sonido envolvente y máxima adrenalina.</desc>
+    <category lang="es">Deportes</category>
+  </programme>
+  <programme channel="speedway" start="20261107083000 +0000" stop="20261107103000 +0000">
+    <title lang="es">Resumen y Clasificaciones de la Carrera</title>
+    <sub-title lang="es">Análisis post-carrera</sub-title>
+    <desc lang="es">Análisis técnico de la jornada, paradas en boxes y entrevistas con los pilotos ganadores.</desc>
+    <category lang="es">Deportes</category>
+  </programme>
+  <programme channel="speedway" start="20261107103000 +0000" stop="20261107120000 +0000">
+    <title lang="es">Historia de los Grandes Premios</title>
+    <sub-title lang="es">Documental deportivo</sub-title>
+    <desc lang="es">Los circuitos más legendarios del automovilismo y sus pilotos más célebres.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="speedway" start="20261107120000 +0000" stop="20261107143000 +0000">
+    <title lang="es">Mundo Motor: Novedades y Pruebas</title>
+    <sub-title lang="es">Revista de motor</sub-title>
+    <desc lang="es">Pruebas a fondo de superdeportivos y las últimas innovaciones en competición híbrida y eléctrica.</desc>
+    <category lang="es">Motor</category>
+  </programme>
+  <programme channel="speedway" start="20261107143000 +0000" stop="20261107160000 +0000">
+    <title lang="es">Paddock Abierto</title>
+    <sub-title lang="es">Tertulia deportiva</sub-title>
+    <desc lang="es">Expertos y mecánicos analizan la telemetría y estrategias de carrera.</desc>
+    <category lang="es">Deportes</category>
+  </programme>
+  <programme channel="speedway" start="20261107160000 +0000" stop="20261107180000 +0000">
+    <title lang="es">Super Speedway: Campeonato Mundial</title>
+    <sub-title lang="es">Carrera en directo</sub-title>
+    <desc lang="es">Las mejores carreras de automovilismo en circuitos ovales a más de 350 km/h con sonido envolvente y máxima adrenalina.</desc>
+    <category lang="es">Deportes</category>
+  </programme>
+  <programme channel="speedway" start="20261107180000 +0000" stop="20261107203000 +0000">
+    <title lang="es">Resumen y Clasificaciones de la Carrera</title>
+    <sub-title lang="es">Análisis post-carrera</sub-title>
+    <desc lang="es">Análisis técnico de la jornada, paradas en boxes y entrevistas con los pilotos ganadores.</desc>
+    <category lang="es">Deportes</category>
+  </programme>
+  <programme channel="speedway" start="20261107203000 +0000" stop="20261107223000 +0000">
+    <title lang="es">Historia de los Grandes Premios</title>
+    <sub-title lang="es">Documental deportivo</sub-title>
+    <desc lang="es">Los circuitos más legendarios del automovilismo y sus pilotos más célebres.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="speedway" start="20261107223000 +0000" stop="20261108000000 +0000">
+    <title lang="es">Mundo Motor: Novedades y Pruebas</title>
+    <sub-title lang="es">Revista de motor</sub-title>
+    <desc lang="es">Pruebas a fondo de superdeportivos y las últimas innovaciones en competición híbrida y eléctrica.</desc>
+    <category lang="es">Motor</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261108000000 +0000" stop="20261108020000 +0000">
+    <title lang="es">El Despertar del Bosque</title>
+    <sub-title lang="es">Corto animado</sub-title>
+    <desc lang="es">Aventuras matinales de los animales en el claro del bosque.</desc>
+    <category lang="es">Infantil</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261108020000 +0000" stop="20261108033000 +0000">
+    <title lang="es">Taller de Animación Abierta</title>
+    <sub-title lang="es">Especial Blender</sub-title>
+    <desc lang="es">Técnicas de modelado 3D e iluminación en software libre.</desc>
+    <category lang="es">Tecnología</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261108033000 +0000" stop="20261108060000 +0000">
+    <title lang="es">Big Buck Bunny: La Gran Aventura</title>
+    <sub-title lang="es">Película de animación</sub-title>
+    <desc lang="es">Un conejo gigante de buen corazón decide darle una lección a tres traviesos roedores que perturban la paz del bosque.</desc>
+    <category lang="es">Cine</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261108060000 +0000" stop="20261108073000 +0000">
+    <title lang="es">Noche de Cortometrajes Abiertos</title>
+    <sub-title lang="es">Cine de autor</sub-title>
+    <desc lang="es">Selección especial de producciones de código abierto y cine independiente en alta definición.</desc>
+    <category lang="es">Cine</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261108073000 +0000" stop="20261108093000 +0000">
+    <title lang="es">Mundo Digital y Creatividad</title>
+    <sub-title lang="es">Documental</sub-title>
+    <desc lang="es">Artistas digitales debaten sobre el futuro del renderizado en tiempo real.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261108093000 +0000" stop="20261108120000 +0000">
+    <title lang="es">Descanso Musical y Paisajes</title>
+    <sub-title lang="es">Música y relax</sub-title>
+    <desc lang="es">Paisajes naturales acompañados de melodías sinfónicas.</desc>
+    <category lang="es">Música</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261108120000 +0000" stop="20261108140000 +0000">
+    <title lang="es">El Despertar del Bosque</title>
+    <sub-title lang="es">Corto animado</sub-title>
+    <desc lang="es">Aventuras matinales de los animales en el claro del bosque.</desc>
+    <category lang="es">Infantil</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261108140000 +0000" stop="20261108153000 +0000">
+    <title lang="es">Taller de Animación Abierta</title>
+    <sub-title lang="es">Especial Blender</sub-title>
+    <desc lang="es">Técnicas de modelado 3D e iluminación en software libre.</desc>
+    <category lang="es">Tecnología</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261108153000 +0000" stop="20261108180000 +0000">
+    <title lang="es">Big Buck Bunny: La Gran Aventura</title>
+    <sub-title lang="es">Película de animación</sub-title>
+    <desc lang="es">Un conejo gigante de buen corazón decide darle una lección a tres traviesos roedores que perturban la paz del bosque.</desc>
+    <category lang="es">Cine</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261108180000 +0000" stop="20261108193000 +0000">
+    <title lang="es">Noche de Cortometrajes Abiertos</title>
+    <sub-title lang="es">Cine de autor</sub-title>
+    <desc lang="es">Selección especial de producciones de código abierto y cine independiente en alta definición.</desc>
+    <category lang="es">Cine</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261108193000 +0000" stop="20261108213000 +0000">
+    <title lang="es">Mundo Digital y Creatividad</title>
+    <sub-title lang="es">Documental</sub-title>
+    <desc lang="es">Artistas digitales debaten sobre el futuro del renderizado en tiempo real.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261108213000 +0000" stop="20261109000000 +0000">
+    <title lang="es">Descanso Musical y Paisajes</title>
+    <sub-title lang="es">Música y relax</sub-title>
+    <desc lang="es">Paisajes naturales acompañados de melodías sinfónicas.</desc>
+    <category lang="es">Música</category>
+  </programme>
+  <programme channel="angel-dash" start="20261108000000 +0000" stop="20261108020000 +0000">
+    <title lang="es">Star Trek: La Nueva Generación</title>
+    <sub-title lang="es">Temporada 1 · Episodio 14: Angel One</sub-title>
+    <desc lang="es">El Enterprise visita el planeta Angel One, gobernado por una sociedad matriarcal, para rescatar a la tripulación de un carguero estrellado.</desc>
+    <category lang="es">Series</category>
+  </programme>
+  <programme channel="angel-dash" start="20261108020000 +0000" stop="20261108033000 +0000">
+    <title lang="es">Exploración Espacial y Futuro</title>
+    <sub-title lang="es">Documental astronómico</sub-title>
+    <desc lang="es">Misiones interplanetarias, telescopios de espacio profundo y tecnología de propulsión de próxima generación.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="angel-dash" start="20261108033000 +0000" stop="20261108060000 +0000">
+    <title lang="es">Noticias del Cosmos</title>
+    <sub-title lang="es">Informativo</sub-title>
+    <desc lang="es">Últimas novedades de la astrofísica y descubrimientos de exoplanetas.</desc>
+    <category lang="es">Noticias</category>
+  </programme>
+  <programme channel="angel-dash" start="20261108060000 +0000" stop="20261108073000 +0000">
+    <title lang="es">Odisea Interestelar</title>
+    <sub-title lang="es">Ciencia Ficción</sub-title>
+    <desc lang="es">Un grupo de exploradores viaja a través de un agujero de gusano en busca de un nuevo hogar.</desc>
+    <category lang="es">Ciencia Ficción</category>
+  </programme>
+  <programme channel="angel-dash" start="20261108073000 +0000" stop="20261108093000 +0000">
+    <title lang="es">Ingeniería Espacial</title>
+    <sub-title lang="es">Especial técnico</sub-title>
+    <desc lang="es">Cómo se diseñan las estaciones orbitales y los sistemas de soporte vital.</desc>
+    <category lang="es">Tecnología</category>
+  </programme>
+  <programme channel="angel-dash" start="20261108093000 +0000" stop="20261108120000 +0000">
+    <title lang="es">Star Trek: La Nueva Generación</title>
+    <sub-title lang="es">Temporada 1 · Episodio 14: Angel One</sub-title>
+    <desc lang="es">El Enterprise visita el planeta Angel One, gobernado por una sociedad matriarcal, para rescatar a la tripulación de un carguero estrellado.</desc>
+    <category lang="es">Series</category>
+  </programme>
+  <programme channel="angel-dash" start="20261108120000 +0000" stop="20261108140000 +0000">
+    <title lang="es">Exploración Espacial y Futuro</title>
+    <sub-title lang="es">Documental astronómico</sub-title>
+    <desc lang="es">Misiones interplanetarias, telescopios de espacio profundo y tecnología de propulsión de próxima generación.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="angel-dash" start="20261108140000 +0000" stop="20261108153000 +0000">
+    <title lang="es">Noticias del Cosmos</title>
+    <sub-title lang="es">Informativo</sub-title>
+    <desc lang="es">Últimas novedades de la astrofísica y descubrimientos de exoplanetas.</desc>
+    <category lang="es">Noticias</category>
+  </programme>
+  <programme channel="angel-dash" start="20261108153000 +0000" stop="20261108180000 +0000">
+    <title lang="es">Odisea Interestelar</title>
+    <sub-title lang="es">Ciencia Ficción</sub-title>
+    <desc lang="es">Un grupo de exploradores viaja a través de un agujero de gusano en busca de un nuevo hogar.</desc>
+    <category lang="es">Ciencia Ficción</category>
+  </programme>
+  <programme channel="angel-dash" start="20261108180000 +0000" stop="20261108193000 +0000">
+    <title lang="es">Ingeniería Espacial</title>
+    <sub-title lang="es">Especial técnico</sub-title>
+    <desc lang="es">Cómo se diseñan las estaciones orbitales y los sistemas de soporte vital.</desc>
+    <category lang="es">Tecnología</category>
+  </programme>
+  <programme channel="angel-dash" start="20261108193000 +0000" stop="20261108213000 +0000">
+    <title lang="es">Star Trek: La Nueva Generación</title>
+    <sub-title lang="es">Temporada 1 · Episodio 14: Angel One</sub-title>
+    <desc lang="es">El Enterprise visita el planeta Angel One, gobernado por una sociedad matriarcal, para rescatar a la tripulación de un carguero estrellado.</desc>
+    <category lang="es">Series</category>
+  </programme>
+  <programme channel="angel-dash" start="20261108213000 +0000" stop="20261109000000 +0000">
+    <title lang="es">Exploración Espacial y Futuro</title>
+    <sub-title lang="es">Documental astronómico</sub-title>
+    <desc lang="es">Misiones interplanetarias, telescopios de espacio profundo y tecnología de propulsión de próxima generación.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="angel-hls" start="20261108000000 +0000" stop="20261108020000 +0000">
+    <title lang="es">Star Trek: La Nueva Generación</title>
+    <sub-title lang="es">Temporada 1 · Episodio 14: Angel One</sub-title>
+    <desc lang="es">El Enterprise visita el planeta Angel One, gobernado por una sociedad matriarcal, para rescatar a la tripulación de un carguero estrellado.</desc>
+    <category lang="es">Series</category>
+  </programme>
+  <programme channel="angel-hls" start="20261108020000 +0000" stop="20261108033000 +0000">
+    <title lang="es">Exploración Espacial y Futuro</title>
+    <sub-title lang="es">Documental astronómico</sub-title>
+    <desc lang="es">Misiones interplanetarias, telescopios de espacio profundo y tecnología de propulsión de próxima generación.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="angel-hls" start="20261108033000 +0000" stop="20261108060000 +0000">
+    <title lang="es">Noticias del Cosmos</title>
+    <sub-title lang="es">Informativo</sub-title>
+    <desc lang="es">Últimas novedades de la astrofísica y descubrimientos de exoplanetas.</desc>
+    <category lang="es">Noticias</category>
+  </programme>
+  <programme channel="angel-hls" start="20261108060000 +0000" stop="20261108073000 +0000">
+    <title lang="es">Odisea Interestelar</title>
+    <sub-title lang="es">Ciencia Ficción</sub-title>
+    <desc lang="es">Un grupo de exploradores viaja a través de un agujero de gusano en busca de un nuevo hogar.</desc>
+    <category lang="es">Ciencia Ficción</category>
+  </programme>
+  <programme channel="angel-hls" start="20261108073000 +0000" stop="20261108093000 +0000">
+    <title lang="es">Ingeniería Espacial</title>
+    <sub-title lang="es">Especial técnico</sub-title>
+    <desc lang="es">Cómo se diseñan las estaciones orbitales y los sistemas de soporte vital.</desc>
+    <category lang="es">Tecnología</category>
+  </programme>
+  <programme channel="angel-hls" start="20261108093000 +0000" stop="20261108120000 +0000">
+    <title lang="es">Star Trek: La Nueva Generación</title>
+    <sub-title lang="es">Temporada 1 · Episodio 14: Angel One</sub-title>
+    <desc lang="es">El Enterprise visita el planeta Angel One, gobernado por una sociedad matriarcal, para rescatar a la tripulación de un carguero estrellado.</desc>
+    <category lang="es">Series</category>
+  </programme>
+  <programme channel="angel-hls" start="20261108120000 +0000" stop="20261108140000 +0000">
+    <title lang="es">Exploración Espacial y Futuro</title>
+    <sub-title lang="es">Documental astronómico</sub-title>
+    <desc lang="es">Misiones interplanetarias, telescopios de espacio profundo y tecnología de propulsión de próxima generación.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="angel-hls" start="20261108140000 +0000" stop="20261108153000 +0000">
+    <title lang="es">Noticias del Cosmos</title>
+    <sub-title lang="es">Informativo</sub-title>
+    <desc lang="es">Últimas novedades de la astrofísica y descubrimientos de exoplanetas.</desc>
+    <category lang="es">Noticias</category>
+  </programme>
+  <programme channel="angel-hls" start="20261108153000 +0000" stop="20261108180000 +0000">
+    <title lang="es">Odisea Interestelar</title>
+    <sub-title lang="es">Ciencia Ficción</sub-title>
+    <desc lang="es">Un grupo de exploradores viaja a través de un agujero de gusano en busca de un nuevo hogar.</desc>
+    <category lang="es">Ciencia Ficción</category>
+  </programme>
+  <programme channel="angel-hls" start="20261108180000 +0000" stop="20261108193000 +0000">
+    <title lang="es">Ingeniería Espacial</title>
+    <sub-title lang="es">Especial técnico</sub-title>
+    <desc lang="es">Cómo se diseñan las estaciones orbitales y los sistemas de soporte vital.</desc>
+    <category lang="es">Tecnología</category>
+  </programme>
+  <programme channel="angel-hls" start="20261108193000 +0000" stop="20261108213000 +0000">
+    <title lang="es">Star Trek: La Nueva Generación</title>
+    <sub-title lang="es">Temporada 1 · Episodio 14: Angel One</sub-title>
+    <desc lang="es">El Enterprise visita el planeta Angel One, gobernado por una sociedad matriarcal, para rescatar a la tripulación de un carguero estrellado.</desc>
+    <category lang="es">Series</category>
+  </programme>
+  <programme channel="angel-hls" start="20261108213000 +0000" stop="20261109000000 +0000">
+    <title lang="es">Exploración Espacial y Futuro</title>
+    <sub-title lang="es">Documental astronómico</sub-title>
+    <desc lang="es">Misiones interplanetarias, telescopios de espacio profundo y tecnología de propulsión de próxima generación.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="speedway" start="20261108000000 +0000" stop="20261108020000 +0000">
+    <title lang="es">Super Speedway: Campeonato Mundial</title>
+    <sub-title lang="es">Carrera en directo</sub-title>
+    <desc lang="es">Las mejores carreras de automovilismo en circuitos ovales a más de 350 km/h con sonido envolvente y máxima adrenalina.</desc>
+    <category lang="es">Deportes</category>
+  </programme>
+  <programme channel="speedway" start="20261108020000 +0000" stop="20261108033000 +0000">
+    <title lang="es">Resumen y Clasificaciones de la Carrera</title>
+    <sub-title lang="es">Análisis post-carrera</sub-title>
+    <desc lang="es">Análisis técnico de la jornada, paradas en boxes y entrevistas con los pilotos ganadores.</desc>
+    <category lang="es">Deportes</category>
+  </programme>
+  <programme channel="speedway" start="20261108033000 +0000" stop="20261108060000 +0000">
+    <title lang="es">Historia de los Grandes Premios</title>
+    <sub-title lang="es">Documental deportivo</sub-title>
+    <desc lang="es">Los circuitos más legendarios del automovilismo y sus pilotos más célebres.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="speedway" start="20261108060000 +0000" stop="20261108073000 +0000">
+    <title lang="es">Mundo Motor: Novedades y Pruebas</title>
+    <sub-title lang="es">Revista de motor</sub-title>
+    <desc lang="es">Pruebas a fondo de superdeportivos y las últimas innovaciones en competición híbrida y eléctrica.</desc>
+    <category lang="es">Motor</category>
+  </programme>
+  <programme channel="speedway" start="20261108073000 +0000" stop="20261108093000 +0000">
+    <title lang="es">Paddock Abierto</title>
+    <sub-title lang="es">Tertulia deportiva</sub-title>
+    <desc lang="es">Expertos y mecánicos analizan la telemetría y estrategias de carrera.</desc>
+    <category lang="es">Deportes</category>
+  </programme>
+  <programme channel="speedway" start="20261108093000 +0000" stop="20261108120000 +0000">
+    <title lang="es">Super Speedway: Campeonato Mundial</title>
+    <sub-title lang="es">Carrera en directo</sub-title>
+    <desc lang="es">Las mejores carreras de automovilismo en circuitos ovales a más de 350 km/h con sonido envolvente y máxima adrenalina.</desc>
+    <category lang="es">Deportes</category>
+  </programme>
+  <programme channel="speedway" start="20261108120000 +0000" stop="20261108140000 +0000">
+    <title lang="es">Resumen y Clasificaciones de la Carrera</title>
+    <sub-title lang="es">Análisis post-carrera</sub-title>
+    <desc lang="es">Análisis técnico de la jornada, paradas en boxes y entrevistas con los pilotos ganadores.</desc>
+    <category lang="es">Deportes</category>
+  </programme>
+  <programme channel="speedway" start="20261108140000 +0000" stop="20261108153000 +0000">
+    <title lang="es">Historia de los Grandes Premios</title>
+    <sub-title lang="es">Documental deportivo</sub-title>
+    <desc lang="es">Los circuitos más legendarios del automovilismo y sus pilotos más célebres.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="speedway" start="20261108153000 +0000" stop="20261108180000 +0000">
+    <title lang="es">Mundo Motor: Novedades y Pruebas</title>
+    <sub-title lang="es">Revista de motor</sub-title>
+    <desc lang="es">Pruebas a fondo de superdeportivos y las últimas innovaciones en competición híbrida y eléctrica.</desc>
+    <category lang="es">Motor</category>
+  </programme>
+  <programme channel="speedway" start="20261108180000 +0000" stop="20261108193000 +0000">
+    <title lang="es">Paddock Abierto</title>
+    <sub-title lang="es">Tertulia deportiva</sub-title>
+    <desc lang="es">Expertos y mecánicos analizan la telemetría y estrategias de carrera.</desc>
+    <category lang="es">Deportes</category>
+  </programme>
+  <programme channel="speedway" start="20261108193000 +0000" stop="20261108213000 +0000">
+    <title lang="es">Super Speedway: Campeonato Mundial</title>
+    <sub-title lang="es">Carrera en directo</sub-title>
+    <desc lang="es">Las mejores carreras de automovilismo en circuitos ovales a más de 350 km/h con sonido envolvente y máxima adrenalina.</desc>
+    <category lang="es">Deportes</category>
+  </programme>
+  <programme channel="speedway" start="20261108213000 +0000" stop="20261109000000 +0000">
+    <title lang="es">Resumen y Clasificaciones de la Carrera</title>
+    <sub-title lang="es">Análisis post-carrera</sub-title>
+    <desc lang="es">Análisis técnico de la jornada, paradas en boxes y entrevistas con los pilotos ganadores.</desc>
+    <category lang="es">Deportes</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261109000000 +0000" stop="20261109023000 +0000">
+    <title lang="es">Big Buck Bunny: La Gran Aventura</title>
+    <sub-title lang="es">Película de animación</sub-title>
+    <desc lang="es">Un conejo gigante de buen corazón decide darle una lección a tres traviesos roedores que perturban la paz del bosque.</desc>
+    <category lang="es">Cine</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261109023000 +0000" stop="20261109040000 +0000">
+    <title lang="es">Noche de Cortometrajes Abiertos</title>
+    <sub-title lang="es">Cine de autor</sub-title>
+    <desc lang="es">Selección especial de producciones de código abierto y cine independiente en alta definición.</desc>
+    <category lang="es">Cine</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261109040000 +0000" stop="20261109060000 +0000">
+    <title lang="es">Mundo Digital y Creatividad</title>
+    <sub-title lang="es">Documental</sub-title>
+    <desc lang="es">Artistas digitales debaten sobre el futuro del renderizado en tiempo real.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261109060000 +0000" stop="20261109083000 +0000">
+    <title lang="es">Descanso Musical y Paisajes</title>
+    <sub-title lang="es">Música y relax</sub-title>
+    <desc lang="es">Paisajes naturales acompañados de melodías sinfónicas.</desc>
+    <category lang="es">Música</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261109083000 +0000" stop="20261109103000 +0000">
+    <title lang="es">El Despertar del Bosque</title>
+    <sub-title lang="es">Corto animado</sub-title>
+    <desc lang="es">Aventuras matinales de los animales en el claro del bosque.</desc>
+    <category lang="es">Infantil</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261109103000 +0000" stop="20261109120000 +0000">
+    <title lang="es">Taller de Animación Abierta</title>
+    <sub-title lang="es">Especial Blender</sub-title>
+    <desc lang="es">Técnicas de modelado 3D e iluminación en software libre.</desc>
+    <category lang="es">Tecnología</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261109120000 +0000" stop="20261109143000 +0000">
+    <title lang="es">Big Buck Bunny: La Gran Aventura</title>
+    <sub-title lang="es">Película de animación</sub-title>
+    <desc lang="es">Un conejo gigante de buen corazón decide darle una lección a tres traviesos roedores que perturban la paz del bosque.</desc>
+    <category lang="es">Cine</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261109143000 +0000" stop="20261109160000 +0000">
+    <title lang="es">Noche de Cortometrajes Abiertos</title>
+    <sub-title lang="es">Cine de autor</sub-title>
+    <desc lang="es">Selección especial de producciones de código abierto y cine independiente en alta definición.</desc>
+    <category lang="es">Cine</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261109160000 +0000" stop="20261109180000 +0000">
+    <title lang="es">Mundo Digital y Creatividad</title>
+    <sub-title lang="es">Documental</sub-title>
+    <desc lang="es">Artistas digitales debaten sobre el futuro del renderizado en tiempo real.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261109180000 +0000" stop="20261109203000 +0000">
+    <title lang="es">Descanso Musical y Paisajes</title>
+    <sub-title lang="es">Música y relax</sub-title>
+    <desc lang="es">Paisajes naturales acompañados de melodías sinfónicas.</desc>
+    <category lang="es">Música</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261109203000 +0000" stop="20261109223000 +0000">
+    <title lang="es">El Despertar del Bosque</title>
+    <sub-title lang="es">Corto animado</sub-title>
+    <desc lang="es">Aventuras matinales de los animales en el claro del bosque.</desc>
+    <category lang="es">Infantil</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261109223000 +0000" stop="20261110000000 +0000">
+    <title lang="es">Taller de Animación Abierta</title>
+    <sub-title lang="es">Especial Blender</sub-title>
+    <desc lang="es">Técnicas de modelado 3D e iluminación en software libre.</desc>
+    <category lang="es">Tecnología</category>
+  </programme>
+  <programme channel="angel-dash" start="20261109000000 +0000" stop="20261109023000 +0000">
+    <title lang="es">Noticias del Cosmos</title>
+    <sub-title lang="es">Informativo</sub-title>
+    <desc lang="es">Últimas novedades de la astrofísica y descubrimientos de exoplanetas.</desc>
+    <category lang="es">Noticias</category>
+  </programme>
+  <programme channel="angel-dash" start="20261109023000 +0000" stop="20261109040000 +0000">
+    <title lang="es">Odisea Interestelar</title>
+    <sub-title lang="es">Ciencia Ficción</sub-title>
+    <desc lang="es">Un grupo de exploradores viaja a través de un agujero de gusano en busca de un nuevo hogar.</desc>
+    <category lang="es">Ciencia Ficción</category>
+  </programme>
+  <programme channel="angel-dash" start="20261109040000 +0000" stop="20261109060000 +0000">
+    <title lang="es">Ingeniería Espacial</title>
+    <sub-title lang="es">Especial técnico</sub-title>
+    <desc lang="es">Cómo se diseñan las estaciones orbitales y los sistemas de soporte vital.</desc>
+    <category lang="es">Tecnología</category>
+  </programme>
+  <programme channel="angel-dash" start="20261109060000 +0000" stop="20261109083000 +0000">
+    <title lang="es">Star Trek: La Nueva Generación</title>
+    <sub-title lang="es">Temporada 1 · Episodio 14: Angel One</sub-title>
+    <desc lang="es">El Enterprise visita el planeta Angel One, gobernado por una sociedad matriarcal, para rescatar a la tripulación de un carguero estrellado.</desc>
+    <category lang="es">Series</category>
+  </programme>
+  <programme channel="angel-dash" start="20261109083000 +0000" stop="20261109103000 +0000">
+    <title lang="es">Exploración Espacial y Futuro</title>
+    <sub-title lang="es">Documental astronómico</sub-title>
+    <desc lang="es">Misiones interplanetarias, telescopios de espacio profundo y tecnología de propulsión de próxima generación.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="angel-dash" start="20261109103000 +0000" stop="20261109120000 +0000">
+    <title lang="es">Noticias del Cosmos</title>
+    <sub-title lang="es">Informativo</sub-title>
+    <desc lang="es">Últimas novedades de la astrofísica y descubrimientos de exoplanetas.</desc>
+    <category lang="es">Noticias</category>
+  </programme>
+  <programme channel="angel-dash" start="20261109120000 +0000" stop="20261109143000 +0000">
+    <title lang="es">Odisea Interestelar</title>
+    <sub-title lang="es">Ciencia Ficción</sub-title>
+    <desc lang="es">Un grupo de exploradores viaja a través de un agujero de gusano en busca de un nuevo hogar.</desc>
+    <category lang="es">Ciencia Ficción</category>
+  </programme>
+  <programme channel="angel-dash" start="20261109143000 +0000" stop="20261109160000 +0000">
+    <title lang="es">Ingeniería Espacial</title>
+    <sub-title lang="es">Especial técnico</sub-title>
+    <desc lang="es">Cómo se diseñan las estaciones orbitales y los sistemas de soporte vital.</desc>
+    <category lang="es">Tecnología</category>
+  </programme>
+  <programme channel="angel-dash" start="20261109160000 +0000" stop="20261109180000 +0000">
+    <title lang="es">Star Trek: La Nueva Generación</title>
+    <sub-title lang="es">Temporada 1 · Episodio 14: Angel One</sub-title>
+    <desc lang="es">El Enterprise visita el planeta Angel One, gobernado por una sociedad matriarcal, para rescatar a la tripulación de un carguero estrellado.</desc>
+    <category lang="es">Series</category>
+  </programme>
+  <programme channel="angel-dash" start="20261109180000 +0000" stop="20261109203000 +0000">
+    <title lang="es">Exploración Espacial y Futuro</title>
+    <sub-title lang="es">Documental astronómico</sub-title>
+    <desc lang="es">Misiones interplanetarias, telescopios de espacio profundo y tecnología de propulsión de próxima generación.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="angel-dash" start="20261109203000 +0000" stop="20261109223000 +0000">
+    <title lang="es">Noticias del Cosmos</title>
+    <sub-title lang="es">Informativo</sub-title>
+    <desc lang="es">Últimas novedades de la astrofísica y descubrimientos de exoplanetas.</desc>
+    <category lang="es">Noticias</category>
+  </programme>
+  <programme channel="angel-dash" start="20261109223000 +0000" stop="20261110000000 +0000">
+    <title lang="es">Odisea Interestelar</title>
+    <sub-title lang="es">Ciencia Ficción</sub-title>
+    <desc lang="es">Un grupo de exploradores viaja a través de un agujero de gusano en busca de un nuevo hogar.</desc>
+    <category lang="es">Ciencia Ficción</category>
+  </programme>
+  <programme channel="angel-hls" start="20261109000000 +0000" stop="20261109023000 +0000">
+    <title lang="es">Noticias del Cosmos</title>
+    <sub-title lang="es">Informativo</sub-title>
+    <desc lang="es">Últimas novedades de la astrofísica y descubrimientos de exoplanetas.</desc>
+    <category lang="es">Noticias</category>
+  </programme>
+  <programme channel="angel-hls" start="20261109023000 +0000" stop="20261109040000 +0000">
+    <title lang="es">Odisea Interestelar</title>
+    <sub-title lang="es">Ciencia Ficción</sub-title>
+    <desc lang="es">Un grupo de exploradores viaja a través de un agujero de gusano en busca de un nuevo hogar.</desc>
+    <category lang="es">Ciencia Ficción</category>
+  </programme>
+  <programme channel="angel-hls" start="20261109040000 +0000" stop="20261109060000 +0000">
+    <title lang="es">Ingeniería Espacial</title>
+    <sub-title lang="es">Especial técnico</sub-title>
+    <desc lang="es">Cómo se diseñan las estaciones orbitales y los sistemas de soporte vital.</desc>
+    <category lang="es">Tecnología</category>
+  </programme>
+  <programme channel="angel-hls" start="20261109060000 +0000" stop="20261109083000 +0000">
+    <title lang="es">Star Trek: La Nueva Generación</title>
+    <sub-title lang="es">Temporada 1 · Episodio 14: Angel One</sub-title>
+    <desc lang="es">El Enterprise visita el planeta Angel One, gobernado por una sociedad matriarcal, para rescatar a la tripulación de un carguero estrellado.</desc>
+    <category lang="es">Series</category>
+  </programme>
+  <programme channel="angel-hls" start="20261109083000 +0000" stop="20261109103000 +0000">
+    <title lang="es">Exploración Espacial y Futuro</title>
+    <sub-title lang="es">Documental astronómico</sub-title>
+    <desc lang="es">Misiones interplanetarias, telescopios de espacio profundo y tecnología de propulsión de próxima generación.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="angel-hls" start="20261109103000 +0000" stop="20261109120000 +0000">
+    <title lang="es">Noticias del Cosmos</title>
+    <sub-title lang="es">Informativo</sub-title>
+    <desc lang="es">Últimas novedades de la astrofísica y descubrimientos de exoplanetas.</desc>
+    <category lang="es">Noticias</category>
+  </programme>
+  <programme channel="angel-hls" start="20261109120000 +0000" stop="20261109143000 +0000">
+    <title lang="es">Odisea Interestelar</title>
+    <sub-title lang="es">Ciencia Ficción</sub-title>
+    <desc lang="es">Un grupo de exploradores viaja a través de un agujero de gusano en busca de un nuevo hogar.</desc>
+    <category lang="es">Ciencia Ficción</category>
+  </programme>
+  <programme channel="angel-hls" start="20261109143000 +0000" stop="20261109160000 +0000">
+    <title lang="es">Ingeniería Espacial</title>
+    <sub-title lang="es">Especial técnico</sub-title>
+    <desc lang="es">Cómo se diseñan las estaciones orbitales y los sistemas de soporte vital.</desc>
+    <category lang="es">Tecnología</category>
+  </programme>
+  <programme channel="angel-hls" start="20261109160000 +0000" stop="20261109180000 +0000">
+    <title lang="es">Star Trek: La Nueva Generación</title>
+    <sub-title lang="es">Temporada 1 · Episodio 14: Angel One</sub-title>
+    <desc lang="es">El Enterprise visita el planeta Angel One, gobernado por una sociedad matriarcal, para rescatar a la tripulación de un carguero estrellado.</desc>
+    <category lang="es">Series</category>
+  </programme>
+  <programme channel="angel-hls" start="20261109180000 +0000" stop="20261109203000 +0000">
+    <title lang="es">Exploración Espacial y Futuro</title>
+    <sub-title lang="es">Documental astronómico</sub-title>
+    <desc lang="es">Misiones interplanetarias, telescopios de espacio profundo y tecnología de propulsión de próxima generación.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="angel-hls" start="20261109203000 +0000" stop="20261109223000 +0000">
+    <title lang="es">Noticias del Cosmos</title>
+    <sub-title lang="es">Informativo</sub-title>
+    <desc lang="es">Últimas novedades de la astrofísica y descubrimientos de exoplanetas.</desc>
+    <category lang="es">Noticias</category>
+  </programme>
+  <programme channel="angel-hls" start="20261109223000 +0000" stop="20261110000000 +0000">
+    <title lang="es">Odisea Interestelar</title>
+    <sub-title lang="es">Ciencia Ficción</sub-title>
+    <desc lang="es">Un grupo de exploradores viaja a través de un agujero de gusano en busca de un nuevo hogar.</desc>
+    <category lang="es">Ciencia Ficción</category>
+  </programme>
+  <programme channel="speedway" start="20261109000000 +0000" stop="20261109023000 +0000">
+    <title lang="es">Historia de los Grandes Premios</title>
+    <sub-title lang="es">Documental deportivo</sub-title>
+    <desc lang="es">Los circuitos más legendarios del automovilismo y sus pilotos más célebres.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="speedway" start="20261109023000 +0000" stop="20261109040000 +0000">
+    <title lang="es">Mundo Motor: Novedades y Pruebas</title>
+    <sub-title lang="es">Revista de motor</sub-title>
+    <desc lang="es">Pruebas a fondo de superdeportivos y las últimas innovaciones en competición híbrida y eléctrica.</desc>
+    <category lang="es">Motor</category>
+  </programme>
+  <programme channel="speedway" start="20261109040000 +0000" stop="20261109060000 +0000">
+    <title lang="es">Paddock Abierto</title>
+    <sub-title lang="es">Tertulia deportiva</sub-title>
+    <desc lang="es">Expertos y mecánicos analizan la telemetría y estrategias de carrera.</desc>
+    <category lang="es">Deportes</category>
+  </programme>
+  <programme channel="speedway" start="20261109060000 +0000" stop="20261109083000 +0000">
+    <title lang="es">Super Speedway: Campeonato Mundial</title>
+    <sub-title lang="es">Carrera en directo</sub-title>
+    <desc lang="es">Las mejores carreras de automovilismo en circuitos ovales a más de 350 km/h con sonido envolvente y máxima adrenalina.</desc>
+    <category lang="es">Deportes</category>
+  </programme>
+  <programme channel="speedway" start="20261109083000 +0000" stop="20261109103000 +0000">
+    <title lang="es">Resumen y Clasificaciones de la Carrera</title>
+    <sub-title lang="es">Análisis post-carrera</sub-title>
+    <desc lang="es">Análisis técnico de la jornada, paradas en boxes y entrevistas con los pilotos ganadores.</desc>
+    <category lang="es">Deportes</category>
+  </programme>
+  <programme channel="speedway" start="20261109103000 +0000" stop="20261109120000 +0000">
+    <title lang="es">Historia de los Grandes Premios</title>
+    <sub-title lang="es">Documental deportivo</sub-title>
+    <desc lang="es">Los circuitos más legendarios del automovilismo y sus pilotos más célebres.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="speedway" start="20261109120000 +0000" stop="20261109143000 +0000">
+    <title lang="es">Mundo Motor: Novedades y Pruebas</title>
+    <sub-title lang="es">Revista de motor</sub-title>
+    <desc lang="es">Pruebas a fondo de superdeportivos y las últimas innovaciones en competición híbrida y eléctrica.</desc>
+    <category lang="es">Motor</category>
+  </programme>
+  <programme channel="speedway" start="20261109143000 +0000" stop="20261109160000 +0000">
+    <title lang="es">Paddock Abierto</title>
+    <sub-title lang="es">Tertulia deportiva</sub-title>
+    <desc lang="es">Expertos y mecánicos analizan la telemetría y estrategias de carrera.</desc>
+    <category lang="es">Deportes</category>
+  </programme>
+  <programme channel="speedway" start="20261109160000 +0000" stop="20261109180000 +0000">
+    <title lang="es">Super Speedway: Campeonato Mundial</title>
+    <sub-title lang="es">Carrera en directo</sub-title>
+    <desc lang="es">Las mejores carreras de automovilismo en circuitos ovales a más de 350 km/h con sonido envolvente y máxima adrenalina.</desc>
+    <category lang="es">Deportes</category>
+  </programme>
+  <programme channel="speedway" start="20261109180000 +0000" stop="20261109203000 +0000">
+    <title lang="es">Resumen y Clasificaciones de la Carrera</title>
+    <sub-title lang="es">Análisis post-carrera</sub-title>
+    <desc lang="es">Análisis técnico de la jornada, paradas en boxes y entrevistas con los pilotos ganadores.</desc>
+    <category lang="es">Deportes</category>
+  </programme>
+  <programme channel="speedway" start="20261109203000 +0000" stop="20261109223000 +0000">
+    <title lang="es">Historia de los Grandes Premios</title>
+    <sub-title lang="es">Documental deportivo</sub-title>
+    <desc lang="es">Los circuitos más legendarios del automovilismo y sus pilotos más célebres.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="speedway" start="20261109223000 +0000" stop="20261110000000 +0000">
+    <title lang="es">Mundo Motor: Novedades y Pruebas</title>
+    <sub-title lang="es">Revista de motor</sub-title>
+    <desc lang="es">Pruebas a fondo de superdeportivos y las últimas innovaciones en competición híbrida y eléctrica.</desc>
+    <category lang="es">Motor</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261110000000 +0000" stop="20261110020000 +0000">
+    <title lang="es">Mundo Digital y Creatividad</title>
+    <sub-title lang="es">Documental</sub-title>
+    <desc lang="es">Artistas digitales debaten sobre el futuro del renderizado en tiempo real.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261110020000 +0000" stop="20261110043000 +0000">
+    <title lang="es">Descanso Musical y Paisajes</title>
+    <sub-title lang="es">Música y relax</sub-title>
+    <desc lang="es">Paisajes naturales acompañados de melodías sinfónicas.</desc>
+    <category lang="es">Música</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261110043000 +0000" stop="20261110063000 +0000">
+    <title lang="es">El Despertar del Bosque</title>
+    <sub-title lang="es">Corto animado</sub-title>
+    <desc lang="es">Aventuras matinales de los animales en el claro del bosque.</desc>
+    <category lang="es">Infantil</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261110063000 +0000" stop="20261110080000 +0000">
+    <title lang="es">Taller de Animación Abierta</title>
+    <sub-title lang="es">Especial Blender</sub-title>
+    <desc lang="es">Técnicas de modelado 3D e iluminación en software libre.</desc>
+    <category lang="es">Tecnología</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261110080000 +0000" stop="20261110103000 +0000">
+    <title lang="es">Big Buck Bunny: La Gran Aventura</title>
+    <sub-title lang="es">Película de animación</sub-title>
+    <desc lang="es">Un conejo gigante de buen corazón decide darle una lección a tres traviesos roedores que perturban la paz del bosque.</desc>
+    <category lang="es">Cine</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261110103000 +0000" stop="20261110120000 +0000">
+    <title lang="es">Noche de Cortometrajes Abiertos</title>
+    <sub-title lang="es">Cine de autor</sub-title>
+    <desc lang="es">Selección especial de producciones de código abierto y cine independiente en alta definición.</desc>
+    <category lang="es">Cine</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261110120000 +0000" stop="20261110140000 +0000">
+    <title lang="es">Mundo Digital y Creatividad</title>
+    <sub-title lang="es">Documental</sub-title>
+    <desc lang="es">Artistas digitales debaten sobre el futuro del renderizado en tiempo real.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261110140000 +0000" stop="20261110163000 +0000">
+    <title lang="es">Descanso Musical y Paisajes</title>
+    <sub-title lang="es">Música y relax</sub-title>
+    <desc lang="es">Paisajes naturales acompañados de melodías sinfónicas.</desc>
+    <category lang="es">Música</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261110163000 +0000" stop="20261110183000 +0000">
+    <title lang="es">El Despertar del Bosque</title>
+    <sub-title lang="es">Corto animado</sub-title>
+    <desc lang="es">Aventuras matinales de los animales en el claro del bosque.</desc>
+    <category lang="es">Infantil</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261110183000 +0000" stop="20261110200000 +0000">
+    <title lang="es">Taller de Animación Abierta</title>
+    <sub-title lang="es">Especial Blender</sub-title>
+    <desc lang="es">Técnicas de modelado 3D e iluminación en software libre.</desc>
+    <category lang="es">Tecnología</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261110200000 +0000" stop="20261110223000 +0000">
+    <title lang="es">Big Buck Bunny: La Gran Aventura</title>
+    <sub-title lang="es">Película de animación</sub-title>
+    <desc lang="es">Un conejo gigante de buen corazón decide darle una lección a tres traviesos roedores que perturban la paz del bosque.</desc>
+    <category lang="es">Cine</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261110223000 +0000" stop="20261111000000 +0000">
+    <title lang="es">Noche de Cortometrajes Abiertos</title>
+    <sub-title lang="es">Cine de autor</sub-title>
+    <desc lang="es">Selección especial de producciones de código abierto y cine independiente en alta definición.</desc>
+    <category lang="es">Cine</category>
+  </programme>
+  <programme channel="angel-dash" start="20261110000000 +0000" stop="20261110020000 +0000">
+    <title lang="es">Ingeniería Espacial</title>
+    <sub-title lang="es">Especial técnico</sub-title>
+    <desc lang="es">Cómo se diseñan las estaciones orbitales y los sistemas de soporte vital.</desc>
+    <category lang="es">Tecnología</category>
+  </programme>
+  <programme channel="angel-dash" start="20261110020000 +0000" stop="20261110043000 +0000">
+    <title lang="es">Star Trek: La Nueva Generación</title>
+    <sub-title lang="es">Temporada 1 · Episodio 14: Angel One</sub-title>
+    <desc lang="es">El Enterprise visita el planeta Angel One, gobernado por una sociedad matriarcal, para rescatar a la tripulación de un carguero estrellado.</desc>
+    <category lang="es">Series</category>
+  </programme>
+  <programme channel="angel-dash" start="20261110043000 +0000" stop="20261110063000 +0000">
+    <title lang="es">Exploración Espacial y Futuro</title>
+    <sub-title lang="es">Documental astronómico</sub-title>
+    <desc lang="es">Misiones interplanetarias, telescopios de espacio profundo y tecnología de propulsión de próxima generación.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="angel-dash" start="20261110063000 +0000" stop="20261110080000 +0000">
+    <title lang="es">Noticias del Cosmos</title>
+    <sub-title lang="es">Informativo</sub-title>
+    <desc lang="es">Últimas novedades de la astrofísica y descubrimientos de exoplanetas.</desc>
+    <category lang="es">Noticias</category>
+  </programme>
+  <programme channel="angel-dash" start="20261110080000 +0000" stop="20261110103000 +0000">
+    <title lang="es">Odisea Interestelar</title>
+    <sub-title lang="es">Ciencia Ficción</sub-title>
+    <desc lang="es">Un grupo de exploradores viaja a través de un agujero de gusano en busca de un nuevo hogar.</desc>
+    <category lang="es">Ciencia Ficción</category>
+  </programme>
+  <programme channel="angel-dash" start="20261110103000 +0000" stop="20261110120000 +0000">
+    <title lang="es">Ingeniería Espacial</title>
+    <sub-title lang="es">Especial técnico</sub-title>
+    <desc lang="es">Cómo se diseñan las estaciones orbitales y los sistemas de soporte vital.</desc>
+    <category lang="es">Tecnología</category>
+  </programme>
+  <programme channel="angel-dash" start="20261110120000 +0000" stop="20261110140000 +0000">
+    <title lang="es">Star Trek: La Nueva Generación</title>
+    <sub-title lang="es">Temporada 1 · Episodio 14: Angel One</sub-title>
+    <desc lang="es">El Enterprise visita el planeta Angel One, gobernado por una sociedad matriarcal, para rescatar a la tripulación de un carguero estrellado.</desc>
+    <category lang="es">Series</category>
+  </programme>
+  <programme channel="angel-dash" start="20261110140000 +0000" stop="20261110163000 +0000">
+    <title lang="es">Exploración Espacial y Futuro</title>
+    <sub-title lang="es">Documental astronómico</sub-title>
+    <desc lang="es">Misiones interplanetarias, telescopios de espacio profundo y tecnología de propulsión de próxima generación.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="angel-dash" start="20261110163000 +0000" stop="20261110183000 +0000">
+    <title lang="es">Noticias del Cosmos</title>
+    <sub-title lang="es">Informativo</sub-title>
+    <desc lang="es">Últimas novedades de la astrofísica y descubrimientos de exoplanetas.</desc>
+    <category lang="es">Noticias</category>
+  </programme>
+  <programme channel="angel-dash" start="20261110183000 +0000" stop="20261110200000 +0000">
+    <title lang="es">Odisea Interestelar</title>
+    <sub-title lang="es">Ciencia Ficción</sub-title>
+    <desc lang="es">Un grupo de exploradores viaja a través de un agujero de gusano en busca de un nuevo hogar.</desc>
+    <category lang="es">Ciencia Ficción</category>
+  </programme>
+  <programme channel="angel-dash" start="20261110200000 +0000" stop="20261110223000 +0000">
+    <title lang="es">Ingeniería Espacial</title>
+    <sub-title lang="es">Especial técnico</sub-title>
+    <desc lang="es">Cómo se diseñan las estaciones orbitales y los sistemas de soporte vital.</desc>
+    <category lang="es">Tecnología</category>
+  </programme>
+  <programme channel="angel-dash" start="20261110223000 +0000" stop="20261111000000 +0000">
+    <title lang="es">Star Trek: La Nueva Generación</title>
+    <sub-title lang="es">Temporada 1 · Episodio 14: Angel One</sub-title>
+    <desc lang="es">El Enterprise visita el planeta Angel One, gobernado por una sociedad matriarcal, para rescatar a la tripulación de un carguero estrellado.</desc>
+    <category lang="es">Series</category>
+  </programme>
+  <programme channel="angel-hls" start="20261110000000 +0000" stop="20261110020000 +0000">
+    <title lang="es">Ingeniería Espacial</title>
+    <sub-title lang="es">Especial técnico</sub-title>
+    <desc lang="es">Cómo se diseñan las estaciones orbitales y los sistemas de soporte vital.</desc>
+    <category lang="es">Tecnología</category>
+  </programme>
+  <programme channel="angel-hls" start="20261110020000 +0000" stop="20261110043000 +0000">
+    <title lang="es">Star Trek: La Nueva Generación</title>
+    <sub-title lang="es">Temporada 1 · Episodio 14: Angel One</sub-title>
+    <desc lang="es">El Enterprise visita el planeta Angel One, gobernado por una sociedad matriarcal, para rescatar a la tripulación de un carguero estrellado.</desc>
+    <category lang="es">Series</category>
+  </programme>
+  <programme channel="angel-hls" start="20261110043000 +0000" stop="20261110063000 +0000">
+    <title lang="es">Exploración Espacial y Futuro</title>
+    <sub-title lang="es">Documental astronómico</sub-title>
+    <desc lang="es">Misiones interplanetarias, telescopios de espacio profundo y tecnología de propulsión de próxima generación.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="angel-hls" start="20261110063000 +0000" stop="20261110080000 +0000">
+    <title lang="es">Noticias del Cosmos</title>
+    <sub-title lang="es">Informativo</sub-title>
+    <desc lang="es">Últimas novedades de la astrofísica y descubrimientos de exoplanetas.</desc>
+    <category lang="es">Noticias</category>
+  </programme>
+  <programme channel="angel-hls" start="20261110080000 +0000" stop="20261110103000 +0000">
+    <title lang="es">Odisea Interestelar</title>
+    <sub-title lang="es">Ciencia Ficción</sub-title>
+    <desc lang="es">Un grupo de exploradores viaja a través de un agujero de gusano en busca de un nuevo hogar.</desc>
+    <category lang="es">Ciencia Ficción</category>
+  </programme>
+  <programme channel="angel-hls" start="20261110103000 +0000" stop="20261110120000 +0000">
+    <title lang="es">Ingeniería Espacial</title>
+    <sub-title lang="es">Especial técnico</sub-title>
+    <desc lang="es">Cómo se diseñan las estaciones orbitales y los sistemas de soporte vital.</desc>
+    <category lang="es">Tecnología</category>
+  </programme>
+  <programme channel="angel-hls" start="20261110120000 +0000" stop="20261110140000 +0000">
+    <title lang="es">Star Trek: La Nueva Generación</title>
+    <sub-title lang="es">Temporada 1 · Episodio 14: Angel One</sub-title>
+    <desc lang="es">El Enterprise visita el planeta Angel One, gobernado por una sociedad matriarcal, para rescatar a la tripulación de un carguero estrellado.</desc>
+    <category lang="es">Series</category>
+  </programme>
+  <programme channel="angel-hls" start="20261110140000 +0000" stop="20261110163000 +0000">
+    <title lang="es">Exploración Espacial y Futuro</title>
+    <sub-title lang="es">Documental astronómico</sub-title>
+    <desc lang="es">Misiones interplanetarias, telescopios de espacio profundo y tecnología de propulsión de próxima generación.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="angel-hls" start="20261110163000 +0000" stop="20261110183000 +0000">
+    <title lang="es">Noticias del Cosmos</title>
+    <sub-title lang="es">Informativo</sub-title>
+    <desc lang="es">Últimas novedades de la astrofísica y descubrimientos de exoplanetas.</desc>
+    <category lang="es">Noticias</category>
+  </programme>
+  <programme channel="angel-hls" start="20261110183000 +0000" stop="20261110200000 +0000">
+    <title lang="es">Odisea Interestelar</title>
+    <sub-title lang="es">Ciencia Ficción</sub-title>
+    <desc lang="es">Un grupo de exploradores viaja a través de un agujero de gusano en busca de un nuevo hogar.</desc>
+    <category lang="es">Ciencia Ficción</category>
+  </programme>
+  <programme channel="angel-hls" start="20261110200000 +0000" stop="20261110223000 +0000">
+    <title lang="es">Ingeniería Espacial</title>
+    <sub-title lang="es">Especial técnico</sub-title>
+    <desc lang="es">Cómo se diseñan las estaciones orbitales y los sistemas de soporte vital.</desc>
+    <category lang="es">Tecnología</category>
+  </programme>
+  <programme channel="angel-hls" start="20261110223000 +0000" stop="20261111000000 +0000">
+    <title lang="es">Star Trek: La Nueva Generación</title>
+    <sub-title lang="es">Temporada 1 · Episodio 14: Angel One</sub-title>
+    <desc lang="es">El Enterprise visita el planeta Angel One, gobernado por una sociedad matriarcal, para rescatar a la tripulación de un carguero estrellado.</desc>
+    <category lang="es">Series</category>
+  </programme>
+  <programme channel="speedway" start="20261110000000 +0000" stop="20261110020000 +0000">
+    <title lang="es">Paddock Abierto</title>
+    <sub-title lang="es">Tertulia deportiva</sub-title>
+    <desc lang="es">Expertos y mecánicos analizan la telemetría y estrategias de carrera.</desc>
+    <category lang="es">Deportes</category>
+  </programme>
+  <programme channel="speedway" start="20261110020000 +0000" stop="20261110043000 +0000">
+    <title lang="es">Super Speedway: Campeonato Mundial</title>
+    <sub-title lang="es">Carrera en directo</sub-title>
+    <desc lang="es">Las mejores carreras de automovilismo en circuitos ovales a más de 350 km/h con sonido envolvente y máxima adrenalina.</desc>
+    <category lang="es">Deportes</category>
+  </programme>
+  <programme channel="speedway" start="20261110043000 +0000" stop="20261110063000 +0000">
+    <title lang="es">Resumen y Clasificaciones de la Carrera</title>
+    <sub-title lang="es">Análisis post-carrera</sub-title>
+    <desc lang="es">Análisis técnico de la jornada, paradas en boxes y entrevistas con los pilotos ganadores.</desc>
+    <category lang="es">Deportes</category>
+  </programme>
+  <programme channel="speedway" start="20261110063000 +0000" stop="20261110080000 +0000">
+    <title lang="es">Historia de los Grandes Premios</title>
+    <sub-title lang="es">Documental deportivo</sub-title>
+    <desc lang="es">Los circuitos más legendarios del automovilismo y sus pilotos más célebres.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="speedway" start="20261110080000 +0000" stop="20261110103000 +0000">
+    <title lang="es">Mundo Motor: Novedades y Pruebas</title>
+    <sub-title lang="es">Revista de motor</sub-title>
+    <desc lang="es">Pruebas a fondo de superdeportivos y las últimas innovaciones en competición híbrida y eléctrica.</desc>
+    <category lang="es">Motor</category>
+  </programme>
+  <programme channel="speedway" start="20261110103000 +0000" stop="20261110120000 +0000">
+    <title lang="es">Paddock Abierto</title>
+    <sub-title lang="es">Tertulia deportiva</sub-title>
+    <desc lang="es">Expertos y mecánicos analizan la telemetría y estrategias de carrera.</desc>
+    <category lang="es">Deportes</category>
+  </programme>
+  <programme channel="speedway" start="20261110120000 +0000" stop="20261110140000 +0000">
+    <title lang="es">Super Speedway: Campeonato Mundial</title>
+    <sub-title lang="es">Carrera en directo</sub-title>
+    <desc lang="es">Las mejores carreras de automovilismo en circuitos ovales a más de 350 km/h con sonido envolvente y máxima adrenalina.</desc>
+    <category lang="es">Deportes</category>
+  </programme>
+  <programme channel="speedway" start="20261110140000 +0000" stop="20261110163000 +0000">
+    <title lang="es">Resumen y Clasificaciones de la Carrera</title>
+    <sub-title lang="es">Análisis post-carrera</sub-title>
+    <desc lang="es">Análisis técnico de la jornada, paradas en boxes y entrevistas con los pilotos ganadores.</desc>
+    <category lang="es">Deportes</category>
+  </programme>
+  <programme channel="speedway" start="20261110163000 +0000" stop="20261110183000 +0000">
+    <title lang="es">Historia de los Grandes Premios</title>
+    <sub-title lang="es">Documental deportivo</sub-title>
+    <desc lang="es">Los circuitos más legendarios del automovilismo y sus pilotos más célebres.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="speedway" start="20261110183000 +0000" stop="20261110200000 +0000">
+    <title lang="es">Mundo Motor: Novedades y Pruebas</title>
+    <sub-title lang="es">Revista de motor</sub-title>
+    <desc lang="es">Pruebas a fondo de superdeportivos y las últimas innovaciones en competición híbrida y eléctrica.</desc>
+    <category lang="es">Motor</category>
+  </programme>
+  <programme channel="speedway" start="20261110200000 +0000" stop="20261110223000 +0000">
+    <title lang="es">Paddock Abierto</title>
+    <sub-title lang="es">Tertulia deportiva</sub-title>
+    <desc lang="es">Expertos y mecánicos analizan la telemetría y estrategias de carrera.</desc>
+    <category lang="es">Deportes</category>
+  </programme>
+  <programme channel="speedway" start="20261110223000 +0000" stop="20261111000000 +0000">
+    <title lang="es">Super Speedway: Campeonato Mundial</title>
+    <sub-title lang="es">Carrera en directo</sub-title>
+    <desc lang="es">Las mejores carreras de automovilismo en circuitos ovales a más de 350 km/h con sonido envolvente y máxima adrenalina.</desc>
+    <category lang="es">Deportes</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261111000000 +0000" stop="20261111020000 +0000">
+    <title lang="es">El Despertar del Bosque</title>
+    <sub-title lang="es">Corto animado</sub-title>
+    <desc lang="es">Aventuras matinales de los animales en el claro del bosque.</desc>
+    <category lang="es">Infantil</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261111020000 +0000" stop="20261111033000 +0000">
+    <title lang="es">Taller de Animación Abierta</title>
+    <sub-title lang="es">Especial Blender</sub-title>
+    <desc lang="es">Técnicas de modelado 3D e iluminación en software libre.</desc>
+    <category lang="es">Tecnología</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261111033000 +0000" stop="20261111060000 +0000">
+    <title lang="es">Big Buck Bunny: La Gran Aventura</title>
+    <sub-title lang="es">Película de animación</sub-title>
+    <desc lang="es">Un conejo gigante de buen corazón decide darle una lección a tres traviesos roedores que perturban la paz del bosque.</desc>
+    <category lang="es">Cine</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261111060000 +0000" stop="20261111073000 +0000">
+    <title lang="es">Noche de Cortometrajes Abiertos</title>
+    <sub-title lang="es">Cine de autor</sub-title>
+    <desc lang="es">Selección especial de producciones de código abierto y cine independiente en alta definición.</desc>
+    <category lang="es">Cine</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261111073000 +0000" stop="20261111093000 +0000">
+    <title lang="es">Mundo Digital y Creatividad</title>
+    <sub-title lang="es">Documental</sub-title>
+    <desc lang="es">Artistas digitales debaten sobre el futuro del renderizado en tiempo real.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261111093000 +0000" stop="20261111120000 +0000">
+    <title lang="es">Descanso Musical y Paisajes</title>
+    <sub-title lang="es">Música y relax</sub-title>
+    <desc lang="es">Paisajes naturales acompañados de melodías sinfónicas.</desc>
+    <category lang="es">Música</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261111120000 +0000" stop="20261111140000 +0000">
+    <title lang="es">El Despertar del Bosque</title>
+    <sub-title lang="es">Corto animado</sub-title>
+    <desc lang="es">Aventuras matinales de los animales en el claro del bosque.</desc>
+    <category lang="es">Infantil</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261111140000 +0000" stop="20261111153000 +0000">
+    <title lang="es">Taller de Animación Abierta</title>
+    <sub-title lang="es">Especial Blender</sub-title>
+    <desc lang="es">Técnicas de modelado 3D e iluminación en software libre.</desc>
+    <category lang="es">Tecnología</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261111153000 +0000" stop="20261111180000 +0000">
+    <title lang="es">Big Buck Bunny: La Gran Aventura</title>
+    <sub-title lang="es">Película de animación</sub-title>
+    <desc lang="es">Un conejo gigante de buen corazón decide darle una lección a tres traviesos roedores que perturban la paz del bosque.</desc>
+    <category lang="es">Cine</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261111180000 +0000" stop="20261111193000 +0000">
+    <title lang="es">Noche de Cortometrajes Abiertos</title>
+    <sub-title lang="es">Cine de autor</sub-title>
+    <desc lang="es">Selección especial de producciones de código abierto y cine independiente en alta definición.</desc>
+    <category lang="es">Cine</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261111193000 +0000" stop="20261111213000 +0000">
+    <title lang="es">Mundo Digital y Creatividad</title>
+    <sub-title lang="es">Documental</sub-title>
+    <desc lang="es">Artistas digitales debaten sobre el futuro del renderizado en tiempo real.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="bbb-hls" start="20261111213000 +0000" stop="20261112000000 +0000">
+    <title lang="es">Descanso Musical y Paisajes</title>
+    <sub-title lang="es">Música y relax</sub-title>
+    <desc lang="es">Paisajes naturales acompañados de melodías sinfónicas.</desc>
+    <category lang="es">Música</category>
+  </programme>
+  <programme channel="angel-dash" start="20261111000000 +0000" stop="20261111013000 +0000">
+    <title lang="es">Exploración Espacial y Futuro</title>
+    <sub-title lang="es">Documental astronómico</sub-title>
+    <desc lang="es">Misiones interplanetarias, telescopios de espacio profundo y tecnología de propulsión de próxima generación.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="angel-dash" start="20261111013000 +0000" stop="20261111040000 +0000">
+    <title lang="es">Noticias del Cosmos</title>
+    <sub-title lang="es">Informativo</sub-title>
+    <desc lang="es">Últimas novedades de la astrofísica y descubrimientos de exoplanetas.</desc>
+    <category lang="es">Noticias</category>
+  </programme>
+  <programme channel="angel-dash" start="20261111040000 +0000" stop="20261111053000 +0000">
+    <title lang="es">Odisea Interestelar</title>
+    <sub-title lang="es">Ciencia Ficción</sub-title>
+    <desc lang="es">Un grupo de exploradores viaja a través de un agujero de gusano en busca de un nuevo hogar.</desc>
+    <category lang="es">Ciencia Ficción</category>
+  </programme>
+  <programme channel="angel-dash" start="20261111053000 +0000" stop="20261111073000 +0000">
+    <title lang="es">Ingeniería Espacial</title>
+    <sub-title lang="es">Especial técnico</sub-title>
+    <desc lang="es">Cómo se diseñan las estaciones orbitales y los sistemas de soporte vital.</desc>
+    <category lang="es">Tecnología</category>
+  </programme>
+  <programme channel="angel-dash" start="20261111073000 +0000" stop="20261111100000 +0000">
+    <title lang="es">Star Trek: La Nueva Generación</title>
+    <sub-title lang="es">Temporada 1 · Episodio 14: Angel One</sub-title>
+    <desc lang="es">El Enterprise visita el planeta Angel One, gobernado por una sociedad matriarcal, para rescatar a la tripulación de un carguero estrellado.</desc>
+    <category lang="es">Series</category>
+  </programme>
+  <programme channel="angel-dash" start="20261111100000 +0000" stop="20261111120000 +0000">
+    <title lang="es">Exploración Espacial y Futuro</title>
+    <sub-title lang="es">Documental astronómico</sub-title>
+    <desc lang="es">Misiones interplanetarias, telescopios de espacio profundo y tecnología de propulsión de próxima generación.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="angel-dash" start="20261111120000 +0000" stop="20261111133000 +0000">
+    <title lang="es">Noticias del Cosmos</title>
+    <sub-title lang="es">Informativo</sub-title>
+    <desc lang="es">Últimas novedades de la astrofísica y descubrimientos de exoplanetas.</desc>
+    <category lang="es">Noticias</category>
+  </programme>
+  <programme channel="angel-dash" start="20261111133000 +0000" stop="20261111160000 +0000">
+    <title lang="es">Odisea Interestelar</title>
+    <sub-title lang="es">Ciencia Ficción</sub-title>
+    <desc lang="es">Un grupo de exploradores viaja a través de un agujero de gusano en busca de un nuevo hogar.</desc>
+    <category lang="es">Ciencia Ficción</category>
+  </programme>
+  <programme channel="angel-dash" start="20261111160000 +0000" stop="20261111173000 +0000">
+    <title lang="es">Ingeniería Espacial</title>
+    <sub-title lang="es">Especial técnico</sub-title>
+    <desc lang="es">Cómo se diseñan las estaciones orbitales y los sistemas de soporte vital.</desc>
+    <category lang="es">Tecnología</category>
+  </programme>
+  <programme channel="angel-dash" start="20261111173000 +0000" stop="20261111193000 +0000">
+    <title lang="es">Star Trek: La Nueva Generación</title>
+    <sub-title lang="es">Temporada 1 · Episodio 14: Angel One</sub-title>
+    <desc lang="es">El Enterprise visita el planeta Angel One, gobernado por una sociedad matriarcal, para rescatar a la tripulación de un carguero estrellado.</desc>
+    <category lang="es">Series</category>
+  </programme>
+  <programme channel="angel-dash" start="20261111193000 +0000" stop="20261111220000 +0000">
+    <title lang="es">Exploración Espacial y Futuro</title>
+    <sub-title lang="es">Documental astronómico</sub-title>
+    <desc lang="es">Misiones interplanetarias, telescopios de espacio profundo y tecnología de propulsión de próxima generación.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="angel-dash" start="20261111220000 +0000" stop="20261112000000 +0000">
+    <title lang="es">Noticias del Cosmos</title>
+    <sub-title lang="es">Informativo</sub-title>
+    <desc lang="es">Últimas novedades de la astrofísica y descubrimientos de exoplanetas.</desc>
+    <category lang="es">Noticias</category>
+  </programme>
+  <programme channel="angel-hls" start="20261111000000 +0000" stop="20261111013000 +0000">
+    <title lang="es">Exploración Espacial y Futuro</title>
+    <sub-title lang="es">Documental astronómico</sub-title>
+    <desc lang="es">Misiones interplanetarias, telescopios de espacio profundo y tecnología de propulsión de próxima generación.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="angel-hls" start="20261111013000 +0000" stop="20261111040000 +0000">
+    <title lang="es">Noticias del Cosmos</title>
+    <sub-title lang="es">Informativo</sub-title>
+    <desc lang="es">Últimas novedades de la astrofísica y descubrimientos de exoplanetas.</desc>
+    <category lang="es">Noticias</category>
+  </programme>
+  <programme channel="angel-hls" start="20261111040000 +0000" stop="20261111053000 +0000">
+    <title lang="es">Odisea Interestelar</title>
+    <sub-title lang="es">Ciencia Ficción</sub-title>
+    <desc lang="es">Un grupo de exploradores viaja a través de un agujero de gusano en busca de un nuevo hogar.</desc>
+    <category lang="es">Ciencia Ficción</category>
+  </programme>
+  <programme channel="angel-hls" start="20261111053000 +0000" stop="20261111073000 +0000">
+    <title lang="es">Ingeniería Espacial</title>
+    <sub-title lang="es">Especial técnico</sub-title>
+    <desc lang="es">Cómo se diseñan las estaciones orbitales y los sistemas de soporte vital.</desc>
+    <category lang="es">Tecnología</category>
+  </programme>
+  <programme channel="angel-hls" start="20261111073000 +0000" stop="20261111100000 +0000">
+    <title lang="es">Star Trek: La Nueva Generación</title>
+    <sub-title lang="es">Temporada 1 · Episodio 14: Angel One</sub-title>
+    <desc lang="es">El Enterprise visita el planeta Angel One, gobernado por una sociedad matriarcal, para rescatar a la tripulación de un carguero estrellado.</desc>
+    <category lang="es">Series</category>
+  </programme>
+  <programme channel="angel-hls" start="20261111100000 +0000" stop="20261111120000 +0000">
+    <title lang="es">Exploración Espacial y Futuro</title>
+    <sub-title lang="es">Documental astronómico</sub-title>
+    <desc lang="es">Misiones interplanetarias, telescopios de espacio profundo y tecnología de propulsión de próxima generación.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="angel-hls" start="20261111120000 +0000" stop="20261111133000 +0000">
+    <title lang="es">Noticias del Cosmos</title>
+    <sub-title lang="es">Informativo</sub-title>
+    <desc lang="es">Últimas novedades de la astrofísica y descubrimientos de exoplanetas.</desc>
+    <category lang="es">Noticias</category>
+  </programme>
+  <programme channel="angel-hls" start="20261111133000 +0000" stop="20261111160000 +0000">
+    <title lang="es">Odisea Interestelar</title>
+    <sub-title lang="es">Ciencia Ficción</sub-title>
+    <desc lang="es">Un grupo de exploradores viaja a través de un agujero de gusano en busca de un nuevo hogar.</desc>
+    <category lang="es">Ciencia Ficción</category>
+  </programme>
+  <programme channel="angel-hls" start="20261111160000 +0000" stop="20261111173000 +0000">
+    <title lang="es">Ingeniería Espacial</title>
+    <sub-title lang="es">Especial técnico</sub-title>
+    <desc lang="es">Cómo se diseñan las estaciones orbitales y los sistemas de soporte vital.</desc>
+    <category lang="es">Tecnología</category>
+  </programme>
+  <programme channel="angel-hls" start="20261111173000 +0000" stop="20261111193000 +0000">
+    <title lang="es">Star Trek: La Nueva Generación</title>
+    <sub-title lang="es">Temporada 1 · Episodio 14: Angel One</sub-title>
+    <desc lang="es">El Enterprise visita el planeta Angel One, gobernado por una sociedad matriarcal, para rescatar a la tripulación de un carguero estrellado.</desc>
+    <category lang="es">Series</category>
+  </programme>
+  <programme channel="angel-hls" start="20261111193000 +0000" stop="20261111220000 +0000">
+    <title lang="es">Exploración Espacial y Futuro</title>
+    <sub-title lang="es">Documental astronómico</sub-title>
+    <desc lang="es">Misiones interplanetarias, telescopios de espacio profundo y tecnología de propulsión de próxima generación.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="angel-hls" start="20261111220000 +0000" stop="20261112000000 +0000">
+    <title lang="es">Noticias del Cosmos</title>
+    <sub-title lang="es">Informativo</sub-title>
+    <desc lang="es">Últimas novedades de la astrofísica y descubrimientos de exoplanetas.</desc>
+    <category lang="es">Noticias</category>
+  </programme>
+  <programme channel="speedway" start="20261111000000 +0000" stop="20261111013000 +0000">
+    <title lang="es">Resumen y Clasificaciones de la Carrera</title>
+    <sub-title lang="es">Análisis post-carrera</sub-title>
+    <desc lang="es">Análisis técnico de la jornada, paradas en boxes y entrevistas con los pilotos ganadores.</desc>
+    <category lang="es">Deportes</category>
+  </programme>
+  <programme channel="speedway" start="20261111013000 +0000" stop="20261111040000 +0000">
+    <title lang="es">Historia de los Grandes Premios</title>
+    <sub-title lang="es">Documental deportivo</sub-title>
+    <desc lang="es">Los circuitos más legendarios del automovilismo y sus pilotos más célebres.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="speedway" start="20261111040000 +0000" stop="20261111053000 +0000">
+    <title lang="es">Mundo Motor: Novedades y Pruebas</title>
+    <sub-title lang="es">Revista de motor</sub-title>
+    <desc lang="es">Pruebas a fondo de superdeportivos y las últimas innovaciones en competición híbrida y eléctrica.</desc>
+    <category lang="es">Motor</category>
+  </programme>
+  <programme channel="speedway" start="20261111053000 +0000" stop="20261111073000 +0000">
+    <title lang="es">Paddock Abierto</title>
+    <sub-title lang="es">Tertulia deportiva</sub-title>
+    <desc lang="es">Expertos y mecánicos analizan la telemetría y estrategias de carrera.</desc>
+    <category lang="es">Deportes</category>
+  </programme>
+  <programme channel="speedway" start="20261111073000 +0000" stop="20261111100000 +0000">
+    <title lang="es">Super Speedway: Campeonato Mundial</title>
+    <sub-title lang="es">Carrera en directo</sub-title>
+    <desc lang="es">Las mejores carreras de automovilismo en circuitos ovales a más de 350 km/h con sonido envolvente y máxima adrenalina.</desc>
+    <category lang="es">Deportes</category>
+  </programme>
+  <programme channel="speedway" start="20261111100000 +0000" stop="20261111120000 +0000">
+    <title lang="es">Resumen y Clasificaciones de la Carrera</title>
+    <sub-title lang="es">Análisis post-carrera</sub-title>
+    <desc lang="es">Análisis técnico de la jornada, paradas en boxes y entrevistas con los pilotos ganadores.</desc>
+    <category lang="es">Deportes</category>
+  </programme>
+  <programme channel="speedway" start="20261111120000 +0000" stop="20261111133000 +0000">
+    <title lang="es">Historia de los Grandes Premios</title>
+    <sub-title lang="es">Documental deportivo</sub-title>
+    <desc lang="es">Los circuitos más legendarios del automovilismo y sus pilotos más célebres.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+  <programme channel="speedway" start="20261111133000 +0000" stop="20261111160000 +0000">
+    <title lang="es">Mundo Motor: Novedades y Pruebas</title>
+    <sub-title lang="es">Revista de motor</sub-title>
+    <desc lang="es">Pruebas a fondo de superdeportivos y las últimas innovaciones en competición híbrida y eléctrica.</desc>
+    <category lang="es">Motor</category>
+  </programme>
+  <programme channel="speedway" start="20261111160000 +0000" stop="20261111173000 +0000">
+    <title lang="es">Paddock Abierto</title>
+    <sub-title lang="es">Tertulia deportiva</sub-title>
+    <desc lang="es">Expertos y mecánicos analizan la telemetría y estrategias de carrera.</desc>
+    <category lang="es">Deportes</category>
+  </programme>
+  <programme channel="speedway" start="20261111173000 +0000" stop="20261111193000 +0000">
+    <title lang="es">Super Speedway: Campeonato Mundial</title>
+    <sub-title lang="es">Carrera en directo</sub-title>
+    <desc lang="es">Las mejores carreras de automovilismo en circuitos ovales a más de 350 km/h con sonido envolvente y máxima adrenalina.</desc>
+    <category lang="es">Deportes</category>
+  </programme>
+  <programme channel="speedway" start="20261111193000 +0000" stop="20261111220000 +0000">
+    <title lang="es">Resumen y Clasificaciones de la Carrera</title>
+    <sub-title lang="es">Análisis post-carrera</sub-title>
+    <desc lang="es">Análisis técnico de la jornada, paradas en boxes y entrevistas con los pilotos ganadores.</desc>
+    <category lang="es">Deportes</category>
+  </programme>
+  <programme channel="speedway" start="20261111220000 +0000" stop="20261112000000 +0000">
+    <title lang="es">Historia de los Grandes Premios</title>
+    <sub-title lang="es">Documental deportivo</sub-title>
+    <desc lang="es">Los circuitos más legendarios del automovilismo y sus pilotos más célebres.</desc>
+    <category lang="es">Documentales</category>
+  </programme>
+</tv>

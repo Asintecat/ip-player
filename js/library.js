@@ -54,7 +54,7 @@ const query = (obj) => Object.entries(obj).map(([k, v]) => `${k}=${encodeURIComp
 
 /** Genera un M3U con toda la configuración de cada canal. */
 export function toM3U(list) {
-  const lines = ['#EXTM3U'];
+  const lines = [list.epg ? `#EXTM3U url-tvg="${attr(list.epg)}"` : '#EXTM3U'];
   for (const raw of list.channels || []) {
     const c = cleanChannel(raw);
     if (!c.url) continue;
@@ -101,6 +101,7 @@ export function toJSON(list) {
     format: JSON_FORMAT,
     version: 1,
     name: list.name,
+    epg: list.epg || '',
     exportedAt: new Date().toISOString(),
     groups: groupsOf(list),
     channels: (list.channels || []).map(cleanChannel)
@@ -120,7 +121,7 @@ export function parseLibraryJSON(text) {
   if (!Array.isArray(channels)) return null;
   const clean = channels.filter((c) => c && c.url).map(cleanChannel);
   if (!clean.length) throw new Error(t('El JSON no contiene canales con URL.'));
-  const list = { name: Array.isArray(data) ? '' : String(data.name || ''), groups: [], channels: clean };
+  const list = { name: Array.isArray(data) ? '' : String(data.name || ''), epg: data.epg ? String(data.epg) : '', groups: [], channels: clean };
   list.groups = Array.isArray(data.groups) ? data.groups.map(String) : [];
   list.groups = groupsOf(list);
   return list;
