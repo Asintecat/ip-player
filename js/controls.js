@@ -97,6 +97,10 @@ export class Controls {
     this.dragging = false;
     this.idleTimer = 0;
     this.clickTimer = 0;
+    this.lastTap = 0;
+    this.lastTapSide = '';
+    this.tapTimer = 0;
+    this.osdTimer = 0;
     this.enabled = false;
 
     this.q('[data-act="play"]').addEventListener('click', () => this.togglePlay());
@@ -156,7 +160,7 @@ export class Controls {
 
   _syncPlayState() {
     this.root.dataset.paused = this.video.paused ? '1' : '';
-    this.q('[data-act="play"]').title = this.video.paused ? 'Reproducir (K)' : 'Pausa (K)';
+    this.q('[data-act="play"]').dataset.tip = this.video.paused ? 'Reproducir' : 'Pausa';
     this.wake();
   }
 
@@ -220,7 +224,8 @@ export class Controls {
     this.root.dataset.idle = '';
     clearTimeout(this.idleTimer);
     this.idleTimer = setTimeout(() => {
-      if (!this.video.paused && this.menu.dataset.open == null && !this.dragging && this.enabled) {
+      const kbdFocus = this.root.querySelector('.controls :focus-visible');
+      if (!this.video.paused && this.menu.dataset.open == null && !this.dragging && this.enabled && !kbdFocus) {
         this.root.dataset.idle = '1';
       }
     }, IDLE_MS);
@@ -236,9 +241,29 @@ export class Controls {
     surface.addEventListener('pointerup', (e) => {
       if (this.menu.dataset.open != null) { this.closeMenu(); return; }
       if (e.pointerType !== 'mouse') {
-        // En táctil, un toque muestra u oculta los controles.
-        if (this.root.dataset.idle === '1') this.wake();
-        else if (!this.video.paused) this.root.dataset.idle = '1';
+        const r = this.root.getBoundingClientRect();
+        const x = (e.clientX - r.left) / r.width;
+        const side = x < 0.35 ? 'left' : x > 0.65 ? 'right' : 'center';
+        const now = performance.now();
+        if (now - this.lastTap < 300 && side === this.lastTapSide) {
+          // Doble toque
+          clearTimeout(this.tapTimer);
+          this.lastTap = 0;
+          if (side === 'center') this.toggleFullscreen();
+          else {
+            this.seekBy(side === 'left' ? -10 : 10);
+            this.flashTapHint(side);
+          }
+          return;
+        }
+        this.lastTap = now;
+        this.lastTapSide = side;
+        // Un toque muestra u oculta los controles (con un pequeño margen por si llega un segundo toque).
+        clearTimeout(this.tapTimer);
+        this.tapTimer = setTimeout(() => {
+          if (this.root.dataset.idle === '1') this.wake();
+          else if (!this.video.paused) this.root.dataset.idle = '1';
+        }, 260);
         return;
       }
       clearTimeout(this.clickTimer);
@@ -248,6 +273,37 @@ export class Controls {
       clearTimeout(this.clickTimer);
       this.toggleFullscreen();
     });
+  }
+
+  flashTapHint(side) {
+    const el = this.q(`.tap-hint[data-side="${side}"]`);
+    if (!el) return;
+    el.dataset.show = '1';
+    clearTimeout(el._t);
+    el._t = setTimeout(() => { el.dataset.show = ''; }, 500);
+  }
+
+  /**
+   * Indicador breve en pantalla para acciones de teclado.
+   * @param {string} text
+   * @param {{icon?:string, level?:number}} [opts] level 0..1 dibuja una barra (volumen)
+   */
+  osd(text, { icon: iconId, level } = {}) {
+    const box = this.q('.osd');
+    if (!box) return;
+    box.replaceChildren();
+    if (iconId) box.appendChild(icon(iconId));
+    box.appendChild(el('span', '', text));
+    if (level != null) {
+      const bar = el('span', 'osd-bar');
+      const fill = document.createElement('i');
+      fill.style.width = `${Math.round(level * 100)}%`;
+      bar.appendChild(fill);
+      box.appendChild(bar);
+    }
+    box.dataset.show = '1';
+    clearTimeout(this.osdTimer);
+    this.osdTimer = setTimeout(() => { box.dataset.show = ''; }, 900);
   }
 
   // ---------- Barra de progreso ----------
@@ -330,11 +386,15 @@ export class Controls {
       bar.style.setProperty('--buffered', '0%');
     }
 
+    const pct = span ? Math.round(Math.min(100, Math.max(0, ((t - range.start) / span) * 100))) : 0;
+    bar.setAttribute('aria-valuenow', String(pct));
+    bar.setAttribute('aria-valuetext', isLive ? 'En directo' : `${fmtTime(t)} de ${fmtTime(range.end)}`);
+
     if (isLive) {
       const behind = range.end - t;
       const atEdge = behind < 15;
       live.dataset.edge = atEdge ? '1' : '';
-      live.title = atEdge ? 'En directo' : 'Ir al directo';
+      live.dataset.tip = atEdge ? 'Estás viendo el directo' : 'Volver al directo';
       timeEl.textContent = !atEdge && span > 60 ? `-${fmtTime(behind)}` : '';
     } else {
       timeEl.textContent = `${fmtTime(t)} / ${fmtTime(range.end)}`;
@@ -374,7 +434,7 @@ export class Controls {
     const on = text.some((t) => t.active);
     this.root.dataset.cc = on ? '1' : '';
     cc.setAttribute('aria-pressed', String(on));
-    cc.title = on ? 'Desactivar subtítulos (C)' : 'Activar subtítulos (C)';
+    cc.dataset.tip = on ? 'Desactivar subtítulos' : 'Activar subtítulos';
     const chip = this.q('[data-act="quality"]');
     const qs = a && this.enabled ? a.qualities() : [];
     if (qs.length > 1) {

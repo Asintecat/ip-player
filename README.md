@@ -14,6 +14,8 @@ Reproductor de listas M3U con soporte para **DASH**, **HLS** y **Smooth Streamin
 - **Abrir stream** (icono 🔗): reproduce una URL suelta con tipo, DRM y cabeceras manuales. También acepta pegar una entrada M3U con `#KODIPROP`.
 - **Editar** (lápiz): abre el canal actual en el formulario para cambiar las claves, la licencia o las cabeceras.
 - **Controles propios**, iguales en Shaka y dash.js: calidad (botón con la resolución actual o ⚙ → Calidad), audio, subtítulos, velocidad, barra de progreso con DVR en directo, indicador «EN DIRECTO», volumen, imagen en imagen y pantalla completa.
+- **Listas propias** (☰ → *Crear lista propia*): crea listas a mano y organízalas en categorías (crear, renombrar, borrar, mover y reordenar canales). Para guardar un canal en una de tus listas, usa el botón de carpeta de la barra inferior o «Guardar en lista» en el formulario. Cualquier lista, también las de URL, se puede **descargar en M3U** (con `#KODIPROP`, `#EXTVLCOPT` y `#EXTHTTP`: DRM, claves y cabeceras ya configurados, válido para Kodi, TiviMate o VLC) o **en JSON**, que se vuelve a importar como lista editable. Las listas por URL también se pueden copiar como lista propia.
+- **Ayuda integrada**: guía rápida la primera vez (y desde el botón ?), etiquetas emergentes con su atajo en todos los botones (mantén pulsado en móvil), mensajes de error con «Reintentar» y «Revisar el stream», y opción de texto más grande.
 - **Idiomas y subtítulos**: si el stream trae varias pistas, ⚙ → *Audio* y ⚙ → *Subtítulos* las listan con su idioma y detalles (5.1, audiodescripción, CC, forzados). El botón **CC** activa o desactiva los subtítulos. El idioma elegido se recuerda para los siguientes canales, y por defecto se usa el del navegador. Funciona con WebVTT, TTML y CEA-608 en DASH, HLS y Smooth Streaming, con los dos motores.
 - **Favoritos** ★, búsqueda y filtro por grupo. El panel lateral se puede plegar; en móvil, el reproductor queda arriba y la lista debajo.
 
@@ -30,6 +32,8 @@ Reproductor de listas M3U con soporte para **DASH**, **HLS** y **Smooth Streamin
 | `RePág` / `AvPág` | Canal anterior / siguiente |
 | `/` | Buscar canal |
 | `L` | Mostrar u ocultar la lista |
+| `↑` `↓` `Intro` (en la lista) | Moverse por los canales y reproducir |
+| `?` | Ayuda y atajos |
 
 - **Menú contextual**: clic derecho en un enlace → «Reproducir en IP Player» o «Cargar como lista M3U».
 

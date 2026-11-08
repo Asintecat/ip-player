@@ -9,7 +9,7 @@ import {
 
 function freshPending() {
   return {
-    name: '', attrs: {}, group: '', headers: {}, type: '',
+    name: '', attrs: {}, group: '', headers: {}, type: '', engine: '',
     drmSystem: '', licenseKey: '', drmLegacy: '', drmJson: '', licenseHeaders: {}
   };
 }
@@ -107,6 +107,7 @@ function buildChannel(p, rawUrl, index, baseUrl) {
     chno: a['tvg-chno'] || a['channel-number'] || '',
     url,
     type: p.type || normalizeType(a['type'] || a['manifest-type']),
+    engine: p.engine,
     headers,
     drm,
     errors
@@ -152,6 +153,7 @@ export function parseM3U(text, baseUrl) {
         case 'drm_legacy': p.drmLegacy = v; break;
         case 'drm': p.drmJson = v; break;
         case 'manifest_type': p.type = normalizeType(v); break;
+        case 'ipplayer.engine': p.engine = v === 'dashjs' || v === 'shaka' ? v : ''; break;
         case 'stream_headers':
         case 'manifest_headers':
           Object.assign(p.headers, parseQueryHeaders(v)); break;

@@ -74,6 +74,28 @@ export class DashEngine {
   }
 
   /**
+   * Carga dash.js bajo demanda (~820 KB): la mayoría de streams usan Shaka y así
+   * el reproductor abre más rápido. Devuelve true si quedó disponible.
+   */
+  static ensureLoaded() {
+    if (DashEngine.isAvailable() && dashjs.MssHandler) return Promise.resolve(true);
+    if (!DashEngine._loading) {
+      const add = (src) => new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = src;
+        s.onload = resolve;
+        s.onerror = () => reject(new Error(`No se pudo cargar ${src}`));
+        document.head.appendChild(s);
+      });
+      DashEngine._loading = add('lib/dash.mediaplayer.min.js')
+        .then(() => add('lib/dash.mss.min.js'))
+        .then(() => DashEngine.isAvailable())
+        .catch((err) => { console.error(err); DashEngine._loading = null; return false; });
+    }
+    return DashEngine._loading;
+  }
+
+  /**
    * Reproduce un canal. Solo admite contenido sin DRM o con ClearKey.
    * @param {object} channel
    * @param {{captions?:HTMLElement, audioLang?:string, textLang?:string, textOn?:boolean}} [opts]

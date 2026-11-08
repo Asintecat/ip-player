@@ -11,7 +11,10 @@ import { applyHeaderRules } from './headers.js';
 import * as store from './storage.js';
 import { VirtualList } from './virtual-list.js';
 import { DashEngine } from './dash-engine.js';
-import { Controls } from './controls.js';
+import { Controls, langName } from './controls.js';
+import { initTooltips, setTooltipsEnabled, hideTooltip } from './tooltip.js';
+import { startTour, isTourOpen } from './tour.js';
+import { cleanChannel, groupsOf, parseLibraryJSON, exportList } from './library.js';
 
 const $ = (sel) => document.querySelector(sel);
 const FAV_ID = '__favorites__';
@@ -28,7 +31,10 @@ const state = {
   group: '',
   query: '',
   current: null,
-  editing: null
+  editing: null,
+  libId: null, // lista propia abierta en el editor
+  libEdit: null, // { listId, index } canal de lista propia en edición, o { listId, add: true }
+  cursor: -1 // fila resaltada al navegar la lista con el teclado
 };
 
 let player = null;
@@ -301,7 +307,7 @@ async function play(channel) {
   } catch (err) {
     if (token !== loadToken) return;
     // Shaka no soporta Smooth Streaming en directo → dash.js
-    if (err?.code === MSS_LIVE_NOT_SUPPORTED && channel.engine !== 'shaka' && DashEngine.isAvailable()) {
+    if (err?.code === MSS_LIVE_NOT_SUPPORTED && channel.engine !== 'shaka') {
       setStatus('Smooth Streaming en directo: cambiando al motor dash.js…', 'warn');
       return playWithDash(channel, token, 'mss', drmText);
     }
@@ -335,7 +341,7 @@ async function useDash() {
 }
 
 async function playWithDash(channel, token, type, drmText) {
-  if (!DashEngine.isAvailable()) {
+  if (!(await DashEngine.ensureLoaded())) {
     showError(new Error('dash.js no está disponible.'));
     return;
   }
@@ -374,7 +380,7 @@ function detectLoadedType() {
 function describeError(err) {
   const E = shaka.util.Error;
   if (!err || !(err instanceof E)) {
-    return { title: 'Error', text: String(err?.message || err) };
+    return { title: 'No se pudo reproducir', text: String(err?.message || err) };
   }
   const C = E.Code;
   const name = Object.keys(C).find((k) => C[k] === err.code) || '';
@@ -407,13 +413,18 @@ function describeError(err) {
       return { title: 'Tipo desconocido', text: 'No se pudo detectar el formato.\nIndica el tipo (DASH / HLS / Smooth Streaming) con «Editar».' };
     case C.CONTENT_UNSUPPORTED_BY_BROWSER:
       return { title: 'Formato no soportado', text: 'Los códecs de este stream no son compatibles con el navegador.' };
+    case C.HLS_MSE_ENCRYPTED_MP2T_NOT_SUPPORTED ?? 4040:
+      return {
+        title: 'Cifrado HLS no compatible',
+        text: 'Este stream usa cifrado HLS en segmentos MPEG-TS (FairPlay o SAMPLE-AES), que este reproductor no admite.\nSolo se pueden reproducir streams sin cifrar, con AES-128 estándar o con DRM compatible con Chrome (Widevine, ClearKey en CENC).'
+      };
     case C.VIDEO_ERROR:
       return {
         title: 'Error de decodificación',
         text: 'El vídeo no se pudo decodificar.' + (state.current?.drm?.system === 'clearkey' ? '\n¿Son correctas las claves ClearKey (KID:KEY)?' : '')
       };
     default:
-      return { title: `Error ${err.code}`, text: `${name}${inner ? ` (${inner.code})` : ''}` };
+      return { title: `Error ${err.code}`, text: `${name}${inner ? ` (${inner.code})` : ''}\nPrueba a reintentar o revisa el tipo y las cabeceras del stream.` };
   }
 }
 
@@ -448,7 +459,7 @@ function renderPlaylistSelect() {
   sel.replaceChildren();
   const favOpt = new Option(`★ Favoritos (${state.favorites.length})`, FAV_ID);
   sel.add(favOpt);
-  for (const pl of state.playlists) sel.add(new Option(pl.name, pl.id));
+  for (const pl of state.playlists) sel.add(new Option(pl.source === 'manual' ? `✎ ${pl.name}` : pl.name, pl.id));
   sel.value = state.activeId || FAV_ID;
 }
 
@@ -461,6 +472,13 @@ async function selectPlaylist(id, { refresh = false } = {}) {
   } else {
     const pl = state.playlists.find((p) => p.id === id);
     if (!pl) return selectPlaylist(FAV_ID);
+    if (pl.source === 'manual') {
+      state.channels = pl.channels.map((c, i) => ({ ...c, id: `m${i}`, errors: [] }));
+      renderGroups();
+      applyFilter();
+      store.patchState({ playlistId: id });
+      return;
+    }
     try {
       if (refresh || !pl.text) await fetchPlaylist(pl);
       state.channels = parseM3U(pl.text, pl.url).channels;
@@ -504,6 +522,7 @@ function applyFilter() {
     if (q && !norm(c.name).includes(q) && !norm(c.group).includes(q)) return false;
     return true;
   });
+  state.cursor = state.filtered.length ? Math.min(state.cursor, state.filtered.length - 1) : -1;
   list.setItems(state.filtered);
   const total = state.channels.length;
   $('#listMeta').textContent = total
@@ -561,7 +580,11 @@ function logoEl(className, channel) {
 
 function renderRow(channel, index) {
   const row = document.createElement('div');
-  row.className = 'ch' + (state.current && favKey(state.current) === favKey(channel) ? ' active' : '');
+  const active = !!state.current && favKey(state.current) === favKey(channel);
+  row.className = 'ch' + (active ? ' active' : '') + (index === state.cursor ? ' cursor' : '');
+  row.id = `ch-opt-${index}`;
+  row.setAttribute('role', 'option');
+  row.setAttribute('aria-selected', String(active));
   row.title = channel.name;
 
   const num = document.createElement('span');
@@ -581,12 +604,14 @@ function renderRow(channel, index) {
 
   const fav = document.createElement('button');
   fav.className = 'ch-fav' + (isFav(channel) ? ' on' : '');
-  fav.title = 'Favorito';
+  fav.tabIndex = -1;
+  fav.dataset.tip = isFav(channel) ? 'Quitar de favoritos' : 'Añadir a favoritos';
+  fav.setAttribute('aria-label', fav.dataset.tip);
   fav.innerHTML = '<svg><use href="#i-star"/></svg>';
   fav.addEventListener('click', (e) => { e.stopPropagation(); toggleFavorite(channel); });
 
   row.append(num, logoEl('ch-logo', channel), text, fav);
-  row.addEventListener('click', () => play(channel));
+  row.addEventListener('click', () => { setCursor(index, false); play(channel); });
   return row;
 }
 
@@ -618,6 +643,46 @@ function renderNowPlaying() {
   if (drmLabel(c.drm)) badge(drmLabel(c.drm), 'drm');
   if (c.group && c.group !== drmLabel(c.drm) && c.group !== TYPE_LABEL[type]) badge(c.group);
   $('#btnFav').classList.toggle('on', isFav(c));
+  $('#btnFav').dataset.tip = isFav(c) ? 'Quitar de favoritos' : 'Añadir a favoritos';
+}
+
+/** Mueve la fila resaltada de la lista (teclado). */
+function setCursor(index, scroll = true) {
+  const n = state.filtered.length;
+  if (!n) { state.cursor = -1; $('#channels').removeAttribute('aria-activedescendant'); return; }
+  state.cursor = Math.max(0, Math.min(n - 1, index));
+  if (scroll) list.scrollToIndex(state.cursor);
+  else list.refresh();
+  $('#channels').setAttribute('aria-activedescendant', `ch-opt-${state.cursor}`);
+}
+
+function currentIndex() {
+  return state.current ? state.filtered.findIndex((c) => favKey(c) === favKey(state.current)) : -1;
+}
+
+function onListKey(e) {
+  const n = state.filtered.length;
+  if (!n) return;
+  const inList = e.currentTarget.id === 'channels';
+  const page = Math.max(1, Math.floor($('#channels').clientHeight / ROW_HEIGHT) - 1);
+  const cur = state.cursor < 0 ? Math.max(0, currentIndex()) : state.cursor;
+  const moves = { ArrowDown: cur + 1, ArrowUp: cur - 1 };
+  if (inList) Object.assign(moves, { Home: 0, End: n - 1, PageDown: cur + page, PageUp: cur - page });
+  if (e.key in moves) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.key === 'ArrowUp' && cur === 0 && inList) { $('#search').focus(); return; }
+    setCursor(inList || state.cursor >= 0 ? moves[e.key] : 0);
+    if (!inList) $('#channels').focus();
+  } else if (e.key === 'Enter' || (e.key === ' ' && inList)) {
+    e.preventDefault();
+    e.stopPropagation();
+    const i = state.cursor < 0 ? 0 : state.cursor;
+    setCursor(i);
+    play(state.filtered[i]);
+  } else if (e.key === 'Escape' && inList) {
+    $('#search').focus();
+  }
 }
 
 function step(delta) {
@@ -625,6 +690,7 @@ function step(delta) {
   if (!items.length) return;
   let idx = state.current ? items.findIndex((c) => favKey(c) === favKey(state.current)) : -1;
   idx = idx < 0 ? 0 : (idx + delta + items.length) % items.length;
+  state.cursor = idx;
   list.scrollToIndex(idx);
   play(items[idx]);
 }
@@ -746,9 +812,11 @@ function renderPlaylistManager() {
     name.textContent = pl.name;
     const sub = document.createElement('div');
     sub.className = 'pl-sub';
-    const count = pl.text ? parseM3U(pl.text).channels.length : 0;
+    const manual = pl.source === 'manual';
+    const count = manual ? pl.channels.length : pl.text ? parseM3U(pl.text).channels.length : 0;
     const date = pl.updatedAt ? new Date(pl.updatedAt).toLocaleString() : '';
-    sub.textContent = `${count} canales · ${pl.source === 'url' ? pl.url : 'local'}${date ? ' · ' + date : ''}`;
+    const origin = manual ? `lista propia · ${groupsOf(pl).length} categorías` : pl.source === 'url' ? pl.url : 'local';
+    sub.textContent = `${count} canales · ${origin}${date ? ' · ' + date : ''}`;
     sub.title = sub.textContent;
     info.append(name, sub);
     li.appendChild(info);
@@ -763,6 +831,19 @@ function renderPlaylistManager() {
       });
       li.appendChild(r);
     }
+    if (manual) {
+      li.appendChild(iconButton('#i-edit', 'Editar lista y categorías', () => openLibrary(pl.id)));
+    } else {
+      li.appendChild(iconButton('#i-folder-plus', 'Copiar como lista propia editable', async () => {
+        try {
+          const data = await listData(pl);
+          const copy = await createManualList(`${pl.name} (copia)`, data);
+          renderPlaylistManager();
+          toast(`«${copy.name}» creada: ya puedes editarla`);
+        } catch (err) { showFormError('playlistError', err.message); }
+      }));
+    }
+    li.appendChild(exportButton(pl));
     li.appendChild(iconButton('#i-trash', 'Eliminar lista', async () => {
       if (!confirm(`¿Eliminar la lista «${pl.name}»?`)) return;
       state.playlists = state.playlists.filter((p) => p.id !== pl.id);
@@ -775,17 +856,325 @@ function renderPlaylistManager() {
   }
 }
 
+/** Botón de descarga con elección de formato (M3U / JSON). */
+function exportButton(pl) {
+  const wrap = document.createElement('div');
+  wrap.className = 'export-wrap';
+  const menu = document.createElement('div');
+  menu.className = 'export-menu';
+  menu.hidden = true;
+  for (const [fmt, label, tip] of [['m3u', 'M3U', 'Para Kodi, TiviMate, VLC…'], ['json', 'JSON', 'Para volver a importar en IP Player']]) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn';
+    b.textContent = label;
+    b.dataset.tip = tip;
+    b.addEventListener('click', async () => {
+      menu.hidden = true;
+      btn.setAttribute('aria-expanded', 'false');
+      try {
+        exportList(await listData(pl), fmt);
+        toast(`Descargando «${pl.name}» en ${label}`);
+      } catch (err) { showFormError('playlistError', err.message); }
+    });
+    menu.appendChild(b);
+  }
+  const btn = iconButton('#i-download', 'Descargar en M3U o JSON', () => {
+    menu.hidden = !menu.hidden;
+    btn.setAttribute('aria-expanded', String(!menu.hidden));
+  });
+  btn.setAttribute('aria-expanded', 'false');
+  wrap.append(btn, menu);
+  return wrap;
+}
+
+/** Canales de cualquier lista en formato de lista propia. */
+async function listData(pl) {
+  if (pl.source === 'manual') return pl;
+  if (!pl.text) await fetchPlaylist(pl);
+  const channels = parseM3U(pl.text, pl.url).channels.map(cleanChannel);
+  return { name: pl.name, groups: groupsOf({ channels }), channels };
+}
+
+async function createManualList(name, { groups = [], channels = [] } = {}) {
+  let finalName = name || `Mi lista ${state.playlists.filter((x) => x.source === 'manual').length + 1}`;
+  const taken = new Set(state.playlists.map((x) => x.name));
+  for (let n = 2; taken.has(finalName); n++) finalName = `${name || 'Mi lista'} (${n})`;
+  const pl = {
+    id: store.newId(),
+    name: finalName,
+    source: 'manual',
+    groups: [...groups],
+    channels: channels.map(cleanChannel),
+    updatedAt: new Date().toISOString()
+  };
+  state.playlists.push(pl);
+  await store.savePlaylists(state.playlists);
+  renderPlaylistSelect();
+  return pl;
+}
+
+async function saveManual(pl) {
+  pl.updatedAt = new Date().toISOString();
+  pl.groups = groupsOf(pl);
+  await store.savePlaylists(state.playlists);
+  renderPlaylistSelect();
+  if (state.activeId === pl.id) {
+    const keepGroup = state.group;
+    await selectPlaylist(pl.id);
+    if (keepGroup && [...$('#groupSelect').options].some((o) => o.value === keepGroup)) {
+      state.group = keepGroup;
+      $('#groupSelect').value = keepGroup;
+      applyFilter();
+    }
+  }
+}
+
+const manualLists = () => state.playlists.filter((p) => p.source === 'manual');
+
+// ---------- Guardar en lista ----------
+
+let saveChannel = null;
+
+function openSaveDialog(channel, { listId } = {}) {
+  saveChannel = channel;
+  const sel = $('#sList');
+  sel.replaceChildren();
+  for (const pl of manualLists()) sel.add(new Option(pl.name, pl.id));
+  sel.add(new Option('＋ Nueva lista…', '__new__'));
+  const has = (id) => id && manualLists().some((p) => p.id === id);
+  sel.value = has(listId) ? listId : has(state.activeId) ? state.activeId : manualLists()[0]?.id || '__new__';
+  $('#sName').value = channel.name && channel.name !== channel.url ? channel.name : nameFromUrl(channel.url) || channel.url;
+  $('#sGroup').value = channel.group || '';
+  $('#sNewName').value = '';
+  showFormError('saveError', '');
+  syncSaveDialog();
+  $('#saveDialog').showModal();
+  $('#sName').select();
+}
+
+function syncSaveDialog() {
+  const isNew = $('#sList').value === '__new__';
+  $('#sNewWrap').hidden = !isNew;
+  const pl = manualLists().find((p) => p.id === $('#sList').value);
+  $('#sGroups').replaceChildren(...(pl ? groupsOf(pl) : []).map((g) => new Option(g)));
+}
+
+async function onSaveSubmit(e) {
+  if (e.submitter?.value !== 'save' || !saveChannel) return;
+  e.preventDefault();
+  try {
+    let pl = manualLists().find((p) => p.id === $('#sList').value);
+    if (!pl) pl = await createManualList($('#sNewName').value.trim());
+    const group = $('#sGroup').value.trim();
+    const ch = cleanChannel({ ...saveChannel, name: $('#sName').value.trim() || saveChannel.name, group });
+    if (group && !pl.groups.includes(group)) pl.groups.push(group);
+    pl.channels.push(ch);
+    await saveManual(pl);
+    $('#saveDialog').close();
+    if ($('#streamDialog').open && state.libEdit?.add) $('#streamDialog').close();
+    if ($('#libDialog').open && state.libId === pl.id) renderLibrary();
+    toast(`Guardado en «${pl.name}»${group ? ' · ' + group : ''}`);
+  } catch (err) {
+    showFormError('saveError', err.message);
+  }
+}
+
+// ---------- Editor de lista propia ----------
+
+function openLibrary(id) {
+  const pl = manualLists().find((p) => p.id === id);
+  if (!pl) return;
+  state.libId = id;
+  $('#libName').value = pl.name;
+  $('#libNewGroup').value = '';
+  renderLibrary();
+  if (!$('#libDialog').open) $('#libDialog').showModal();
+}
+
+function libList() { return manualLists().find((p) => p.id === state.libId); }
+
+function renderLibrary() {
+  const pl = libList();
+  const box = $('#libGroups');
+  box.replaceChildren();
+  if (!pl) return;
+  const groups = groupsOf(pl);
+  const sections = [...groups, ...(pl.channels.some((c) => !c.group) || !groups.length ? [''] : [])];
+  $('#libCount').textContent = `${pl.channels.length} canales · ${groups.length} categorías`;
+
+  for (const g of sections) {
+    const sec = document.createElement('section');
+    sec.className = 'lib-group';
+    const head = document.createElement('div');
+    head.className = 'lib-group-head';
+    const items = pl.channels.map((c, i) => ({ c, i })).filter(({ c }) => (c.group || '') === g);
+    if (g) {
+      const name = document.createElement('input');
+      name.className = 'lib-group-name';
+      name.value = g;
+      name.setAttribute('aria-label', 'Nombre de la categoría');
+      name.dataset.tip = 'Escribe para renombrar la categoría';
+      name.addEventListener('change', async () => {
+        const nv = name.value.trim();
+        if (!nv || nv === g) { name.value = g; return; }
+        if (groups.includes(nv)) { toast('Ya existe una categoría con ese nombre'); name.value = g; return; }
+        pl.groups = pl.groups.map((x) => (x === g ? nv : x));
+        pl.channels.forEach((c) => { if (c.group === g) c.group = nv; });
+        await saveManual(pl);
+        renderLibrary();
+      });
+      name.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); name.blur(); } });
+      head.appendChild(name);
+    } else {
+      const t = document.createElement('span');
+      t.className = 'lib-group-name static';
+      t.textContent = 'Sin categoría';
+      head.appendChild(t);
+    }
+    const count = document.createElement('span');
+    count.className = 'lib-group-count';
+    count.textContent = items.length;
+    head.appendChild(count);
+    if (g) {
+      head.appendChild(iconButton('#i-trash', 'Eliminar categoría (los canales pasan a «Sin categoría»)', async () => {
+        if (items.length && !confirm(`¿Eliminar la categoría «${g}»? Sus ${items.length} canales pasarán a «Sin categoría».`)) return;
+        pl.groups = pl.groups.filter((x) => x !== g);
+        pl.channels.forEach((c) => { if (c.group === g) c.group = ''; });
+        await saveManual(pl);
+        renderLibrary();
+      }));
+    }
+    sec.appendChild(head);
+
+    if (!items.length) {
+      const empty = document.createElement('p');
+      empty.className = 'lib-empty';
+      empty.textContent = g
+        ? 'Sin canales. Muévelos aquí con el selector de categoría de cada canal.'
+        : 'Esta lista está vacía. Pulsa «Añadir canal» o guarda canales desde otras listas con el botón de carpeta.';
+      sec.appendChild(empty);
+    }
+    items.forEach(({ c, i }, pos) => sec.appendChild(libRow(pl, c, i, sections, pos, items)));
+    box.appendChild(sec);
+  }
+}
+
+function libRow(pl, c, i, sections, pos, items) {
+  const row = document.createElement('div');
+  row.className = 'lib-row';
+  const info = document.createElement('div');
+  info.className = 'lib-info';
+  const name = document.createElement('div');
+  name.className = 'lib-name';
+  name.textContent = c.name;
+  const sub = document.createElement('div');
+  sub.className = 'lib-sub';
+  const type = detectType(c.url, c.type);
+  sub.textContent = [type !== 'auto' ? TYPE_LABEL[type] : '', drmLabel(c.drm), shortUrl(c.url)].filter(Boolean).join(' · ');
+  sub.title = c.url;
+  info.append(name, sub);
+
+  const cat = document.createElement('select');
+  cat.className = 'lib-cat';
+  cat.setAttribute('aria-label', `Categoría de ${c.name}`);
+  cat.dataset.tip = 'Mover a otra categoría';
+  for (const g of sections.filter(Boolean)) cat.add(new Option(g, g));
+  cat.add(new Option('Sin categoría', ''));
+  cat.value = c.group || '';
+  cat.addEventListener('change', async () => {
+    c.group = cat.value;
+    await saveManual(pl);
+    renderLibrary();
+  });
+
+  const actions = document.createElement('div');
+  actions.className = 'lib-actions';
+  const move = async (dir) => {
+    const other = items[pos + dir];
+    if (!other) return;
+    [pl.channels[i], pl.channels[other.i]] = [pl.channels[other.i], pl.channels[i]];
+    await saveManual(pl);
+    renderLibrary();
+    // Mantiene el foco en el canal movido para poder seguir moviéndolo con el teclado.
+    $(`#libGroups .lib-row[data-idx="${other.i}"] [data-move="${dir < 0 ? 'up' : 'down'}"]`)?.focus();
+  };
+  const up = iconButton('#i-up', 'Subir', () => move(-1));
+  up.dataset.move = 'up';
+  up.disabled = pos === 0;
+  const down = iconButton('#i-down', 'Bajar', () => move(1));
+  down.dataset.move = 'down';
+  down.disabled = pos === items.length - 1;
+  actions.append(
+    iconButton('#i-play', 'Reproducir', () => { $('#libDialog').close(); play({ ...c, id: `lib${i}`, errors: [] }); }),
+    up,
+    down,
+    iconButton('#i-edit', 'Editar canal (URL, DRM, cabeceras)', () => {
+      openStreamDialog({ ...c, id: `lib${i}`, errors: [] }, 'Editar canal');
+      state.libEdit = { listId: pl.id, index: i };
+      $('#btnStreamSave').textContent = 'Guardar cambios';
+      $('#btnStreamSave').hidden = false;
+    }),
+    iconButton('#i-trash', 'Eliminar canal', async () => {
+      const [removed] = pl.channels.splice(i, 1);
+      await saveManual(pl);
+      renderLibrary();
+      toast(`«${removed.name}» eliminado`, {
+        label: 'Deshacer',
+        fn: async () => {
+          pl.channels.splice(i, 0, removed);
+          await saveManual(pl);
+          if ($('#libDialog').open) renderLibrary();
+        }
+      });
+    })
+  );
+  row.dataset.idx = String(i);
+  row.append(logoEl('lib-logo', c), info, cat, actions);
+  return row;
+}
+
+async function onStreamSave() {
+  const target = state.libEdit;
+  const pl = target && manualLists().find((p) => p.id === target.listId);
+  if (!pl) return;
+  try {
+    const ch = readStreamForm();
+    if (target.add) {
+      pl.channels.push(cleanChannel({ ...ch, group: '' }));
+      toast(`Añadido a «${pl.name}»`);
+    } else {
+      const old = pl.channels[target.index];
+      pl.channels[target.index] = cleanChannel({ ...ch, group: old?.group || '' });
+      toast('Canal actualizado');
+    }
+    await saveManual(pl);
+    $('#streamDialog').close();
+    if ($('#libDialog').open) renderLibrary();
+  } catch (err) {
+    showFormError('streamError', err.message);
+  }
+}
+
 function iconButton(icon, title, onClick) {
   const b = document.createElement('button');
   b.type = 'button';
   b.className = 'icon-btn';
-  b.title = title;
+  b.dataset.tip = title;
+  b.setAttribute('aria-label', title);
   b.innerHTML = `<svg><use href="${icon}"/></svg>`;
   b.addEventListener('click', onClick);
   return b;
 }
 
 async function addPlaylist({ name, url, text }) {
+  const lib = text ? parseLibraryJSON(text) : null;
+  if (lib) {
+    const created = await createManualList(name || lib.name || 'Lista importada', lib);
+    await selectPlaylist(created.id);
+    toast(`«${created.name}» importada: ${created.channels.length} canales`);
+    return created;
+  }
   const pl = { id: store.newId(), name: '', source: url ? 'url' : 'text', url: url || '', text: text || '', updatedAt: '' };
   if (url) {
     await fetchPlaylist(pl);
@@ -824,7 +1213,7 @@ async function onAddPlaylistClick() {
   try {
     if (file) {
       text = await file.text();
-      await addPlaylist({ name: name || file.name.replace(/\.(m3u8?|txt)$/i, ''), text });
+      await addPlaylist({ name: name || (parseLibraryJSON(text) ? '' : file.name.replace(/\.(m3u8?|txt|json)$/i, '')), text });
     } else if (text) {
       await addPlaylist({ name, text });
     } else if (url) {
@@ -854,18 +1243,90 @@ function showOverlay(title, text, isError = false) {
   $('#overlayTitle').textContent = title;
   $('#overlayText').textContent = text;
   $('#overlay').classList.toggle('error', isError);
+  $('#overlayActions').hidden = !(isError && state.current);
   $('#overlay').hidden = false;
 }
 
 function hideOverlay() { $('#overlay').hidden = true; }
 
 let toastTimer = 0;
-function toast(msg) {
+function toast(msg, action) {
   const el = $('#toast');
-  el.textContent = msg;
+  el.replaceChildren(document.createTextNode(msg));
+  if (action) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'toast-action';
+    b.textContent = action.label;
+    b.addEventListener('click', () => { el.dataset.show = ''; action.fn(); });
+    el.appendChild(b);
+  }
+  el.dataset.action = action ? '1' : '';
+  // Popover: queda por encima de cualquier diálogo abierto.
+  try { if (el.matches(':popover-open')) el.hidePopover(); el.showPopover(); } catch (_) { /* sin soporte */ }
   el.dataset.show = '1';
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { el.dataset.show = ''; }, 2200);
+  toastTimer = setTimeout(() => { el.dataset.show = ''; }, action ? 5000 : 2200);
+}
+
+// ---------- Ayuda ----------
+
+const TOUR_STEPS = [
+  { title: 'Bienvenido a IP Player', text: 'Reproduce listas de canales M3U y enlaces DASH, HLS o Smooth Streaming. Te enseño lo básico en cuatro pasos. Puedes salir cuando quieras con Esc.' },
+  { target: '#btnPlaylists', title: '1. Añade una lista', text: 'Pulsa aquí para añadir tu lista M3U por enlace, archivo o pegando el texto. Si solo quieres probar, usa «Lista de ejemplo».' },
+  { target: '#btnOpenStream', title: 'O abre un enlace suelto', text: 'Para reproducir un solo vídeo sin lista. Aquí también puedes indicar claves o cabeceras si el enlace las necesita.' },
+  { target: '.filters', title: '2. Busca tu canal', text: 'Elige lista y grupo, o escribe para buscar. Atajo: tecla / para buscar, flechas ↑ ↓ para moverte e Intro para reproducir.' },
+  { target: '#channels', title: '3. Elige un canal', text: 'Haz clic en un canal para verlo. La estrella lo guarda en Favoritos.' },
+  { target: '#player', title: '4. Controla la reproducción', text: 'Mueve el ratón sobre el vídeo para ver los controles. El engranaje cambia calidad, idioma y subtítulos. Doble clic: pantalla completa.' },
+  { target: '#btnHelp', title: '¿Dudas?', text: 'Aquí tienes esta guía, los atajos de teclado, preguntas frecuentes y la opción de texto más grande.' }
+];
+
+function openTour() {
+  if ($('#helpDialog').open) $('#helpDialog').close();
+  hideTooltip();
+  // En escritorio, la guía necesita ver el panel lateral.
+  if ($('#app').dataset.collapsed === '1') setSidebarCollapsed(false);
+  startTour(TOUR_STEPS, { onDone: () => store.patchState({ tourDone: true }) });
+}
+
+function openHelp() {
+  hideTooltip();
+  if (!$('#helpDialog').open) $('#helpDialog').showModal();
+}
+
+async function applyUiPrefs(patch) {
+  const ui = { largeText: false, tips: true, ...(await store.get('ui', {})), ...(patch || {}) };
+  if (patch) await store.set('ui', ui);
+  document.documentElement.dataset.large = ui.largeText ? '1' : '';
+  setTooltipsEnabled(ui.tips);
+  $('#optLarge').checked = ui.largeText;
+  $('#optTips').checked = ui.tips;
+  list?.refresh();
+}
+
+// ---------- Indicador en pantalla para el teclado ----------
+
+function osdFor(key) {
+  const v = $('#video');
+  const pct = Math.round((v.muted ? 0 : v.volume) * 100);
+  switch (key) {
+    case 'ArrowUp':
+    case 'ArrowDown':
+      return controls.osd(`${pct} %`, { icon: pct ? 'i-vol' : 'i-mute', level: pct / 100 });
+    case 'm':
+      return controls.osd(v.muted || !v.volume ? 'Silenciado' : `Sonido ${pct} %`, { icon: v.muted || !v.volume ? 'i-mute' : 'i-vol' });
+    case 'ArrowLeft':
+      return controls.osd('−10 s');
+    case 'ArrowRight':
+      return controls.osd('+10 s');
+    case 'c': {
+      const a = engine === 'dashjs' ? dashEngine : shakaAdapter;
+      const t = a?.textTracks?.().find((x) => x.active);
+      return controls.osd(t ? `Subtítulos: ${langName(t.lang) || t.label || 'activados'}` : 'Subtítulos desactivados', { icon: 'i-cc' });
+    }
+    default:
+      return null;
+  }
 }
 
 function setSidebarCollapsed(collapsed) {
@@ -889,6 +1350,110 @@ function bindEvents() {
   $('#btnOpenStream').addEventListener('click', () => openStreamDialog(null));
   $('#btnPlaylists').addEventListener('click', () => { renderPlaylistManager(); showFormError('playlistError', ''); $('#playlistDialog').showModal(); });
   $('#btnEmptyAdd').addEventListener('click', () => $('#btnPlaylists').click());
+  $('#btnEmptySample').addEventListener('click', async () => {
+    try {
+      const text = await (await fetch(chrome.runtime.getURL('sample/ejemplos.m3u'))).text();
+      await addPlaylist({ name: 'Ejemplos (DASH · HLS · MSS · DRM)', text });
+      toast('Lista de ejemplo añadida');
+    } catch (err) {
+      toast(err.message);
+    }
+  });
+  $('#btnEmptyTour').addEventListener('click', openTour);
+
+  // Listas propias
+  $('#btnCreateList').addEventListener('click', async () => {
+    const pl = await createManualList($('#pNewName').value.trim());
+    $('#pNewName').value = '';
+    renderPlaylistManager();
+    $('#playlistDialog').close();
+    await selectPlaylist(pl.id);
+    openLibrary(pl.id);
+  });
+  $('#pNewName').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); $('#btnCreateList').click(); } });
+  $('#btnAddTo').addEventListener('click', () => {
+    if (!state.current) { toast('Primero reproduce o abre un canal'); return; }
+    openSaveDialog(state.current);
+  });
+  $('#btnStreamSaveTo').addEventListener('click', () => {
+    try { openSaveDialog(readStreamForm(), { listId: state.libEdit?.listId }); } catch (err) { showFormError('streamError', err.message); }
+  });
+  $('#btnStreamSave').addEventListener('click', onStreamSave);
+  $('#streamDialog').addEventListener('close', () => { state.libEdit = null; $('#btnStreamSave').hidden = true; });
+  $('#sList').addEventListener('change', syncSaveDialog);
+  $('#saveForm').addEventListener('submit', onSaveSubmit);
+  $('#libName').addEventListener('change', async () => {
+    const pl = libList();
+    const v = $('#libName').value.trim();
+    if (!pl || !v) { $('#libName').value = pl?.name || ''; return; }
+    pl.name = v;
+    await saveManual(pl);
+  });
+  $('#libName').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } });
+  const addGroup = async () => {
+    const pl = libList();
+    const g = $('#libNewGroup').value.trim();
+    if (!pl || !g) return;
+    if (groupsOf(pl).includes(g)) { toast('Esa categoría ya existe'); return; }
+    pl.groups.push(g);
+    $('#libNewGroup').value = '';
+    await saveManual(pl);
+    renderLibrary();
+  };
+  $('#btnLibAddGroup').addEventListener('click', addGroup);
+  $('#libNewGroup').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addGroup(); } });
+  $('#btnLibAddChannel').addEventListener('click', () => {
+    const pl = libList();
+    if (!pl) return;
+    openStreamDialog(null, `Añadir canal a «${pl.name}»`);
+    state.libEdit = { listId: pl.id, add: true };
+    $('#btnStreamSave').textContent = 'Añadir a la lista';
+    $('#btnStreamSave').hidden = false;
+  });
+  $('#libDialog').addEventListener('click', (e) => {
+    const fmt = e.target.closest('[data-export]')?.dataset.export;
+    if (!fmt) return;
+    const pl = libList();
+    if (pl) { exportList(pl, fmt); toast(`Descargando «${pl.name}» en ${fmt.toUpperCase()}`); }
+  });
+
+  // Ayuda y accesibilidad
+  $('#btnHelp').addEventListener('click', openHelp);
+  $('#btnStartTour').addEventListener('click', openTour);
+  $('#optLarge').addEventListener('change', (e) => applyUiPrefs({ largeText: e.target.checked }));
+  $('#optTips').addEventListener('change', (e) => applyUiPrefs({ tips: e.target.checked }));
+
+  // Mensaje de error: reintentar o revisar el stream
+  $('#btnRetry').addEventListener('click', () => state.current && play(state.current));
+  $('#btnFixStream').addEventListener('click', () => state.current && openStreamDialog(state.current, 'Revisar stream'));
+
+  // Lista con teclado
+  $('#search').addEventListener('keydown', onListKey);
+  $('#channels').addEventListener('keydown', onListKey);
+  $('#channels').addEventListener('focus', () => {
+    if (state.cursor < 0 && state.filtered.length) setCursor(Math.max(0, currentIndex()));
+  });
+
+  // Detección del tipo mientras se escribe la URL
+  const urlHint = $('#fUrlHint');
+  const urlHintDefault = urlHint.textContent;
+  const updateUrlHint = () => {
+    const u = $('#fUrl').value.trim();
+    if (!u) { urlHint.textContent = urlHintDefault; urlHint.dataset.kind = ''; return; }
+    if (!/^https?:\/\//i.test(u)) {
+      urlHint.textContent = 'La URL debe empezar por http:// o https://';
+      urlHint.dataset.kind = 'warn';
+      return;
+    }
+    const t = detectType(u, $('#fType').value);
+    urlHint.textContent = t === 'auto'
+      ? 'Formato no reconocido por la URL: se intentará detectar al reproducir.'
+      : `Formato detectado: ${TYPE_LABEL[t]}`;
+    urlHint.dataset.kind = t === 'auto' ? '' : 'ok';
+  };
+  $('#fUrl').addEventListener('input', updateUrlHint);
+  $('#fType').addEventListener('change', updateUrlHint);
+  $('#streamDialog').addEventListener('toggle', (e) => { if (e.newState === 'open') updateUrlHint(); });
 
   $('#btnSidebar').addEventListener('click', () => setSidebarCollapsed($('#app').dataset.collapsed !== '1'));
   $('#btnFav').addEventListener('click', () => state.current && toggleFavorite(state.current));
@@ -938,6 +1503,7 @@ function bindEvents() {
   // Atajos de teclado (sin animaciones: se repiten mucho)
   document.addEventListener('keydown', (e) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (isTourOpen()) return;
     if (e.target.closest('input, textarea, select, dialog[open]')) return;
     const onButton = e.target.closest('button, [role="slider"]');
     const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
@@ -951,6 +1517,7 @@ function bindEvents() {
       m: () => controls.toggleMute(),
       c: () => controls.toggleSubtitles(),
       l: () => setSidebarCollapsed($('#app').dataset.collapsed !== '1'),
+      '?': () => openHelp(),
       ArrowLeft: () => (onButton ? false : controls.seekBy(-10)),
       ArrowRight: () => (onButton ? false : controls.seekBy(10)),
       ArrowUp: () => controls.nudgeVolume(0.05),
@@ -960,6 +1527,7 @@ function bindEvents() {
     if (fn && fn() !== false) {
       e.preventDefault();
       controls.wake();
+      if (controls.enabled) osdFor(key);
     }
   });
 }
@@ -970,7 +1538,9 @@ function bindEvents() {
 
 async function main() {
   list = new VirtualList($('#channels'), { rowHeight: ROW_HEIGHT, render: renderRow });
+  initTooltips();
   bindEvents();
+  applyUiPrefs();
   prefs = { ...prefs, ...(await store.getPrefs()) };
   await initPlayer();
   await loadData();
@@ -1006,6 +1576,9 @@ async function main() {
     play({ id: 'manual', name: nameFromUrl(url) || url, url, type: '', headers: {}, drm: emptyDrm(), errors: [] });
   }
   if (params.size) history.replaceState(null, '', location.pathname);
+
+  // Primera vez: guía rápida
+  if (!saved.tourDone && !params.size) setTimeout(() => { if (!document.querySelector('dialog[open]')) openTour(); }, 700);
 }
 
 main().catch((err) => {
