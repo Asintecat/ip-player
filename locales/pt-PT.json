@@ -405,5 +405,10 @@
   "El navegador no admite el códec de este stream.": "O navegador não suporta o codec desta emissão.",
   "#KODIPROP:inputstream.adaptive.license_type=clearkey\n#KODIPROP:inputstream.adaptive.license_key=KID:KEY\n#EXTINF:-1,Mi canal\nhttps://ejemplo.com/manifest.mpd": "#KODIPROP:inputstream.adaptive.license_type=clearkey\n#KODIPROP:inputstream.adaptive.license_key=KID:KEY\n#EXTINF:-1,O meu canal\nhttps://exemplo.pt/manifest.mpd",
   "User-Agent: Mozilla/5.0 …\nReferer: https://sitio.com/": "User-Agent: Mozilla/5.0 …\nReferer: https://site.pt/",
-  "#EXTM3U\n#EXTINF:-1 tvg-logo=\"…\" group-title=\"…\",Canal\nhttps://…": "#EXTM3U\n#EXTINF:-1 tvg-logo=\"…\" group-title=\"…\",Canal\nhttps://…"
+  "#EXTM3U\n#EXTINF:-1 tvg-logo=\"…\" group-title=\"…\",Canal\nhttps://…": "#EXTM3U\n#EXTINF:-1 tvg-logo=\"…\" group-title=\"…\",Canal\nhttps://…",
+  "1 cabecera": "1 cabeçalho",
+  "{n} cabeceras": "{n} cabeçalhos",
+  "Guía": "Guia",
+  "Atajos": "Atalhos",
+  "Preguntas": "Perguntas"
 }

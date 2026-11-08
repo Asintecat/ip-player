@@ -405,5 +405,10 @@
   "El navegador no admite el códec de este stream.": "El navegador no admet el còdec d’aquest flux.",
   "#KODIPROP:inputstream.adaptive.license_type=clearkey\n#KODIPROP:inputstream.adaptive.license_key=KID:KEY\n#EXTINF:-1,Mi canal\nhttps://ejemplo.com/manifest.mpd": "#KODIPROP:inputstream.adaptive.license_type=clearkey\n#KODIPROP:inputstream.adaptive.license_key=KID:KEY\n#EXTINF:-1,El meu canal\nhttps://exemple.com/manifest.mpd",
   "User-Agent: Mozilla/5.0 …\nReferer: https://sitio.com/": "User-Agent: Mozilla/5.0 …\nReferer: https://lloc.com/",
-  "#EXTM3U\n#EXTINF:-1 tvg-logo=\"…\" group-title=\"…\",Canal\nhttps://…": "#EXTM3U\n#EXTINF:-1 tvg-logo=\"…\" group-title=\"…\",Canal\nhttps://…"
+  "#EXTM3U\n#EXTINF:-1 tvg-logo=\"…\" group-title=\"…\",Canal\nhttps://…": "#EXTM3U\n#EXTINF:-1 tvg-logo=\"…\" group-title=\"…\",Canal\nhttps://…",
+  "1 cabecera": "1 capçalera",
+  "{n} cabeceras": "{n} capçaleres",
+  "Guía": "Guia",
+  "Atajos": "Dreceres",
+  "Preguntas": "Preguntes"
 }

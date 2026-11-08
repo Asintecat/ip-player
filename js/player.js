@@ -565,6 +565,7 @@ const isManualActive = () => activeList()?.source === 'manual';
 async function loadData() {
   state.playlists = await store.getPlaylists();
   state.favorites = await store.getFavorites();
+  syncFavSet();
   state.recents = await store.get('recents', []);
 }
 
@@ -591,7 +592,7 @@ async function selectPlaylist(id, { refresh = false, keepGroup = false } = {}) {
     } else {
       try {
         if (refresh || !pl.text) await fetchPlaylist(pl);
-        state.channels = parseM3U(pl.text, pl.url).channels;
+        state.channels = parsedChannels(pl);
         countCache.set(`${pl.id}|${pl.updatedAt}`, state.channels.length);
       } catch (err) {
         state.channels = [];
@@ -616,26 +617,45 @@ async function fetchPlaylist(pl) {
   setStatus(t('«{name}» actualizada', { name: pl.name }), 'ok');
 }
 
-/** Categorías de la lista activa, en orden; «Sin categoría» al final. */
-function groupNames() {
-  const pl = activeList();
-  const out = pl?.source === 'manual' ? [...groupsOf(pl)] : [];
-  const seen = new Set(out);
-  let loose = false;
-  for (const c of state.channels) {
-    const g = groupKey(c);
-    if (g === NO_GROUP) { loose = true; continue; }
-    if (!seen.has(g)) { seen.add(g); out.push(g); }
+/** Canales de una lista M3U ya analizados (no se vuelve a parsear al cambiar de lista). */
+const parseCache = new Map();
+function parsedChannels(pl) {
+  const key = `${pl.id}|${pl.updatedAt}|${pl.text.length}`;
+  let channels = parseCache.get(pl.id)?.key === key ? parseCache.get(pl.id).channels : null;
+  if (!channels) {
+    channels = parseM3U(pl.text, pl.url).channels;
+    parseCache.set(pl.id, { key, channels });
   }
-  if (loose) out.push(NO_GROUP);
-  return out;
+  return channels;
 }
 
-function buckets() {
-  const map = new Map(groupNames().map((g) => [g, []]));
-  for (const c of state.channels) map.get(groupKey(c))?.push(c);
-  return map;
+/**
+ * Categorías y canales por categoría de la lista activa. Se calculan una vez por
+ * cambio de canales (no en cada repintado): con miles de canales se nota.
+ */
+let groupMemo = null;
+function groupData() {
+  const pl = activeList();
+  const sig = pl?.source === 'manual' ? groupsOf(pl).join('\u0001') : '';
+  if (groupMemo && groupMemo.channels === state.channels && groupMemo.sig === sig) return groupMemo;
+  const names = pl?.source === 'manual' ? [...groupsOf(pl)] : [];
+  const map = new Map(names.map((g) => [g, []]));
+  const loose = [];
+  for (const c of state.channels) {
+    const g = groupKey(c);
+    if (g === NO_GROUP) { loose.push(c); continue; }
+    let arr = map.get(g);
+    if (!arr) { arr = []; map.set(g, arr); names.push(g); }
+    arr.push(c);
+  }
+  if (loose.length) { names.push(NO_GROUP); map.set(NO_GROUP, loose); }
+  groupMemo = { channels: state.channels, sig, names, map };
+  return groupMemo;
 }
+
+/** Categorías de la lista activa, en orden; «Sin categoría» al final. */
+const groupNames = () => groupData().names;
+const buckets = () => groupData().map;
 
 const norm = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
@@ -655,23 +675,47 @@ function computeFiltered() {
 }
 
 const favKey = (c) => `${c.url}|${c.name}`;
-const isFav = (c) => state.favorites.some((f) => favKey(f) === favKey(c));
+/** Claves de los favoritos: comprobar si un canal es favorito es inmediato. */
+let favSet = new Set();
+const syncFavSet = () => { favSet = new Set(state.favorites.map(favKey)); };
+const isFav = (c) => favSet.has(favKey(c));
 
 async function toggleFavorite(channel) {
   const key = favKey(channel);
   const idx = state.favorites.findIndex((f) => favKey(f) === key);
-  if (idx >= 0) {
-    state.favorites.splice(idx, 1);
-    toast(t('Eliminado de favoritos'));
-  } else {
+  const on = idx < 0;
+  if (on) {
     state.favorites.push(cleanChannel(channel));
     toast(t('Añadido a favoritos'));
+  } else {
+    state.favorites.splice(idx, 1);
+    toast(t('Eliminado de favoritos'));
   }
-  await store.saveFavorites(state.favorites);
-  if (state.activeId === FAV_ID) state.channels = state.favorites.map((c, i) => ({ ...c, id: `fav${i}`, favIndex: i }));
+  syncFavSet();
+  store.saveFavorites(state.favorites).catch(() => {});
   renderListPicker();
-  renderBrowse({ preserve: true });
   renderNowPlaying();
+  if (state.activeId === FAV_ID) {
+    state.channels = state.favorites.map((c, i) => ({ ...c, id: `fav${i}`, favIndex: i }));
+    renderBrowse({ preserve: true });
+    return;
+  }
+  // Sin repintar la página: estrellas de ese canal y bloque de Favoritos.
+  for (const card of document.querySelectorAll(`.card[data-key="${CSS.escape(key)}"]`)) {
+    const star = card.querySelector('.card-fav');
+    star.classList.toggle('on', on);
+    star.dataset.tip = t(on ? 'Quitar de favoritos' : 'Añadir a favoritos');
+    star.setAttribute('aria-label', star.dataset.tip);
+  }
+  const body = $('#browseBody');
+  const old = body.querySelector('.block[data-block="fav"]');
+  const homeMode = !state.group && !state.query.trim();
+  if (!homeMode) return;
+  if (!state.favorites.length) { old?.remove(); return; }
+  const block = blockEl({ id: 'fav', title: t('Favoritos'), icon: 'i-star', items: state.favorites, layout: 'row', more: () => selectPlaylist(FAV_ID) });
+  if (old) old.replaceWith(block);
+  else body.prepend(block);
+  markPlaying();
 }
 
 function pushRecent(channel) {
@@ -1438,13 +1482,18 @@ function openCardMenu(channel, { anchor = null, point = null, focus = false } = 
 // ---------- Arrastrar canales (listas propias) ----------
 
 let drag = null;
+let dropNode = null; // destino resaltado ahora mismo (dragover se dispara muchas veces por segundo)
+
+function clearDropNode() {
+  dropNode?.classList.remove('drop-before', 'drop-after', 'drop-into');
+  dropNode = null;
+}
 
 function endDrag() {
   drag = null;
   delete document.body.dataset.dragging;
-  for (const n of document.querySelectorAll('.dragging, .drop-before, .drop-after, .drop-into')) {
-    n.classList.remove('dragging', 'drop-before', 'drop-after', 'drop-into');
-  }
+  clearDropNode();
+  document.querySelector('.card.dragging')?.classList.remove('dragging');
 }
 
 function bindDropTarget(node, { group, target = null }) {
@@ -1453,9 +1502,7 @@ function bindDropTarget(node, { group, target = null }) {
     e.preventDefault();
     e.stopPropagation();
     e.dataTransfer.dropEffect = 'move';
-    for (const n of document.querySelectorAll('.drop-before, .drop-after, .drop-into')) {
-      if (n !== node) n.classList.remove('drop-before', 'drop-after', 'drop-into');
-    }
+    if (dropNode !== node) { clearDropNode(); dropNode = node; }
     if (target != null) {
       const r = node.getBoundingClientRect();
       const after = e.clientX > r.left + r.width / 2;
@@ -1466,7 +1513,7 @@ function bindDropTarget(node, { group, target = null }) {
     }
   });
   node.addEventListener('dragleave', (e) => {
-    if (!node.contains(e.relatedTarget)) node.classList.remove('drop-before', 'drop-after', 'drop-into');
+    if (!node.contains(e.relatedTarget) && dropNode === node) clearDropNode();
   });
   node.addEventListener('drop', (e) => {
     if (!drag) return;
@@ -1650,8 +1697,52 @@ function fillListSelect(sel, preferred) {
 // Diálogo: abrir / añadir / editar canal
 // ======================================================================
 
-function hasAdvanced(c) {
-  return !!(c && ((c.drm && c.drm.system && c.drm.system !== 'none') || Object.keys(c.headers || {}).length || c.type || c.engine));
+// ---------- Vistas dentro de un diálogo ----------
+
+const EASE = 'cubic-bezier(0.23, 1, 0.32, 1)';
+
+/**
+ * Muestra la vista `name` de un diálogo ([data-view]) y los elementos de esa vista
+ * ([data-for-view]). Si el diálogo está abierto, anima el cambio de altura y desliza
+ * el contenido: hacia la izquierda al avanzar y hacia la derecha al volver.
+ */
+function setDialogView(dialog, name, { back = false } = {}) {
+  const views = [...dialog.querySelectorAll('[data-view]')];
+  const target = views.find((v) => v.dataset.view === name);
+  if (!target) return;
+  const animate = dialog.open && dialog.dataset.view && dialog.dataset.view !== name
+    && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const h0 = animate ? dialog.getBoundingClientRect().height : 0;
+  for (const v of views) v.hidden = v !== target;
+  for (const n of dialog.querySelectorAll('[data-for-view]')) n.hidden = !n.dataset.forView.split(' ').includes(name);
+  dialog.dataset.view = name;
+  target.scrollTop = 0;
+  if (!animate) return;
+  const h1 = dialog.getBoundingClientRect().height;
+  dialog.getAnimations().forEach((a) => a.cancel());
+  if (Math.abs(h1 - h0) > 1) {
+    dialog.style.overflow = 'hidden';
+    const anim = dialog.animate([{ height: `${h0}px` }, { height: `${h1}px` }], { duration: 240, easing: EASE });
+    anim.onfinish = anim.oncancel = () => { dialog.style.overflow = ''; };
+  }
+  target.animate(
+    [{ opacity: 0, transform: `translateX(${back ? -16 : 16}px)` }, { opacity: 1, transform: 'none' }],
+    { duration: 220, easing: EASE }
+  );
+}
+
+/** Resumen de las opciones avanzadas del canal (para la fila «Opciones avanzadas»). */
+function advancedSummary() {
+  const parts = [];
+  if ($('#fType').value) parts.push(typeLabel($('#fType').value));
+  if ($('#fEngine').value) parts.push($('#fEngine').selectedOptions[0].textContent.split(' (')[0]);
+  const sys = $('#fDrm').value;
+  if (sys !== 'none') parts.push($('#fDrm').selectedOptions[0].textContent.split(' (')[0]);
+  const headers = Object.keys(parseLineHeaders($('#fHeaders').value)).length;
+  if (headers) parts.push(headers === 1 ? t('1 cabecera') : t('{n} cabeceras', { n: headers }));
+  const el = $('#advSummary');
+  el.textContent = parts.length ? parts.join(' · ') : t('formato, DRM y cabeceras');
+  $('#btnAdvanced').classList.toggle('configured', parts.length > 0);
 }
 
 /**
@@ -1667,7 +1758,10 @@ function openStreamDialog(channel, { mode = 'open', title, listId, index, group 
   fillStreamForm(channel || { name: '', url: '', type: '', headers: {}, drm: emptyDrm() });
   $('#streamError').hidden = true;
   $('#fImport').value = '';
-  $('#fAdvanced').open = hasAdvanced(channel);
+  const dialog = $('#streamDialog');
+  delete dialog.dataset.view;
+  setDialogView(dialog, 'main');
+  advancedSummary();
 
   $('#fSaveTo').hidden = mode !== 'add';
   if (mode === 'add') {
@@ -1814,7 +1908,10 @@ function openManager() {
   closePop();
   renderPlaylistManager();
   showFormError('managerError', '');
-  $('#manageDialog').showModal();
+  const dialog = $('#manageDialog');
+  delete dialog.dataset.view;
+  setDialogView(dialog, 'lists');
+  if (!dialog.open) dialog.showModal();
 }
 
 function renderPlaylistManager() {
@@ -2028,28 +2125,44 @@ async function onCategorySubmit(e) {
 
 let addTab = 'url';
 
-function openAddPlaylist() {
-  closePop();
-  $('#playlistForm').reset();
+function resetAddPlaylist() {
+  for (const id of ['pUrl', 'pText', 'pName']) $('#' + id).value = '';
+  $('#pFile').value = '';
   $('#pFileName').textContent = '';
   showFormError('playlistError', '');
-  $('#playlistDialog').showModal();
+}
+
+/** Abre «Tus listas» directamente en la vista de añadir una M3U. */
+function openAddPlaylist() {
+  closePop();
+  resetAddPlaylist();
+  renderPlaylistManager();
+  const dialog = $('#manageDialog');
+  delete dialog.dataset.view;
+  setDialogView(dialog, 'add');
+  if (!dialog.open) dialog.showModal();
   setAddTab('url');
   $('#pUrl').focus();
 }
 
-function setAddTab(tab) {
-  addTab = tab;
-  for (const b of document.querySelectorAll('#addTabs [data-tab]')) {
+/** Selecciona una pestaña de un control segmentado y desliza su indicador. */
+function segSelect(sel, tab) {
+  const box = $(sel);
+  for (const b of box.querySelectorAll('[data-tab]')) {
     const on = b.dataset.tab === tab;
     b.setAttribute('aria-selected', String(on));
     b.tabIndex = on ? 0 : -1;
   }
-  for (const p of document.querySelectorAll('#playlistForm [data-panel]')) p.hidden = p.dataset.panel !== tab;
-  const active = $(`#addTabs [data-tab="${tab}"]`);
-  const ind = $('#addTabs .seg-indicator');
+  const active = box.querySelector(`[data-tab="${tab}"]`);
+  const ind = box.querySelector('.seg-indicator');
   ind.style.width = `${active.offsetWidth}px`;
   ind.style.transform = `translateX(${active.offsetLeft}px)`;
+}
+
+function setAddTab(tab) {
+  addTab = tab;
+  for (const p of document.querySelectorAll('#playlistForm [data-panel]')) p.hidden = p.dataset.panel !== tab;
+  segSelect('#addTabs', tab);
 }
 
 async function addPlaylist({ name, url, text }) {
@@ -2108,7 +2221,7 @@ async function onAddPlaylistClick() {
       if (!url) throw new Error(t('Pega el enlace de la lista.'));
       await addPlaylist({ name, url });
     }
-    $('#playlistDialog').close();
+    $('#manageDialog').close();
   } catch (err) {
     showFormError('playlistError', err.message);
   } finally {
@@ -2136,7 +2249,12 @@ function initMiniPlayer() {
   }, { root: $('#main'), threshold: [0, 0.35, 0.7] });
   io.observe($('#playerWrap'));
   document.addEventListener('fullscreenchange', syncMini);
-  addEventListener('resize', syncMini);
+  addEventListener('resize', syncMini, { passive: true });
+  // Estado de pausa en la raíz: congela el indicador animado de las tarjetas sin usar :has().
+  const video = $('#video');
+  const syncPaused = () => { $('#app').dataset.paused = video.paused ? '1' : ''; };
+  for (const ev of ['play', 'pause', 'emptied']) video.addEventListener(ev, syncPaused);
+  syncPaused();
 }
 
 function syncMini() {
@@ -2209,7 +2327,12 @@ function openTour() {
 function openHelp() {
   hideTooltip();
   closePop();
-  if (!$('#helpDialog').open) $('#helpDialog').showModal();
+  const d = $('#helpDialog');
+  if (d.open) return;
+  delete d.dataset.view;
+  setDialogView(d, 'start');
+  d.showModal();
+  segSelect('#helpTabs', 'start');
 }
 
 async function applyUiPrefs(patch) {
@@ -2342,7 +2465,7 @@ function bindEvents() {
     await createListFlow(name);
   });
   $('#pNewName').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); $('#btnCreateList').click(); } });
-  $('#btnManagerAdd').addEventListener('click', () => { $('#manageDialog').close(); openAddPlaylist(); });
+  $('#btnManagerAdd').addEventListener('click', () => { resetAddPlaylist(); setDialogView($('#manageDialog'), 'add'); setAddTab('url'); $('#pUrl').focus(); });
 
   // Añadir lista M3U
   for (const b of document.querySelectorAll('#addTabs [data-tab]')) b.addEventListener('click', () => setAddTab(b.dataset.tab));
@@ -2373,7 +2496,7 @@ function bindEvents() {
   });
   $('#btnSample').addEventListener('click', async () => {
     showFormError('playlistError', '');
-    try { await addSamplePlaylist(); $('#playlistDialog').close(); } catch (err) { showFormError('playlistError', err.message); }
+    try { await addSamplePlaylist(); $('#manageDialog').close(); } catch (err) { showFormError('playlistError', err.message); }
   });
 
   // Guardar en lista y categoría
@@ -2430,6 +2553,38 @@ function bindEvents() {
   $('#fUrl').addEventListener('input', updateUrlHint);
   $('#fType').addEventListener('change', updateUrlHint);
   $('#streamDialog').addEventListener('toggle', (e) => { if (e.newState === 'open') updateUrlHint(); });
+
+  // Vistas de los diálogos: botones «Atrás» ([data-back]) y filas que llevan a otra vista ([data-view-to])
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-back], [data-view-to]');
+    const dialog = btn?.closest('dialog');
+    if (!dialog || btn.id === 'btnManagerAdd') return;
+    const back = btn.hasAttribute('data-back');
+    const to = back ? btn.dataset.back : btn.dataset.viewTo;
+    if (dialog.id === 'streamDialog' && to === 'main') advancedSummary();
+    if (dialog.id === 'manageDialog' && to === 'lists') { renderPlaylistManager(); showFormError('managerError', ''); }
+    setDialogView(dialog, to, { back });
+    if (dialog.id === 'streamDialog' && to === 'advanced') $('#fType').focus({ preventScroll: true });
+    if (dialog.id === 'streamDialog' && to === 'main') $('#btnAdvanced').focus({ preventScroll: true });
+  });
+
+  // Ayuda: pestañas
+  const helpTabs = ['start', 'keys', 'faq', 'prefs'];
+  const setHelpTab = (tab) => {
+    const d = $('#helpDialog');
+    const back = helpTabs.indexOf(tab) < helpTabs.indexOf(d.dataset.view);
+    setDialogView(d, tab, { back });
+    segSelect('#helpTabs', tab);
+  };
+  for (const b of document.querySelectorAll('#helpTabs [data-tab]')) b.addEventListener('click', () => setHelpTab(b.dataset.tab));
+  $('#helpTabs').addEventListener('keydown', (e) => {
+    const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+    if (!d) return;
+    e.preventDefault();
+    const tab = helpTabs[(helpTabs.indexOf($('#helpDialog').dataset.view) + d + helpTabs.length) % helpTabs.length];
+    setHelpTab(tab);
+    $(`#helpTabs [data-tab="${tab}"]`).focus();
+  });
 
   // Ayuda y accesibilidad
   $('#btnHelp').addEventListener('click', openHelp);
