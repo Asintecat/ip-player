@@ -17,6 +17,7 @@ import { startTour, isTourOpen } from './tour.js';
 import { cleanChannel, groupsOf, parseLibraryJSON, exportList } from './library.js';
 import { t, getLang, setLang, detectLang, LANGS, initI18n, translateStatic, locale } from './i18n.js';
 import { enhanceSelects, refreshSelects } from './select.js';
+import { parseProxy, setProxy, ensureUrl, clearProxy, describeProxy, proxyControl, isProxyAvailable, activeProxy } from './proxy.js';
 
 const $ = (sel) => document.querySelector(sel);
 const typeLabel = (type) => t(TYPE_LABEL[type] || 'Auto');
@@ -103,6 +104,9 @@ async function initPlayer() {
         if (!FORBIDDEN.has(k.toLowerCase())) request.headers[k] = v;
       }
     }
+    // Proxy: el dominio se añade al PAC (y se espera) antes de pedirlo.
+    const waits = (request.uris || []).map(ensureUrl).filter(Boolean);
+    if (waits.length) return Promise.all(waits);
   });
 
   net.registerResponseFilter((type, response) => {
@@ -298,6 +302,16 @@ async function play(channel) {
   } catch (err) {
     console.warn('No se pudieron aplicar las cabeceras', err);
   }
+  try {
+    const proxy = await applyChannelProxy(channel);
+    if (proxy) setStatus(`${t('Cargando {what}…', { what: typeLabel(type) })} · ${t('vía {proxy}', { proxy: describeProxy(proxy) })}`);
+  } catch (err) {
+    if (token !== loadToken) return;
+    controls.setBusy(false);
+    showOverlay(t('No se pudo usar el proxy'), err.message, true);
+    setStatus(`${t('No se pudo usar el proxy')}: ${err.message}`, 'err');
+    return;
+  }
   if (token !== loadToken) return;
 
   if (channel.engine === 'dashjs') return playWithDash(channel, token, type, drmText);
@@ -346,6 +360,7 @@ function showPlayer() {
 async function stopPlayback() {
   loadToken++;
   state.current = null;
+  clearProxy().catch(() => {});
   controls.setEnabled(false);
   controls.setBusy(false);
   hideOverlay();
@@ -610,7 +625,15 @@ async function selectPlaylist(id, { refresh = false, keepGroup = false } = {}) {
 async function fetchPlaylist(pl) {
   if (pl.source !== 'url') return;
   setStatus(t('Descargando «{name}»…', { name: pl.name }));
-  const res = await fetch(pl.url, { cache: 'no-store' });
+  const general = generalProxy();
+  const viaProxy = !!general && (!activeProxy() || activeProxy().pac === general.pac);
+  if (viaProxy) await setProxy(general, [pl.url]).catch(() => {});
+  let res;
+  try {
+    res = await fetch(pl.url, { cache: 'no-store' });
+  } finally {
+    if (viaProxy && !state.current) clearProxy().catch(() => {});
+  }
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   pl.text = await res.text();
   pl.updatedAt = new Date().toISOString();
@@ -808,6 +831,7 @@ function renderNowPlaying() {
   const type = detectType(c.url, c.type);
   badge(typeLabel(type), 'type');
   if (drmLabel(c.drm)) badge(drmLabel(c.drm), 'drm');
+  try { if (channelProxy(c)) badge(t('Proxy'), 'proxy'); } catch (_) { /* proxy no válido */ }
   if (c.group && c.group !== drmLabel(c.drm) && c.group !== TYPE_LABEL[type]) badge(c.group);
   $('#btnFav').classList.toggle('on', isFav(c));
   $('#btnFav').dataset.tip = t(isFav(c) ? 'Quitar de favoritos' : 'Añadir a favoritos');
@@ -1866,6 +1890,9 @@ function advancedSummary() {
   if (sys !== 'none') parts.push($('#fDrm').selectedOptions[0].textContent.split(' (')[0]);
   const headers = Object.keys(parseLineHeaders($('#fHeaders').value)).length;
   if (headers) parts.push(headers === 1 ? t('1 cabecera') : t('{n} cabeceras', { n: headers }));
+  const pm = $('#fProxyMode').value;
+  if (pm === 'custom') parts.push(t('Proxy propio'));
+  else if (pm === 'none') parts.push(t('Sin proxy'));
   const el = $('#advSummary');
   el.textContent = parts.length ? parts.join(' · ') : t('formato, DRM y cabeceras');
   $('#btnAdvanced').classList.toggle('configured', parts.length > 0);
@@ -1928,6 +1955,9 @@ function fillStreamForm(c) {
   $('#fBody').value = d.bodyTemplate || '';
   $('#fResp').value = d.responseTemplate || '';
   $('#fHeaders').value = headersToLines(c.headers);
+  $('#fProxyMode').value = c.proxy?.mode || 'global';
+  $('#fProxy').value = c.proxy?.url || '';
+  syncProxyFields();
   syncDrmFields();
 }
 
@@ -1969,8 +1999,100 @@ function readStreamForm() {
     engine: $('#fEngine').value,
     headers: parseLineHeaders($('#fHeaders').value),
     drm,
+    proxy: readProxyField(),
     errors: []
   };
+}
+
+// ---------- Proxy ----------
+
+let uiProxy = { enabled: false, url: '' };
+
+/** Proxy general (Ayuda → Opciones), o null si está desactivado o no es válido. */
+function generalProxy() {
+  if (!uiProxy.enabled || !uiProxy.url) return null;
+  try { return parseProxy(uiProxy.url); } catch (_) { return null; }
+}
+
+/** Proxy que usa un canal: el suyo, ninguno o el general. */
+function channelProxy(channel) {
+  const mode = channel.proxy?.mode || 'global';
+  if (mode === 'none') return null;
+  if (mode === 'custom') return parseProxy(channel.proxy.url);
+  return generalProxy();
+}
+
+/** Activa (o quita) el proxy para el canal que va a sonar. Lanza un error legible si no se puede. */
+async function applyChannelProxy(channel) {
+  let proxy;
+  try { proxy = channelProxy(channel); } catch (_) { throw new Error(t('El proxy del canal no es válido. Revísalo en «Opciones avanzadas».')); }
+  if (proxy) {
+    if (!isProxyAvailable()) throw new Error(t('Esta versión del navegador no permite usar un proxy desde la extensión.'));
+    const control = await proxyControl();
+    if (control === 'not_controllable' || control === 'controlled_by_other_extensions') {
+      throw new Error(t('Otra extensión o una política del navegador controla el proxy.'));
+    }
+  }
+  await setProxy(proxy, [channel.url, channel.drm?.licenseUrl].filter(Boolean));
+  return proxy;
+}
+
+/** Explica un texto de proxy (o el error) bajo el campo. */
+function proxyHint(text, hint) {
+  const v = text.trim();
+  if (!v) { hint.textContent = t('Formato: socks5://host:1080 · http://usuario:contraseña@host:8080'); hint.dataset.kind = ''; return null; }
+  try {
+    const p = parseProxy(v);
+    hint.textContent = p.user && p.scheme.startsWith('socks')
+      ? t('{proxy} · Chrome no admite usuario y contraseña en SOCKS', { proxy: describeProxy(p) })
+      : describeProxy(p);
+    hint.dataset.kind = p.user && p.scheme.startsWith('socks') ? 'warn' : 'ok';
+    return p;
+  } catch (_) {
+    hint.textContent = t('No es un proxy válido. Usa http://, https://, socks4:// o socks5://');
+    hint.dataset.kind = 'warn';
+    return null;
+  }
+}
+
+function syncProxyFields() {
+  const custom = $('#fProxyMode').value === 'custom';
+  $('#fProxyWrap').hidden = !custom;
+  if (custom) proxyHint($('#fProxy').value, $('#fProxyHint'));
+}
+
+function readProxyField() {
+  const mode = $('#fProxyMode').value;
+  if (mode !== 'custom') return { mode, url: '' };
+  const url = $('#fProxy').value.trim();
+  try { parseProxy(url); } catch (_) { throw new Error(t('El proxy del canal no es válido. Revísalo en «Opciones avanzadas».')); }
+  return { mode, url };
+}
+
+/** Prueba el proxy general: pide una página mínima a través de él. */
+async function testGeneralProxy() {
+  const hint = $('#gProxyHint');
+  const p = proxyHint($('#gProxy').value, hint);
+  if (!p) return;
+  const probe = 'https://www.gstatic.com/generate_204';
+  hint.textContent = t('Probando…');
+  hint.dataset.kind = '';
+  const t0 = performance.now();
+  try {
+    if (!isProxyAvailable()) throw new Error(t('Esta versión del navegador no permite usar un proxy desde la extensión.'));
+    await setProxy(p, [probe]);
+    const res = await fetch(probe, { cache: 'no-store' });
+    if (!res.ok && res.status !== 204) throw new Error(`HTTP ${res.status}`);
+    hint.textContent = t('Conexión correcta a través del proxy ({ms} ms)', { ms: Math.round(performance.now() - t0) });
+    hint.dataset.kind = 'ok';
+  } catch (err) {
+    hint.textContent = t('El proxy no responde: {msg}', { msg: err.message });
+    hint.dataset.kind = 'warn';
+  } finally {
+    // Vuelve a dejar el proxy como estaba (el del canal en reproducción o ninguno).
+    if (state.current) applyChannelProxy(state.current).catch(() => {});
+    else clearProxy().catch(() => {});
+  }
 }
 
 function importIntoForm() {
@@ -2475,6 +2597,11 @@ async function applyUiPrefs(patch) {
   $('#optLarge').checked = ui.largeText;
   $('#optTips').checked = ui.tips;
   $('#optBeginner').checked = beginner;
+  uiProxy = { enabled: false, url: '', ...(ui.proxy || {}) };
+  $('#optProxy').checked = uiProxy.enabled;
+  if (document.activeElement !== $('#gProxy')) $('#gProxy').value = uiProxy.url;
+  $('#gProxyWrap').hidden = !uiProxy.enabled;
+  if (uiProxy.enabled) proxyHint($('#gProxy').value, $('#gProxyHint'));
   refreshTodos();
   requestAnimationFrame(moveChipIndicator);
 }
@@ -2727,6 +2854,14 @@ function bindEvents() {
   $('#optLarge').addEventListener('change', (e) => applyUiPrefs({ largeText: e.target.checked }));
   $('#optTips').addEventListener('change', (e) => applyUiPrefs({ tips: e.target.checked }));
   $('#optBeginner').addEventListener('change', (e) => applyUiPrefs({ beginner: e.target.checked }));
+  // Proxy general
+  $('#optProxy').addEventListener('change', (e) => applyUiPrefs({ proxy: { ...uiProxy, enabled: e.target.checked } }));
+  $('#gProxy').addEventListener('input', (e) => proxyHint(e.target.value, $('#gProxyHint')));
+  $('#gProxy').addEventListener('change', (e) => applyUiPrefs({ proxy: { ...uiProxy, url: e.target.value.trim() } }));
+  $('#btnTestProxy').addEventListener('click', testGeneralProxy);
+  // Proxy del canal
+  $('#fProxyMode').addEventListener('change', syncProxyFields);
+  $('#fProxy').addEventListener('input', () => proxyHint($('#fProxy').value, $('#fProxyHint')));
   // Requisitos en vivo mientras se rellena cada formulario
   for (const ev of ['input', 'change']) {
     $('#streamForm').addEventListener(ev, channelTodo);

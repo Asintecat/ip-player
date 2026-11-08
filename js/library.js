@@ -26,6 +26,7 @@ export function cleanChannel(c) {
     type: c.type || '',
     engine: c.engine || '',
     headers: { ...(c.headers || {}) },
+    proxy: c.proxy && c.proxy.mode && c.proxy.mode !== 'global' ? { mode: c.proxy.mode, url: String(c.proxy.url || '') } : undefined,
     drm: {
       system: drm.system || 'none',
       licenseUrl: drm.licenseUrl || '',
@@ -88,6 +89,7 @@ export function toM3U(list) {
       else extra[k] = v;
     }
     if (Object.keys(extra).length) lines.push(`#EXTHTTP:${JSON.stringify(extra)}`);
+    if (c.proxy?.mode === 'custom' && c.proxy.url) lines.push(`#EXTVLCOPT:http-proxy=${c.proxy.url}`);
     lines.push(c.url);
   }
   return lines.join('\n') + '\n';

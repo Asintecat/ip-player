@@ -2031,3 +2031,8 @@ html[data-large="1"] .toast { zoom: 1.15; }
 @media (pointer: coarse) { .todo-btn { min-height: 44px; } }
 /* Botón principal bloqueado hasta cumplir los requisitos */
 .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+/* Proxy */
+.badge.proxy { color: var(--ok); background: rgba(74, 222, 128, 0.1); }
+.proxy-general { gap: 8px; margin: 2px 0 6px; }
+.proxy-general > span { color: var(--text-2); font-size: 12.5px; font-weight: 500; }

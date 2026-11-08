@@ -11,6 +11,7 @@
 import { parseClearKeys, toHex, ANY_KID, base64ToBytes, bytesToBase64 } from './drm.js';
 import { sameLang } from './controls.js';
 import { t as tx, locale } from './i18n.js';
+import { ensureUrl } from './proxy.js';
 
 const FORBIDDEN = new Set(['user-agent', 'referer', 'origin', 'cookie', 'host', 'connection', 'content-length']);
 const KEY_SCHEME = 'ipkey:';
@@ -296,6 +297,7 @@ export class HlsEngine {
       if (!value && ref.kind === 'clearkey' && /^https?:/i.test(uri)) {
         // Licencia org.w3.clearkey: POST {kids}; respuesta JWK. Sin KID, GET de la clave.
         const b64url = (hex) => bytesToBase64(hexToBytes(hex)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        await ensureUrl(uri);
         const res = kid
           ? await fetch(uri, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ kids: [b64url(kid)], type: 'temporary' }) })
           : await fetch(uri, { headers });
@@ -303,6 +305,7 @@ export class HlsEngine {
         value = parseKeyResponse(await res.arrayBuffer(), uri, kid);
       }
       if (!value && drm.licenseUrl) {
+        await ensureUrl(proxyUrl(drm.licenseUrl, uri));
         const res = await fetch(proxyUrl(drm.licenseUrl, uri), { headers });
         if (!res.ok) throw new Error(tx('El proxy de claves respondió HTTP {code}', { code: res.status }));
         value = parseKeyResponse(await res.arrayBuffer(), uri, kid);
@@ -329,6 +332,11 @@ export class HlsEngine {
     return class IpLoader extends Base {
       load(context, config, callbacks) {
         // Claves: se resuelven localmente, sin red (salvo el proxy).
+        // Proxy: el dominio se añade al PAC (y se espera) antes de pedirlo.
+        if (!context.url.startsWith(KEY_SCHEME)) {
+          const wait = ensureUrl(context.url);
+          if (wait) { wait.then(() => this.load(context, config, callbacks), (err) => callbacks.onError({ code: 0, text: err.message }, context, null, this.stats)); return; }
+        }
         if (context.url.startsWith(KEY_SCHEME)) {
           const ref = decodeKeyRef(context.url);
           const stats = this.stats;

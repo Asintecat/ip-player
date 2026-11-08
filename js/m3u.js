@@ -9,7 +9,7 @@ import {
 
 function freshPending() {
   return {
-    name: '', attrs: {}, group: '', headers: {}, type: '', engine: '',
+    name: '', attrs: {}, group: '', headers: {}, type: '', engine: '', proxy: '',
     drmSystem: '', licenseKey: '', drmLegacy: '', drmJson: '', licenseHeaders: {}
   };
 }
@@ -108,6 +108,7 @@ function buildChannel(p, rawUrl, index, baseUrl) {
     url,
     type: p.type || normalizeType(a['type'] || a['manifest-type']),
     engine: p.engine,
+    proxy: p.proxy ? { mode: 'custom', url: p.proxy } : undefined,
     headers,
     drm,
     errors
@@ -169,6 +170,7 @@ export function parseM3U(text, baseUrl) {
       else if (k === 'http-referrer' || k === 'http-referer') p.headers['Referer'] = v;
       else if (k === 'http-origin') p.headers['Origin'] = v;
       else if (k === 'http-cookie') p.headers['Cookie'] = v;
+      else if (k === 'http-proxy' || k === 'socks-proxy') p.proxy = v;
       continue;
     }
     if (line.startsWith('#EXTHTTP:')) {

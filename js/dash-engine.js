@@ -6,6 +6,7 @@
 
 import { bytesToBase64, cencKeys } from './drm.js';
 import { t as tx, locale } from './i18n.js';
+import { ensureUrl } from './proxy.js';
 
 const FORBIDDEN = new Set(['user-agent', 'referer', 'origin', 'cookie', 'host', 'connection', 'content-length']);
 const enc = new TextEncoder();
@@ -147,6 +148,14 @@ export class DashEngine {
     const E = dashjs.MediaPlayer.events;
     for (const ev of [E.STREAM_INITIALIZED, E.QUALITY_CHANGE_RENDERED, E.TRACK_CHANGE_RENDERED, E.TEXT_TRACKS_ADDED]) {
       p.on(ev, () => this.onTracks?.());
+    }
+
+    // Proxy: el dominio se añade al PAC (y se espera) antes de cada petición.
+    if (typeof p.addRequestInterceptor === 'function') {
+      p.addRequestInterceptor(async (request) => {
+        await ensureUrl(request?.url);
+        return request;
+      });
     }
 
     this.player = p;

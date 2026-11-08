@@ -327,6 +327,21 @@
         </section>
 
         <section class="section">
+          <h3 class="section-title">Proxy</h3>
+          <label class="field">Usar
+            <select id="fProxyMode">
+              <option value="global">El proxy general (Ayuda → Opciones)</option>
+              <option value="none">Ninguno: conexión directa</option>
+              <option value="custom">Un proxy solo para este canal</option>
+            </select>
+          </label>
+          <label class="field" id="fProxyWrap" hidden>Proxy del canal
+            <input id="fProxy" type="text" spellcheck="false" autocomplete="off" placeholder="socks5://host:1080 · http://usuario:contraseña@host:8080" aria-describedby="fProxyHint">
+            <small id="fProxyHint">Formato: socks5://host:1080 · http://usuario:contraseña@host:8080</small>
+          </label>
+        </section>
+
+        <section class="section">
           <details class="disclosure">
             <summary>Pegar entrada M3U</summary>
             <div class="disclosure-body">
@@ -542,6 +557,17 @@
         <h3 class="section-title">Accesibilidad</h3>
         <label class="switch"><input type="checkbox" id="optLarge"><span class="switch-track"></span><span>Texto y botones más grandes</span></label>
         <label class="switch"><input type="checkbox" id="optTips" checked><span class="switch-track"></span><span>Mostrar etiquetas de ayuda al pasar el ratón</span></label>
+        <h3 class="section-title">Proxy</h3>
+        <label class="switch"><input type="checkbox" id="optProxy"><span class="switch-track"></span><span>Cargar los streams a través de un proxy</span></label>
+        <div class="field proxy-general" id="gProxyWrap" hidden>
+          <span>Proxy general</span>
+          <div class="inline-form">
+            <input id="gProxy" type="text" spellcheck="false" autocomplete="off" placeholder="socks5://host:1080 · http://usuario:contraseña@host:8080" aria-label="Proxy general" aria-describedby="gProxyHint">
+            <button type="button" class="btn" id="btnTestProxy">Probar conexión</button>
+          </div>
+          <small id="gProxyHint">Formato: socks5://host:1080 · http://usuario:contraseña@host:8080</small>
+          <small>Solo pasan por el proxy los dominios del canal en reproducción; el resto de la navegación no se toca. Chrome no admite usuario y contraseña en proxys SOCKS.</small>
+        </div>
         <h3 class="section-title">Modo principiante</h3>
         <label class="switch"><input type="checkbox" id="optBeginner"><span class="switch-track"></span><span>Muestra una lista de requisitos al crear canales, listas y categorías</span></label>
       </div>

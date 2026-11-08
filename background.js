@@ -48,6 +48,32 @@ chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && changes.ui && changes.ui.oldValue?.lang !== changes.ui.newValue?.lang) buildMenus();
 });
 
+// ---------- Proxy de los streams (ver js/proxy.js) ----------
+
+// Usuario y contraseña del proxy HTTP/HTTPS cuando lo pide. Un solo intento por
+// petición: si falla, no se repite en bucle.
+const authTried = new Set();
+chrome.webRequest.onAuthRequired.addListener((details, callback) => {
+  if (!details.isProxy || authTried.has(details.requestId)) { callback({}); return; }
+  authTried.add(details.requestId);
+  setTimeout(() => authTried.delete(details.requestId), 60000);
+  chrome.storage.local.get('proxyAuth').then(({ proxyAuth = {} }) => {
+    const cred = proxyAuth[`${details.challenger.host}:${details.challenger.port}`];
+    callback(cred ? { authCredentials: { username: cred.user, password: cred.pass } } : {});
+  }, () => callback({}));
+}, { urls: ['<all_urls>'] }, ['asyncBlocking']);
+
+/** Quita el proxy de IP Player si quedó puesto (reproductor cerrado o navegador reiniciado). */
+async function releaseProxy() {
+  const tabs = await chrome.tabs.query({ url: PLAYER_URL + '*' });
+  if (tabs.length) return;
+  chrome.proxy.settings.get({}, (d) => {
+    if (d?.levelOfControl === 'controlled_by_this_extension') chrome.proxy.settings.clear({ scope: 'regular' });
+  });
+}
+chrome.runtime.onStartup.addListener(releaseProxy);
+chrome.tabs.onRemoved.addListener(() => { releaseProxy(); });
+
 chrome.contextMenus.onClicked.addListener((info) => {
   const url = info.linkUrl || info.srcUrl;
   if (!url) return;
