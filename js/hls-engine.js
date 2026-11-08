@@ -1,46 +1,126 @@
-// Motor alternativo basado en hls.js para HLS con segmentos MPEG-TS cifrados con
-// SAMPLE-AES (empaquetado FairPlay). Shaka no lo soporta (error 4040).
+// Motor alternativo basado en hls.js para HLS con segmentos MPEG-TS cifrados.
+// Shaka no lo soporta (error 4040) y Chrome no tiene CDM FairPlay.
 //
-// Chrome no tiene CDM FairPlay, así que la licencia de Apple (SPC/CKC) no se puede
-// pedir. Lo que sí se puede hacer, si se conoce la clave de contenido, es descifrar
-// los segmentos en JavaScript: el manifiesto se reescribe para que cada EXT-X-KEY
-// FairPlay (skd://…) apunte a una clave «identity» que resuelve IP Player:
-//   - con las claves ClearKey del canal (KID:KEY, o solo KEY), o
-//   - con un proxy de claves (el «Servidor de licencias» del canal): GET que devuelve
-//     la clave de 16 bytes en binario, hex, base64 o JSON. Admite {uri}, {id} y {kid}.
+// Si el manifiesto anuncia varias claves (ClearKey, FairPlay, Widevine, PlayReady),
+// se queda con ClearKey y se descartan las demás. La clave sale de la propia lista
+// (identity, data: o licencia org.w3.clearkey) o, si solo hay FairPlay, de las claves
+// del canal (KID:KEY, solo KEY, *:KEY:IV) o de un proxy de claves ({uri}, {id}, {kid}).
+// No se pide licencia FairPlay (SPC/CKC).
 /* global Hls */
 
-import { parseClearKeys, toHex, ANY_KID } from './drm.js';
+import { parseClearKeys, toHex, ANY_KID, base64ToBytes, bytesToBase64 } from './drm.js';
 
 const FORBIDDEN = new Set(['user-agent', 'referer', 'origin', 'cookie', 'host', 'connection', 'content-length']);
 const KEY_SCHEME = 'ipkey:';
-const FAIRPLAY_FORMAT = 'com.apple.streamingkeydelivery';
+const WIDEVINE_UUID = 'edef8ba9-79d6-4ace-a3c8-27dcd51d21ed';
+const PLAYREADY_UUID = '9a04f079-9840-4286-ab92-e65be0885f95';
+const CLEARKEY_UUID = '1077efec-c0b2-4d02-ace3-3c1e52e2fb4b';
 
 function attr(line, name) {
   const m = line.match(new RegExp(`(?:^|[:,])${name}=("([^"]*)"|[^,]*)`, 'i'));
   return m ? (m[2] ?? m[1]) : null;
 }
 
+/** identity / org.w3.clearkey / UUID ClearKey, frente a FairPlay, Widevine o PlayReady. */
+export function classifyKeyLine(line) {
+  const method = (attr(line, 'METHOD') || 'NONE').toUpperCase();
+  if (method === 'NONE') return 'none';
+  const uri = attr(line, 'URI') || '';
+  const format = (attr(line, 'KEYFORMAT') || 'identity').toLowerCase();
+  if (format.includes('streamingkeydelivery') || format.includes('com.apple.fps') || /^skd:/i.test(uri)) return 'fairplay';
+  if (format.includes('widevine') || format.includes(WIDEVINE_UUID)) return 'widevine';
+  if (format.includes('playready') || format.includes(PLAYREADY_UUID) || format.includes('wiseplay')) return 'other';
+  if (format === 'identity' || format.includes('clearkey') || format.includes(CLEARKEY_UUID)) return 'clearkey';
+  return 'other';
+}
+
+function keyIdOf(line) {
+  const hex = String(attr(line, 'KEYID') || '').replace(/^0x/i, '').replace(/-/g, '');
+  return /^[0-9a-f]{32}$/i.test(hex) ? hex.toLowerCase() : '';
+}
+
+/** identity con URI http(s) o relativa: hls.js descarga los 16 bytes. El resto lo resolvemos nosotros. */
+function hlsCanFetchKey(line) {
+  const format = (attr(line, 'KEYFORMAT') || 'identity').toLowerCase();
+  const uri = attr(line, 'URI') || '';
+  return format === 'identity' && !/^data:/i.test(uri) && !/^skd:/i.test(uri);
+}
+
+function absoluteUri(uri, base) {
+  if (!uri || /^(https?:|data:|skd:|ipkey:)/i.test(uri)) return uri;
+  try { return new URL(uri, base).href; } catch (_) { return uri; }
+}
+
+export function encodeKeyRef(ref) {
+  return KEY_SCHEME + encodeURIComponent(JSON.stringify({
+    uri: ref.uri || '', kid: ref.kid || '', kind: ref.kind || ''
+  }));
+}
+
+export function decodeKeyRef(url) {
+  const raw = decodeURIComponent(String(url).slice(KEY_SCHEME.length));
+  if (raw.startsWith('{')) {
+    const ref = JSON.parse(raw);
+    return { uri: String(ref.uri || ''), kid: String(ref.kid || ''), kind: String(ref.kind || '') };
+  }
+  return { uri: raw, kid: '', kind: 'fairplay' };
+}
+
+function emitIdentity(line, uri) {
+  const method = (attr(line, 'METHOD') || 'SAMPLE-AES').toUpperCase();
+  const iv = attr(line, 'IV');
+  return `#EXT-X-KEY:METHOD=${method},URI="${uri}"${iv ? `,IV=${iv}` : ''},KEYFORMAT="identity"`;
+}
+
 /**
  * Reescribe las etiquetas de clave de un manifiesto HLS.
- * SAMPLE-AES FairPlay/identity → SAMPLE-AES identity con URI ipkey:…
- * Se quitan las claves de otros DRM y EXT-X-SESSION-KEY (hls.js intentaría EME).
+ * Si hay ClearKey (identity, org.w3.clearkey o su UUID), se conservan esas líneas
+ * y se quitan FairPlay, Widevine y PlayReady. Si solo hay FairPlay, cada EXT-X-KEY
+ * pasa a identity con URI ipkey:… para usar la clave del canal.
+ * EXT-X-SESSION-KEY se quita: hls.js intentaría EME. En una lista de medios, una
+ * SESSION-KEY ClearKey se convierte en EXT-X-KEY si no hay otra ClearKey.
  */
-export function rewriteKeys(text, ivFor = () => null) {
-  return String(text).split(/\r?\n/).map((line) => {
-    if (line.startsWith('#EXT-X-SESSION-KEY')) return null;
-    if (!line.startsWith('#EXT-X-KEY')) return line;
+export function rewriteKeys(text, { base } = {}) {
+  const lines = String(text).split(/\r?\n/);
+  const isMedia = lines.some((l) => l.startsWith('#EXTINF'));
+  const keyLines = lines.filter((l) => l.startsWith('#EXT-X-KEY:'));
+  const hasClearKey = keyLines.some((l) => classifyKeyLine(l) === 'clearkey')
+    || (isMedia && lines.some((l) => l.startsWith('#EXT-X-SESSION-KEY:') && classifyKeyLine(l) === 'clearkey'));
+
+  return lines.map((line) => {
+    const session = line.startsWith('#EXT-X-SESSION-KEY:');
+    const key = line.startsWith('#EXT-X-KEY:');
+    if (!session && !key) return line;
+    if (session && !(hasClearKey && isMedia && !keyLines.some((l) => classifyKeyLine(l) === 'clearkey') && classifyKeyLine(line) === 'clearkey')) {
+      return null;
+    }
+    const kind = classifyKeyLine(line);
     const method = (attr(line, 'METHOD') || '').toUpperCase();
-    if (method !== 'SAMPLE-AES') return line; // NONE / AES-128: hls.js los gestiona solo
-    const uri = attr(line, 'URI') || '';
-    const format = (attr(line, 'KEYFORMAT') || 'identity').toLowerCase();
-    if (format !== FAIRPLAY_FORMAT && format !== 'identity' && !/^skd:/i.test(uri)) return null;
-    // FairPlay suele entregar el IV en la licencia (CKC), no en el manifiesto:
-    // si el usuario o el proxy lo dan, manda sobre el del manifiesto.
-    const known = ivFor(uri);
-    const iv = known ? '0x' + known : attr(line, 'IV');
-    return `#EXT-X-KEY:METHOD=SAMPLE-AES,URI="${KEY_SCHEME}${encodeURIComponent(uri)}"${iv ? `,IV=${iv}` : ''},KEYFORMAT="identity"`;
+    if (hasClearKey) {
+      if (kind !== 'clearkey') return null;
+      if (!session && hlsCanFetchKey(line)) return line;
+      const uri = absoluteUri(attr(line, 'URI') || '', base);
+      return emitIdentity(line, encodeKeyRef({ uri, kid: keyIdOf(line), kind: 'clearkey' }));
+    }
+    if (session) return null;
+    if (method !== 'SAMPLE-AES') return line;
+    if (kind !== 'fairplay' && kind !== 'clearkey') return null;
+    const uri = absoluteUri(attr(line, 'URI') || '', base);
+    return emitIdentity(line, encodeKeyRef({ uri, kid: keyIdOf(line), kind }));
   }).filter((l) => l !== null).join('\n');
+}
+
+/** Sustituye el IV de las líneas ipkey: por el que devolvió la clave (canal o licencia). */
+export function applyResolvedIv(text, ivOf) {
+  return String(text).split(/\r?\n/).map((line) => {
+    if (!line.includes(KEY_SCHEME)) return line;
+    const ref = decodeKeyRef(attr(line, 'URI') || '');
+    const iv = ivOf(ref);
+    if (!iv) return line;
+    const ivHex = '0x' + String(iv).replace(/^0x/i, '');
+    if (/(?:^|,)IV=/i.test(line)) return line.replace(/IV=0x[0-9a-f]+/i, `IV=${ivHex}`);
+    return line.replace(/,KEYFORMAT=/i, `,IV=${ivHex},KEYFORMAT=`);
+  }).join('\n');
 }
 
 function hexToBytes(hex) {
@@ -53,16 +133,57 @@ function kidForms(kid) {
   return [kid, uuid];
 }
 
-/** Elige la clave local que corresponde a la URI de clave original. */
-export function pickLocalKey(keys, uri) {
+/**
+ * KID e IV de un descriptor skd:// (UUID suelto o JSON en base64, como en shaka-proxy).
+ * El descriptor está en el manifiesto; no es una licencia FairPlay.
+ */
+export function parseSkd(uri) {
+  const out = { kid: '', iv: '' };
+  if (!/^skd:/i.test(uri)) return out;
+  let rest = uri.replace(/^skd:\/\//i, '');
+  try { rest = decodeURIComponent(rest); } catch (_) { /* ya decodificado */ }
+  if (/^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i.test(rest)) {
+    out.kid = rest.replace(/-/g, '').toLowerCase();
+    return out;
+  }
+  try {
+    const json = JSON.parse(new TextDecoder().decode(base64ToBytes(rest)));
+    const kid = String(json.KeyId || json.kid || json.keyId || '').replace(/-/g, '').toLowerCase();
+    if (/^[0-9a-f]{32}$/.test(kid)) out.kid = kid;
+    const ivRaw = json.IV || json.iv;
+    if (ivRaw) {
+      const iv = toHex(ivRaw);
+      if (iv.length === 32) out.iv = iv;
+    }
+  } catch (_) { /* descriptor no JSON */ }
+  return out;
+}
+
+/** Elige la clave local que corresponde a la URI o al KID. */
+export function pickLocalKey(keys, uri, kidHint) {
   const entries = Object.entries(keys || {});
   if (!entries.length) return null;
+  const hinted = String(kidHint || '').replace(/-/g, '').toLowerCase();
+  const kid = (hinted && hinted !== ANY_KID ? hinted : '') || parseSkd(uri).kid;
+  // KID conocido: solo vale su clave o la comodín (*:KEY). Otra clave daría vídeo corrupto.
+  if (kid) return keys[kid] || keys[ANY_KID] || null;
   const hay = String(uri).toLowerCase();
-  for (const [kid, key] of entries) {
-    if (kid !== ANY_KID && kidForms(kid).some((f) => hay.includes(f))) return key;
+  for (const [k, key] of entries) {
+    if (k !== ANY_KID && kidForms(k).some((f) => hay.includes(f))) return key;
   }
-  // Sin coincidencia: clave comodín, o la única que hay, o la primera.
-  return keys[ANY_KID] || entries[0][1];
+  // Sin KID: la comodín, o la única clave si no hay ambigüedad.
+  return keys[ANY_KID] || (entries.length === 1 ? entries[0][1] : null);
+}
+
+/** Clave dentro de una URI data: (base64 o hex, 16 bytes). */
+function dataUriKey(uri) {
+  const m = String(uri).match(/^data:[^,]*?(;base64)?,(.*)$/i);
+  if (!m) return null;
+  try {
+    const body = decodeURIComponent(m[2]);
+    const hex = m[1] ? Array.from(base64ToBytes(body), (b) => b.toString(16).padStart(2, '0')).join('') : toHex(body);
+    return hex.length === 32 ? hex : null;
+  } catch (_) { return null; }
 }
 
 /**
@@ -70,7 +191,7 @@ export function pickLocalKey(keys, uri) {
  * Admite: 16 bytes (clave) o 32 bytes (clave + IV, como FairPlay) en binario;
  * hex / base64 de lo mismo; "KID:KEY[:IV]"; JSON {key, iv}, {"kid":"key"} o JWK.
  */
-export function parseKeyResponse(buf, uri) {
+export function parseKeyResponse(buf, uri, kid) {
   const bytes = new Uint8Array(buf);
   const hex = (b) => Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
   const split = (h) => (h.length === 64 ? `${h.slice(0, 32)}:${h.slice(32)}` : h);
@@ -84,9 +205,11 @@ export function parseKeyResponse(buf, uri) {
     const json = JSON.parse(text);
     const k = json.key ?? json.k ?? json.contentKey ?? json.content_key;
     if (typeof k === 'string') return toHex(k) + (json.iv ? ':' + toHex(json.iv) : '');
-    return pickLocalKey(parseClearKeys(text), uri);
+    const keys = parseClearKeys(text);
+    if (kid && keys[String(kid).replace(/-/g, '').toLowerCase()]) return keys[String(kid).replace(/-/g, '').toLowerCase()];
+    return pickLocalKey(keys, uri, kid);
   }
-  if (text.includes(':')) return pickLocalKey(parseClearKeys(text), uri);
+  if (text.includes(':')) return pickLocalKey(parseClearKeys(text), uri, kid);
   return split(toHex(text));
 }
 
@@ -153,25 +276,47 @@ export class HlsEngine {
     return HlsEngine._loading;
   }
 
-  /** Obtiene {key: ArrayBuffer(16), iv: hex|null} para una URI de clave original. */
-  async _resolveKey(uri, drm) {
-    if (this._keyCache.has(uri)) return this._keyCache.get(uri);
+  /**
+   * Obtiene {key: ArrayBuffer(16), iv: hex|null} para una referencia {uri, kid, kind}.
+   * Orden: clave en data:, claves del canal, licencia ClearKey de la lista, proxy de claves.
+   * IV: el del canal (KID:KEY:IV), si no el del descriptor skd://; si no, el del manifiesto.
+   */
+  async _resolveKey(ref, drm) {
+    const cacheKey = `${ref.uri}|${ref.kid}`;
+    if (this._keyCache.has(cacheKey)) return this._keyCache.get(cacheKey);
     const p = (async () => {
-      let value = pickLocalKey(drm.keys, uri);
+      const { uri } = ref;
+      const skd = parseSkd(uri);
+      const kid = ref.kid || skd.kid;
+      const headers = Object.fromEntries(Object.entries(drm.licenseHeaders || {}).filter(([k]) => !FORBIDDEN.has(k.toLowerCase())));
+      let value = dataUriKey(uri) || pickLocalKey(drm.keys, uri, kid);
+      if (!value && ref.kind === 'clearkey' && /^https?:/i.test(uri)) {
+        // Licencia org.w3.clearkey: POST {kids}; respuesta JWK. Sin KID, GET de la clave.
+        const b64url = (hex) => bytesToBase64(hexToBytes(hex)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        const res = kid
+          ? await fetch(uri, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ kids: [b64url(kid)], type: 'temporary' }) })
+          : await fetch(uri, { headers });
+        if (!res.ok) throw new Error(`El servidor de claves ClearKey respondió HTTP ${res.status}`);
+        value = parseKeyResponse(await res.arrayBuffer(), uri, kid);
+      }
       if (!value && drm.licenseUrl) {
-        const headers = Object.fromEntries(Object.entries(drm.licenseHeaders || {}).filter(([k]) => !FORBIDDEN.has(k.toLowerCase())));
         const res = await fetch(proxyUrl(drm.licenseUrl, uri), { headers });
         if (!res.ok) throw new Error(`El proxy de claves respondió HTTP ${res.status}`);
-        value = parseKeyResponse(await res.arrayBuffer(), uri);
+        value = parseKeyResponse(await res.arrayBuffer(), uri, kid);
       }
-      if (!value) throw new Error('No hay clave para este stream. Añade la clave (KEY o KID:KEY) o un proxy de claves con «Editar».');
-      const [hex, iv = null] = String(value).split(':');
+      if (!value) {
+        throw new Error(kid
+          ? `No hay clave para el KID ${kid}. Añade KID:KEY (o *:KEY) o un proxy de claves con «Editar».`
+          : 'No hay clave para este stream. Añade la clave (KEY o KID:KEY) o un proxy de claves con «Editar».');
+      }
+      const [hex, ivOwn = null] = String(value).split(':');
+      const iv = ivOwn || skd.iv || null;
       if (hex.length !== 32) throw new Error(`La clave debe tener 16 bytes (32 caracteres hex); tiene ${hex.length / 2}.`);
       if (iv && iv.length !== 32) throw new Error(`El IV debe tener 16 bytes (32 caracteres hex); tiene ${iv.length / 2}.`);
       return { key: hexToBytes(hex).buffer, iv };
     })();
-    this._keyCache.set(uri, p);
-    p.catch(() => this._keyCache.delete(uri));
+    this._keyCache.set(cacheKey, p);
+    p.catch(() => this._keyCache.delete(cacheKey));
     return p;
   }
 
@@ -182,10 +327,10 @@ export class HlsEngine {
       load(context, config, callbacks) {
         // Claves: se resuelven localmente, sin red (salvo el proxy).
         if (context.url.startsWith(KEY_SCHEME)) {
-          const uri = decodeURIComponent(context.url.slice(KEY_SCHEME.length));
+          const ref = decodeKeyRef(context.url);
           const stats = this.stats;
           stats.loading.start = performance.now();
-          engine._resolveKey(uri, drm).then(({ key: data }) => {
+          engine._resolveKey(ref, drm).then(({ key: data }) => {
             stats.loading.first = stats.loading.end = performance.now();
             stats.loaded = stats.total = data.byteLength;
             callbacks.onSuccess({ url: context.url, data }, stats, context, null);
@@ -201,18 +346,24 @@ export class HlsEngine {
           callbacks = {
             ...callbacks,
             onSuccess: (response, stats, ctx, net) => {
-              if (typeof response.data !== 'string' || !/METHOD=SAMPLE-AES/i.test(response.data)) {
+              if (typeof response.data !== 'string' || !/#EXT-X-(SESSION-)?KEY:/.test(response.data)) {
                 onSuccess(response, stats, ctx, net);
                 return;
               }
+              const base = response.url || ctx.url;
+              const text = rewriteKeys(response.data, { base });
               // Se resuelven las claves antes para poder escribir su IV en el manifiesto.
-              const uris = [...new Set(response.data.split(/\r?\n/)
-                .filter((l) => l.startsWith('#EXT-X-KEY') && /METHOD=SAMPLE-AES/i.test(l))
-                .map((l) => attr(l, 'URI') || ''))];
-              Promise.all(uris.map((u) => engine._resolveKey(u, drm).then((r) => [u, r.iv]).catch(() => [u, null])))
+              // Si falla, el error se mostrará cuando hls.js pida la clave.
+              const refs = new Map();
+              for (const line of text.split(/\r?\n/)) {
+                if (!line.startsWith('#EXT-X-KEY:') || !line.includes(KEY_SCHEME)) continue;
+                const ref = decodeKeyRef(attr(line, 'URI') || '');
+                refs.set(`${ref.uri}|${ref.kid}`, ref);
+              }
+              Promise.all([...refs].map(([id, ref]) => engine._resolveKey(ref, drm).then((r) => [id, r.iv], () => [id, null])))
                 .then((pairs) => {
                   const ivs = new Map(pairs);
-                  response.data = rewriteKeys(response.data, (u) => ivs.get(u));
+                  response.data = applyResolvedIv(text, (ref) => ivs.get(`${ref.uri}|${ref.kid}`));
                   onSuccess(response, stats, ctx, net);
                 });
             }

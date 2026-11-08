@@ -257,6 +257,11 @@ export function applyKodiDrmJson(drm, raw) {
 /** Devuelve la sección "drm" de la configuración de Shaka Player. */
 export function buildShakaDrmConfig(drm) {
   const cfg = { servers: {}, clearKeys: {} };
+  // Un manifiesto con varios sistemas usa ClearKey si el canal no pide otro.
+  // FairPlay no está en Chrome; Shaka lo salta si ClearKey o Widevine sirven.
+  if (!drm || drm.system === 'none' || drm.system === 'clearkey') {
+    cfg.preferredKeySystems = [KEY_SYSTEMS.clearkey, KEY_SYSTEMS.widevine];
+  }
   if (!drm || drm.system === 'none') return cfg;
   if (drm.system === 'clearkey') {
     if (Object.keys(cencKeys(drm.keys)).length) cfg.clearKeys = cencKeys(drm.keys);
