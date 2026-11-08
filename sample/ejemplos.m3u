@@ -1,0 +1,37 @@
+#EXTM3U
+#EXTINF:-1 tvg-id="angel-dash" group-title="Sin DRM",Angel One (DASH)
+https://storage.googleapis.com/shaka-demo-assets/angel-one/dash.mpd
+
+#EXTINF:-1 tvg-id="angel-hls" group-title="Sin DRM",Angel One (HLS)
+https://storage.googleapis.com/shaka-demo-assets/angel-one-hls/hls.m3u8
+
+#EXTINF:-1 tvg-id="bbb-hls" group-title="Sin DRM",Big Buck Bunny (HLS TS)
+https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8
+
+#KODIPROP:inputstream.adaptive.manifest_type=ism
+#EXTINF:-1 tvg-id="speedway" group-title="Sin DRM",Super Speedway (Smooth Streaming)
+https://playready.directtaps.net/smoothstreaming/SSWSS720H264/SuperSpeedway_720.ism/Manifest
+
+#KODIPROP:inputstream.adaptive.license_type=clearkey
+#KODIPROP:inputstream.adaptive.license_key=feedf00deedeadbeeff0baadf00dd00d:00112233445566778899aabbccddeeff
+#EXTINF:-1 group-title="ClearKey",Angel One · ClearKey (KID:KEY hex)
+https://storage.googleapis.com/shaka-demo-assets/angel-one-clearkey/dash.mpd
+
+#KODIPROP:inputstream.adaptive.license_type=org.w3.clearkey
+#KODIPROP:inputstream.adaptive.license_key={"keys":[{"kty":"oct","kid":"_u3wDe7erb7v8Lqt8A3QDQ","k":"ABEiM0RVZneImaq7zN3u_w"}],"type":"temporary"}
+#EXTINF:-1 group-title="ClearKey",Angel One · ClearKey (JWK base64url)
+https://storage.googleapis.com/shaka-demo-assets/angel-one-clearkey/dash.mpd
+
+#KODIPROP:inputstream.adaptive.drm_legacy=org.w3.clearkey|feedf00d-eede-adbe-eff0-baadf00dd00d:00112233445566778899aabbccddeeff
+#EXTINF:-1 group-title="ClearKey",Angel One · ClearKey (drm_legacy)
+https://storage.googleapis.com/shaka-demo-assets/angel-one-clearkey/dash.mpd
+
+#KODIPROP:inputstream.adaptive.license_type=com.widevine.alpha
+#KODIPROP:inputstream.adaptive.license_key=https://cwip-shaka-proxy.appspot.com/no_auth
+#EXTINF:-1 group-title="Widevine",Angel One · Widevine (servidor de licencias)
+https://storage.googleapis.com/shaka-demo-assets/angel-one-widevine/dash.mpd
+
+#KODIPROP:inputstream.adaptive.license_type=com.microsoft.playready
+#KODIPROP:inputstream.adaptive.license_key=https://playready.directtaps.net/pr/svc/rightsmanager.asmx
+#EXTINF:-1 group-title="PlayReady (solo Edge)",Super Speedway · PlayReady (MSS)
+https://playready.directtaps.net/smoothstreaming/SSWSS720H264PR/SuperSpeedway_720.ism/Manifest

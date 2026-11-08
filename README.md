@@ -1,0 +1,70 @@
+# IP Player — extensión de Chrome
+
+Reproductor de listas M3U con soporte para **DASH**, **HLS** y **Smooth Streaming (ISM/ISML)**, con DRM **ClearKey**, **Widevine** y servidores de licencias. Usa [Shaka Player](https://github.com/shaka-project/shaka-player) 4.16 y [dash.js](https://github.com/Dash-Industry-Forum/dash.js) 5.3 para MSS en directo, ambos incluidos en `lib/` sin dependencias remotas.
+
+## Instalación
+
+1. Abre `chrome://extensions` y activa el **Modo de desarrollador**.
+2. Pulsa **Cargar descomprimida** y elige esta carpeta.
+3. Pulsa el icono de la extensión para abrir el reproductor.
+
+## Uso
+
+- **Listas** (icono ☰): añade una lista por URL, archivo local o pegando el texto. Se guardan en la extensión y se pueden actualizar.
+- **Abrir stream** (icono 🔗): reproduce una URL suelta con tipo, DRM y cabeceras manuales. También acepta pegar una entrada M3U con `#KODIPROP`.
+- **Editar** (lápiz): abre el canal actual en el formulario para cambiar las claves, la licencia o las cabeceras.
+- **Controles propios**, iguales en Shaka y dash.js: calidad (botón con la resolución actual o ⚙ → Calidad), audio, subtítulos, velocidad, barra de progreso con DVR en directo, indicador «EN DIRECTO», volumen, imagen en imagen y pantalla completa.
+- **Favoritos** ★, búsqueda y filtro por grupo. El panel lateral se puede plegar; en móvil, el reproductor queda arriba y la lista debajo.
+
+### Atajos de teclado
+
+| Tecla | Acción |
+|---|---|
+| `Espacio` / `K` | Reproducir / pausa |
+| `←` / `→` | Retroceder / avanzar 10 s |
+| `↑` / `↓` | Volumen |
+| `M` | Silenciar |
+| `F` | Pantalla completa (también doble clic) |
+| `RePág` / `AvPág` | Canal anterior / siguiente |
+| `/` | Buscar canal |
+| `L` | Mostrar u ocultar la lista |
+- **Menú contextual**: clic derecho en un enlace → «Reproducir en IP Player» o «Cargar como lista M3U».
+
+## Etiquetas M3U soportadas
+
+| Etiqueta | Ejemplo |
+|---|---|
+| `#EXTINF` | `tvg-id`, `tvg-name`, `tvg-logo`, `group-title`, `tvg-chno`, `user-agent`, `http-referrer` |
+| `#EXTGRP` | `#EXTGRP:Deportes` |
+| `#KODIPROP` | `inputstream.adaptive.license_type`, `license_key`, `drm_legacy`, `drm` (JSON), `manifest_type`, `stream_headers`, `license_headers` |
+| `#EXTVLCOPT` | `http-user-agent`, `http-referrer`, `http-origin`, `http-cookie` |
+| `#EXTHTTP` | `#EXTHTTP:{"User-Agent":"…","Cookie":"…"}` |
+| URL con `\|` | `https://…/index.mpd\|User-Agent=X&Referer=Y` |
+
+### Formatos de DRM
+
+```m3u
+# ClearKey con claves locales (hex, UUID o base64; varias separadas por coma)
+#KODIPROP:inputstream.adaptive.license_type=clearkey
+#KODIPROP:inputstream.adaptive.license_key=KID:KEY
+
+# ClearKey en JSON / JWK
+#KODIPROP:inputstream.adaptive.license_key={"keys":[{"kty":"oct","kid":"…","k":"…"}]}
+
+# Widevine con servidor de licencias: URL|cabeceras|plantilla cuerpo|plantilla respuesta
+#KODIPROP:inputstream.adaptive.license_type=com.widevine.alpha
+#KODIPROP:inputstream.adaptive.license_key=https://lic/wv|Authorization=Bearer%20x|b{SSM}|JBlicense
+
+# Formato nuevo de Kodi
+#KODIPROP:inputstream.adaptive.drm_legacy=org.w3.clearkey|KID:KEY
+```
+
+Plantillas: cuerpo `R{SSM}` (binario), `b{SSM}` (base64) o `B{SSM}` (base64 URL-encoded); respuesta vacía (binaria), `B` (base64) o `J<campo>` / `JB<campo>` (campo JSON en base64).
+
+## Notas
+
+- Cabeceras como `User-Agent`, `Referer`, `Origin` y `Cookie` se aplican con `declarativeNetRequest`, solo a peticiones de la propia extensión.
+- **Smooth Streaming en directo**: Shaka Player solo soporta MSS bajo demanda (VOD). Si un MSS es en directo (error 4047), el reproductor cambia automáticamente a **dash.js**. Ese motor admite contenido sin DRM o con ClearKey (claves locales o servidor de licencias ClearKey). También se puede forzar el motor desde «Abrir stream / Editar» → *Motor*.
+- **PlayReady** solo funciona en Microsoft Edge (Chrome no tiene CDM de PlayReady). En Chrome, usa Widevine o ClearKey.
+- Los streams MPEG-TS directos (`.ts` sin manifiesto) no están soportados; HLS con segmentos TS sí.
+- `sample/ejemplos.m3u` contiene streams públicos de prueba para cada formato (botón «Lista de ejemplo»).
