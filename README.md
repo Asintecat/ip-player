@@ -21,6 +21,7 @@ Reproductor de listas M3U con soporte para **DASH**, **HLS** y **Smooth Streamin
 - **Añadir** desde un único botón: canal (con lista y categoría en el mismo formulario), categoría, lista M3U (enlace, archivo o texto) o lista propia.
 - **Listas propias editables en la propia vista**: renombrar lista y categorías haciendo clic en el título, reordenar categorías, arrastrar canales entre categorías y menú ⋯ por canal (editar, mover, guardar en otra lista, eliminar).
 - **Idiomas**: castellano, inglés, catalán, euskera, francés y portugués (Portugal y Brasil, en un submenú). Cada idioma es un archivo `locales/<código>.json` con la forma `{ "texto en castellano": "traducción" }`; para añadir uno nuevo basta con crear su JSON y registrarlo en `LANGS` (`js/i18n.js`).
+- **Proxy para streams (HTTP, HTTPS, SOCKS4 y SOCKS5)**: permite cargar los streams y sus manifiestos a través de un proxy. Se puede configurar un proxy general en ? (Ayuda) → *Opciones* (con botón «Probar conexión»), o asignar un proxy específico a un canal individual desde «Opciones avanzadas» (*Proxy*). Admite autenticación por usuario y contraseña en HTTP/HTTPS. Cuando un canal usa proxy, se indica con la etiqueta **Proxy** en los metadatos de la reproducción.
 
 ### Atajos de teclado
 
@@ -47,7 +48,7 @@ Reproductor de listas M3U con soporte para **DASH**, **HLS** y **Smooth Streamin
 | `#EXTINF` | `tvg-id`, `tvg-name`, `tvg-logo`, `group-title`, `tvg-chno`, `user-agent`, `http-referrer` |
 | `#EXTGRP` | `#EXTGRP:Deportes` |
 | `#KODIPROP` | `inputstream.adaptive.license_type`, `license_key`, `drm_legacy`, `drm` (JSON), `manifest_type`, `stream_headers`, `license_headers` |
-| `#EXTVLCOPT` | `http-user-agent`, `http-referrer`, `http-origin`, `http-cookie` |
+| `#EXTVLCOPT` | `http-user-agent`, `http-referrer`, `http-origin`, `http-cookie`, `http-proxy`, `socks-proxy` |
 | `#EXTHTTP` | `#EXTHTTP:{"User-Agent":"…","Cookie":"…"}` |
 | URL con `\|` | `https://…/index.mpd\|User-Agent=X&Referer=Y` |
 
@@ -78,9 +79,19 @@ Reproductor de listas M3U con soporte para **DASH**, **HLS** y **Smooth Streamin
 
 Plantillas: cuerpo `R{SSM}` (binario), `b{SSM}` (base64) o `B{SSM}` (base64 URL-encoded); respuesta vacía (binaria), `B` (base64) o `J<campo>` / `JB<campo>` (campo JSON en base64).
 
+### Proxy en listas M3U
+
+```m3u
+# Proxy por canal (SOCKS5, SOCKS4, HTTP o HTTPS; admite usuario:contraseña en HTTP/HTTPS)
+#EXTVLCOPT:http-proxy=socks5://127.0.0.1:1080
+#EXTINF:-1 group-title="Canales con proxy",Canal vía SOCKS5
+https://ejemplo.com/stream.m3u8
+```
+
 ## Notas
 
 - Cabeceras como `User-Agent`, `Referer`, `Origin` y `Cookie` se aplican con `declarativeNetRequest`, solo a peticiones de la propia extensión.
+- **Proxy dinámico con PAC (`chrome.proxy`)**: se configura dinámicamente mediante un script PAC (`FindProxyForURL`). Solo se desvían por el proxy los dominios de los medios en reproducción (manifiesto, segmentos y servidores de licencias); el resto de la navegación del usuario no se toca. Al parar la reproducción o cerrar la pestaña, el proxy se libera automáticamente.
 - **Smooth Streaming en directo**: Shaka Player solo soporta MSS bajo demanda (VOD). Si un MSS es en directo (error 4047), el reproductor cambia automáticamente a **dash.js**. Ese motor admite contenido sin DRM o con ClearKey (claves locales o servidor de licencias ClearKey). También se puede forzar el motor desde «Abrir stream / Editar» → *Motor*.
 - **HLS FairPlay / SAMPLE-AES en TS**: Chrome no tiene CDM FairPlay, así que Shaka falla (error 4040, o 6001). Si el canal trae claves ClearKey (o un proxy de claves), el reproductor cambia automáticamente a **hls.js** (`lib/hls.min.js`, 1.5.20), sustituye las claves `skd://` del manifiesto por esas claves y descifra los segmentos. FairPlay suele entregar el IV en la licencia y no en el manifiesto; en ese caso indica `*:KEY:IV`. El proxy puede devolver la clave (16 bytes) o la clave + IV (32 bytes) en binario, hex, base64 o JSON `{"key","iv"}`. No se pide licencia a servidores FairPlay reales: hace falta la clave de contenido.
 - **PlayReady** solo funciona en Microsoft Edge (Chrome no tiene CDM de PlayReady). En Chrome, usa Widevine o ClearKey.
