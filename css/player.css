@@ -702,8 +702,8 @@ select option { background: var(--surface-2); }
   font: 500 13px var(--font);
   cursor: pointer;
 }
-.row { display: flex; gap: 12px; }
-.row > .field { flex: 1; }
+.form-row { display: flex; gap: 12px; }
+.form-row > .field { flex: 1; }
 
 .section { display: flex; flex-direction: column; gap: 12px; padding-top: 14px; border-top: 1px solid var(--border); }
 .section-title { margin: 0; font-size: 13px; font-weight: 600; color: var(--text); }
@@ -730,7 +730,7 @@ select option { background: var(--surface-2); }
 .disclosure[open] summary::before { transform: rotate(45deg); }
 .disclosure summary::-webkit-details-marker { display: none; }
 .disclosure-body { margin-top: 10px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
-.disclosure-body.row { flex-direction: row; align-items: stretch; }
+.disclosure-body.form-row { flex-direction: row; align-items: stretch; }
 
 .form-error { margin: 0; padding: 8px 10px; border-radius: 8px; background: rgba(248, 113, 113, 0.1); color: var(--err); font-size: 13px; white-space: pre-line; }
 .or { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; margin: -2px 0; }
@@ -1786,7 +1786,7 @@ body[data-dragging="1"] .card > * { pointer-events: none; }
   .block-title-input { max-width: 100%; }
   .np-actions #btnCopy { display: none; }
   .time { padding: 0 4px; font-size: 12px; }
-  .row, .disclosure-body.row { flex-direction: column; }
+  .form-row, .disclosure-body.form-row { flex-direction: column; }
   .dialog-foot { flex-wrap: wrap; }
   .hide-sm { display: none; }
 }
@@ -1896,3 +1896,138 @@ html[data-large="1"] .toast { zoom: 1.15; }
   .dialog-tabs { padding: 4px 14px 6px; }
   #helpDialog .dialog-body { min-height: 0; }
 }
+
+/* =====================================================================
+   Desplegable propio (sustituye al <select> nativo, que queda oculto)
+   ===================================================================== */
+
+.select-native {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.select-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  padding: 0 10px 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 400;
+  text-align: left;
+  transition: border-color 150ms ease, background-color 150ms ease, transform 120ms var(--ease-out);
+}
+.select-btn:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.select-btn:active { transform: scale(0.99); }
+.select-btn:disabled { opacity: 0.5; cursor: default; }
+.select-btn[aria-expanded="true"] { border-color: var(--border-strong); background: var(--surface-2); }
+.select-value { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.select-caret { width: 16px; height: 16px; color: var(--muted); transition: transform 200ms var(--ease-out); }
+.select-btn[aria-expanded="true"] .select-caret { transform: rotate(180deg); }
+.save-to .select-btn { background: var(--bg); }
+
+.select-menu { min-width: 0; padding: 4px; overflow-y: auto; overscroll-behavior: contain; }
+.select-opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--text);
+  font-size: 13.5px;
+  text-align: left;
+}
+.select-opt-label { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.select-check { width: 15px; height: 15px; color: var(--accent); visibility: hidden; }
+.select-opt[aria-selected="true"] .select-check { visibility: visible; }
+.select-opt[aria-selected="true"] .select-opt-label { font-weight: 600; }
+.select-opt:disabled { opacity: 0.45; cursor: default; }
+.select-opt:focus-visible, .select-opt:focus { outline: none; background: rgba(255, 255, 255, 0.08); }
+@media (hover: hover) and (pointer: fine) {
+  .select-btn:hover { border-color: var(--border-strong); }
+  .select-opt:not(:disabled):hover { background: rgba(255, 255, 255, 0.06); }
+}
+/* Pantallas táctiles: zonas de toque de al menos 44 px */
+@media (pointer: coarse) {
+  .select-btn { height: 44px; }
+  .select-opt { min-height: 44px; }
+}
+
+/* =====================================================================
+   Modo principiante: lista de requisitos de cada formulario
+   ===================================================================== */
+
+.todo {
+  padding: 12px 12px 8px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+.todo-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.todo-title { font-size: 13px; font-weight: 600; }
+.todo-count { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.todo[data-ready="1"] .todo-count { color: var(--ok); }
+.todo-hide {
+  margin-left: auto;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--muted);
+  font-size: 12px;
+}
+.todo-bar { height: 3px; margin-bottom: 6px; overflow: hidden; border-radius: 2px; background: var(--surface-3); }
+.todo-bar i { display: block; height: 100%; background: var(--accent); transform-origin: left; transition: transform 240ms var(--ease-out), background-color 200ms ease; }
+.todo[data-ready="1"] .todo-bar i { background: var(--ok); }
+.todo-list { margin: 0; padding: 0; list-style: none; }
+.todo-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 32px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--text);
+  font-size: 13px;
+  text-align: left;
+}
+.todo-mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 50%;
+  transition: background-color 180ms ease, border-color 180ms ease;
+}
+.todo-mark svg { width: 12px; height: 12px; color: var(--bg); opacity: 0; transform: scale(0.6); transition: opacity 160ms ease, transform 200ms var(--ease-out); }
+.todo-item.done .todo-mark { background: var(--ok); border-color: var(--ok); }
+.todo-item.done .todo-mark svg { opacity: 1; transform: none; }
+.todo-item.done .todo-label { color: var(--text-2); }
+.todo-item.optional:not(.done) .todo-mark { border-style: dashed; }
+.todo-label { flex: 1; min-width: 0; }
+.todo-opt { flex: none; font-size: 11px; color: var(--muted); }
+.todo-btn:focus-visible { outline: none; background: rgba(255, 255, 255, 0.06); }
+@media (hover: hover) and (pointer: fine) {
+  .todo-btn:hover { background: rgba(255, 255, 255, 0.05); }
+  .todo-hide:hover { color: var(--text); background: var(--surface-3); }
+}
+@media (pointer: coarse) { .todo-btn { min-height: 44px; } }
+/* Botón principal bloqueado hasta cumplir los requisitos */
+.btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }

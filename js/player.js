@@ -16,6 +16,7 @@ import { initTooltips, setTooltipsEnabled, hideTooltip } from './tooltip.js';
 import { startTour, isTourOpen } from './tour.js';
 import { cleanChannel, groupsOf, parseLibraryJSON, exportList } from './library.js';
 import { t, getLang, setLang, detectLang, LANGS, initI18n, translateStatic, locale } from './i18n.js';
+import { enhanceSelects, refreshSelects } from './select.js';
 
 const $ = (sel) => document.querySelector(sel);
 const typeLabel = (type) => t(TYPE_LABEL[type] || 'Auto');
@@ -834,6 +835,10 @@ let pop = null;
 /** Abre un menú flotante junto a un botón (o en un punto) con animación de entrada. */
 function showPop(menu, anchor, { align = 'start', point = null, focus = false } = {}) {
   closePop();
+  // Un diálogo modal deja inerte todo lo que queda fuera de él: si el botón está dentro
+  // de un diálogo abierto, el menú se coloca dentro de ese diálogo para poder usarlo.
+  const host = anchor?.closest('dialog[open]') || document.body;
+  if (menu.parentElement !== host) host.appendChild(menu);
   menu.dataset.open = '';
   const r = point ? { left: point.x, right: point.x, top: point.y, bottom: point.y } : anchor.getBoundingClientRect();
   const w = menu.offsetWidth;
@@ -965,6 +970,7 @@ function buildLangMenu() {
 async function changeLang(code) {
   await setLang(code);
   translateStatic();
+  refreshSelects();
   await applyUiPrefs({ lang: code });
   renderListPicker();
   renderBrowse({ preserve: true });
@@ -997,6 +1003,126 @@ function buildAddMenu() {
   opt('i-folder-plus', t('Categoría'), pl?.source === 'manual' ? t('Nueva categoría en «{name}»', { name: pl.name }) : t('Para organizar tus listas propias'), () => openCategoryDialog());
   opt('i-list', t('Lista M3U'), t('Desde un enlace, un archivo o pegando el texto'), openAddPlaylist);
   opt('i-edit', t('Lista propia'), t('Vacía, para crear tus categorías y canales'), () => createListFlow());
+  menuSep(menu);
+  menuItem(menu, {
+    icon: 'i-help', label: t('Modo principiante'), sub: t('Muestra una lista de requisitos al crear canales, listas y categorías'),
+    checked: beginner, onClick: () => applyUiPrefs({ beginner: !beginner })
+  });
+}
+
+// ---------- Modo principiante: requisitos al crear canales, listas y categorías ----------
+
+let beginner = false;
+
+/**
+ * Pinta una lista de requisitos. items: [{ label, tip, done, optional, focus }].
+ * Devuelve true si se cumplen todos los obligatorios (o si el modo está desactivado).
+ */
+function renderTodo(box, items) {
+  box.hidden = !beginner;
+  const required = items.filter((i) => !i.optional);
+  const ready = required.every((i) => i.done);
+  if (!beginner) return true;
+  const done = required.filter((i) => i.done).length;
+  box.replaceChildren();
+  box.dataset.ready = ready ? '1' : '';
+  const head = el('div', 'todo-head');
+  head.append(el('span', 'todo-title', t('Antes de guardar')), el('span', 'todo-count', t('{n} de {total} listos', { n: done, total: required.length })));
+  const hide = el('button', 'todo-hide', t('Ocultar'));
+  hide.type = 'button';
+  hide.addEventListener('click', () => {
+    applyUiPrefs({ beginner: false });
+    toast(t('Modo principiante desactivado. Puedes activarlo en Ayuda → Opciones o en el menú Añadir.'));
+  });
+  head.appendChild(hide);
+  const bar = el('div', 'todo-bar');
+  const fill = el('i');
+  fill.style.transform = `scaleX(${required.length ? done / required.length : 1})`;
+  bar.appendChild(fill);
+  const list = el('ul', 'todo-list');
+  for (const it of items) {
+    const li = el('li', 'todo-item' + (it.done ? ' done' : '') + (it.optional ? ' optional' : ''));
+    const b = el('button', 'todo-btn');
+    b.type = 'button';
+    if (it.tip) b.dataset.tip = it.tip;
+    const mark = el('span', 'todo-mark');
+    mark.appendChild(iconEl('i-check'));
+    b.append(mark, el('span', 'todo-label', it.label));
+    if (it.optional) b.appendChild(el('span', 'todo-opt', t('opcional')));
+    b.addEventListener('click', () => {
+      const target = typeof it.focus === 'function' ? it.focus() : $(it.focus);
+      target?.focus();
+      target?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    });
+    li.appendChild(b);
+    list.appendChild(li);
+  }
+  box.append(head, bar, list);
+  return ready;
+}
+
+const isHttpUrl = (u) => /^https?:\/\/\S+$/i.test(String(u || '').trim());
+
+function channelTodo() {
+  const mode = state.streamMode.kind;
+  const items = [{
+    label: t('Pega un enlace que empiece por http:// o https://'),
+    tip: t('Te lo da tu proveedor. Suele terminar en .m3u8, .mpd o /Manifest.'),
+    done: isHttpUrl($('#fUrl').value), focus: '#fUrl'
+  }];
+  if (mode === 'add') {
+    const isNew = $('#fList').value === '__new__';
+    items.push(isNew
+      ? { label: t('Escribe el nombre de la nueva lista'), tip: t('Los canales se guardan dentro de una lista propia.'), done: !!$('#fNewList').value.trim(), focus: '#fNewList' }
+      : { label: t('Elige la lista donde guardarlo'), tip: t('Los canales se guardan dentro de una lista propia.'), done: true, focus: '#fListBtn' });
+  }
+  items.push({ label: t('Ponle un nombre (si no, se usa el del enlace)'), done: !!$('#fName').value.trim(), optional: true, focus: '#fName' });
+  if (mode === 'add') items.push({ label: t('Elige una categoría'), done: !!$('#fCats').value?.(), optional: true, focus: () => $('#fCats .cat-opt[aria-checked="true"]') || $('#fCats .cat-opt') });
+  items.push({
+    label: t('Si el canal está cifrado, configura el DRM en «Opciones avanzadas»'),
+    tip: t('Solo si el canal lo necesita (por ejemplo, claves ClearKey).'),
+    done: $('#fDrm').value !== 'none', optional: true, focus: '#btnAdvanced'
+  });
+  const ready = renderTodo($('#fTodo'), items);
+  $('#btnStreamSave').disabled = beginner && !ready;
+  $('#btnStreamPlay').disabled = beginner && !isHttpUrl($('#fUrl').value);
+}
+
+function playlistTodo() {
+  const byTab = {
+    url: { label: t('Pega el enlace de la lista (http:// o https://)'), done: isHttpUrl($('#pUrl').value), focus: '#pUrl' },
+    file: { label: t('Elige un archivo .m3u, .m3u8 o .json.'), done: !!$('#pFile').files?.length, focus: '#pFile' },
+    text: { label: t('Pega el contenido de la lista.'), done: !!$('#pText').value.trim(), focus: '#pText' }
+  };
+  const items = [
+    { ...byTab[addTab], tip: t('Te lo da tu proveedor. Las listas por enlace se pueden actualizar después.') },
+    { label: t('Ponle un nombre (si no, se usa el del enlace o del archivo)'), done: !!$('#pName').value.trim(), optional: true, focus: '#pName' }
+  ];
+  const ready = renderTodo($('#pTodo'), items);
+  $('#btnAddPlaylist').disabled = beginner && !ready;
+}
+
+function catTodo() {
+  const name = $('#cName').value.trim();
+  const isNew = $('#cList').value === '__new__';
+  const pl = manualLists().find((p) => p.id === $('#cList').value);
+  const taken = !!pl && !!name && groupsOf(pl).some((g) => g.toLowerCase() === name.toLowerCase());
+  const items = [
+    { label: t('Escribe el nombre de la categoría'), tip: t('Por ejemplo: Deportes, Noticias o Cine.'), done: !!name, focus: '#cName' },
+    { label: t('Que no exista ya en esa lista'), done: !!name && !taken, focus: '#cName' },
+    isNew
+      ? { label: t('Escribe el nombre de la nueva lista'), done: !!$('#cNewName').value.trim(), focus: '#cNewName' }
+      : { label: t('Elige en qué lista crearla'), done: true, focus: '#cListBtn' }
+  ];
+  const ready = renderTodo($('#cTodo'), items);
+  $('#btnCatSave').disabled = beginner && !ready;
+}
+
+/** Actualiza las listas de requisitos de los diálogos abiertos. */
+function refreshTodos() {
+  if ($('#streamDialog')?.open) channelTodo();
+  if ($('#manageDialog')?.open && $('#manageDialog').dataset.view === 'add') playlistTodo();
+  if ($('#catDialog')?.open) catTodo();
 }
 
 // ---------- Explorador: cabecera, chips y bloques ----------
@@ -1774,6 +1900,7 @@ function openStreamDialog(channel, { mode = 'open', title, listId, index, group 
   $('#btnStreamSave').textContent = t(mode === 'edit' ? 'Guardar cambios' : 'Guardar');
   $('#btnStreamSaveTo').hidden = mode !== 'open';
   $('#streamDialog').showModal();
+  channelTodo();
   (channel?.url ? $('#fName') : $('#fUrl')).focus();
 }
 
@@ -2100,6 +2227,7 @@ function openCategoryDialog() {
   $('#cNewWrap').hidden = $('#cList').value !== '__new__';
   showFormError('catError', '');
   $('#catDialog').showModal();
+  catTodo();
   $('#cName').focus();
 }
 
@@ -2163,6 +2291,7 @@ function setAddTab(tab) {
   addTab = tab;
   for (const p of document.querySelectorAll('#playlistForm [data-panel]')) p.hidden = p.dataset.panel !== tab;
   segSelect('#addTabs', tab);
+  playlistTodo();
 }
 
 async function addPlaylist({ name, url, text }) {
@@ -2336,12 +2465,17 @@ function openHelp() {
 }
 
 async function applyUiPrefs(patch) {
-  const ui = { largeText: false, tips: true, ...(await store.get('ui', {})), ...(patch || {}) };
+  const ui = { largeText: false, tips: true, beginner: false, ...(await store.get('ui', {})), ...(patch || {}) };
   if (patch) await store.set('ui', ui);
   document.documentElement.dataset.large = ui.largeText ? '1' : '';
-  setTooltipsEnabled(ui.tips);
+  beginner = !!ui.beginner;
+  document.documentElement.dataset.beginner = beginner ? '1' : '';
+  // En modo principiante las etiquetas de ayuda siempre se muestran.
+  setTooltipsEnabled(ui.tips || beginner);
   $('#optLarge').checked = ui.largeText;
   $('#optTips').checked = ui.tips;
+  $('#optBeginner').checked = beginner;
+  refreshTodos();
   requestAnimationFrame(moveChipIndicator);
 }
 
@@ -2488,6 +2622,7 @@ function bindEvents() {
     if (e.dataTransfer.files.length) {
       $('#pFile').files = e.dataTransfer.files;
       $('#pFileName').textContent = e.dataTransfer.files[0].name;
+      playlistTodo();
     }
   });
   $('#btnAddPlaylist').addEventListener('click', onAddPlaylistClick);
@@ -2591,6 +2726,14 @@ function bindEvents() {
   $('#btnStartTour').addEventListener('click', openTour);
   $('#optLarge').addEventListener('change', (e) => applyUiPrefs({ largeText: e.target.checked }));
   $('#optTips').addEventListener('change', (e) => applyUiPrefs({ tips: e.target.checked }));
+  $('#optBeginner').addEventListener('change', (e) => applyUiPrefs({ beginner: e.target.checked }));
+  // Requisitos en vivo mientras se rellena cada formulario
+  for (const ev of ['input', 'change']) {
+    $('#streamForm').addEventListener(ev, channelTodo);
+    $('#playlistForm').addEventListener(ev, playlistTodo);
+    $('#catForm').addEventListener(ev, catTodo);
+  }
+  $('#fCats').addEventListener('click', () => requestAnimationFrame(channelTodo));
 
   // Mensaje de error: reintentar o revisar el stream
   $('#btnRetry').addEventListener('click', () => state.current && play(state.current));
@@ -2658,6 +2801,7 @@ function bindEvents() {
 async function main() {
   // Idioma antes de pintar nada: el guardado o, si no hay, el del navegador.
   await setLang((await store.get('ui', {})).lang || detectLang());
+  enhanceSelects(); // desplegables propios (antes de registrar los textos a traducir)
   initI18n();
   initTooltips();
   bindEvents();
@@ -2667,6 +2811,7 @@ async function main() {
   await loadData();
 
   const saved = await store.getState();
+  if ((await store.get('ui', {})).beginner === undefined && !saved.tourDone) await applyUiPrefs({ beginner: true });
   state.activeId = saved.playlistId && (saved.playlistId === FAV_ID || state.playlists.some((p) => p.id === saved.playlistId))
     ? saved.playlistId
     : (state.playlists[0]?.id || FAV_ID);

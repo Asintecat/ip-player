@@ -231,6 +231,7 @@
       </header>
 
       <div class="dialog-body" data-view="main">
+        <div class="todo" id="fTodo" hidden></div>
         <label class="field">Enlace del stream
           <input id="fUrl" type="url" required placeholder="https://…/manifest.mpd · .m3u8 · .ism/Manifest" aria-describedby="fUrlHint">
           <small id="fUrlHint">Pega el enlace del vídeo. Suele terminar en .mpd (DASH), .m3u8 (HLS) o /Manifest (Smooth Streaming).</small>
@@ -263,7 +264,7 @@
       </div>
 
       <div class="dialog-body" data-view="advanced" hidden>
-        <div class="row">
+        <div class="form-row">
           <label class="field">Tipo
             <select id="fType" data-tip="Déjalo en Automático salvo que el formato no se detecte">
               <option value="">Automático</option>
@@ -307,7 +308,7 @@
           </label>
           <details class="disclosure" data-drm="widevine playready clearkey">
             <summary>Plantillas avanzadas (formato Kodi)</summary>
-            <div class="disclosure-body row">
+            <div class="disclosure-body form-row">
               <label class="field">Cuerpo
                 <input id="fBody" type="text" placeholder="R{SSM} · b{SSM}">
               </label>
@@ -375,6 +376,7 @@
       </div>
 
       <div class="dialog-body" data-view="add" id="playlistForm" hidden>
+        <div class="todo" id="pTodo" hidden></div>
         <div class="seg" id="addTabs" role="tablist" aria-label="Origen de la lista">
           <span class="seg-indicator"></span>
           <button type="button" role="tab" data-tab="url"><svg><use href="#i-link"/></svg>Enlace</button>
@@ -455,6 +457,7 @@
         <button class="icon-btn" value="cancel" formnovalidate aria-label="Cerrar"><svg><use href="#i-close"/></svg></button>
       </header>
       <div class="dialog-body">
+        <div class="todo" id="cTodo" hidden></div>
         <p class="section-intro">Las categorías agrupan los canales de tus listas propias (Deportes, Noticias, Cine…).</p>
         <label class="field">Nombre
           <input id="cName" type="text" placeholder="p. ej. Deportes">
@@ -470,7 +473,7 @@
       <footer class="dialog-foot">
         <span class="spacer"></span>
         <button value="cancel" class="btn ghost" formnovalidate>Cancelar</button>
-        <button type="submit" value="save" class="btn primary">Crear categoría</button>
+        <button type="submit" value="save" class="btn primary" id="btnCatSave">Crear categoría</button>
       </footer>
     </form>
   </dialog>
@@ -539,6 +542,8 @@
         <h3 class="section-title">Accesibilidad</h3>
         <label class="switch"><input type="checkbox" id="optLarge"><span class="switch-track"></span><span>Texto y botones más grandes</span></label>
         <label class="switch"><input type="checkbox" id="optTips" checked><span class="switch-track"></span><span>Mostrar etiquetas de ayuda al pasar el ratón</span></label>
+        <h3 class="section-title">Modo principiante</h3>
+        <label class="switch"><input type="checkbox" id="optBeginner"><span class="switch-track"></span><span>Muestra una lista de requisitos al crear canales, listas y categorías</span></label>
       </div>
     </form>
   </dialog>
