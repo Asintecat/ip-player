@@ -5,6 +5,7 @@
 /* global dashjs */
 
 import { bytesToBase64, cencKeys } from './drm.js';
+import { t as tx, locale } from './i18n.js';
 
 const FORBIDDEN = new Set(['user-agent', 'referer', 'origin', 'cookie', 'host', 'connection', 'content-length']);
 const enc = new TextEncoder();
@@ -49,10 +50,10 @@ function audioSub(t) {
   const parts = [];
   const cfg = (t.audioChannelConfiguration || [])[0];
   const ch = Number(typeof cfg === 'object' ? cfg?.value : cfg);
-  if (ch > 2) parts.push(ch === 6 ? '5.1' : ch === 8 ? '7.1' : `${ch} canales`);
-  for (const r of roleValues(t)) if (AUDIO_ROLE[r]) parts.push(AUDIO_ROLE[r]);
+  if (ch > 2) parts.push(ch === 6 ? '5.1' : ch === 8 ? '7.1' : tx('{n} canales', { n: ch }));
+  for (const r of roleValues(t)) if (AUDIO_ROLE[r]) parts.push(tx(AUDIO_ROLE[r]));
   const acc = (t.accessibility || []).map((a) => (typeof a === 'string' ? a : a?.value));
-  if (acc.some((a) => a === '1' || a === 'description') && !parts.includes('Audiodescripción')) parts.push('Audiodescripción');
+  if (acc.some((a) => a === '1' || a === 'description') && !parts.includes(tx('Audiodescripción'))) parts.push(tx('Audiodescripción'));
   return parts.join(' · ');
 }
 
@@ -84,7 +85,7 @@ export class DashEngine {
         const s = document.createElement('script');
         s.src = src;
         s.onload = resolve;
-        s.onerror = () => reject(new Error(`No se pudo cargar ${src}`));
+        s.onerror = () => reject(new Error(tx('No se pudo cargar {name}', { name: src })));
         document.head.appendChild(s);
       });
       DashEngine._loading = add('lib/dash.mediaplayer.min.js')
@@ -104,7 +105,7 @@ export class DashEngine {
     await this.destroy();
     const drm = channel.drm || { system: 'none' };
     if (drm.system === 'widevine' || drm.system === 'playready') {
-      throw new Error('El motor dash.js de IP Player solo admite contenido sin DRM o con ClearKey.');
+      throw new Error(tx('El motor dash.js de IP Player solo admite contenido sin DRM o con ClearKey.'));
     }
     if (drm.system === 'clearkey') await this._setupClearKey(drm);
 
@@ -132,15 +133,15 @@ export class DashEngine {
 
     p.on(dashjs.MediaPlayer.events.ERROR, (e) => {
       const err = e.error || e;
-      const msg = String(err.message || 'Error desconocido');
+      const msg = String(err.message || tx('Error desconocido'));
       if (/DECODE/i.test(msg)) {
         this.onError({
-          title: 'Error de decodificación',
-          text: 'El vídeo no se pudo decodificar.' + (drm.system === 'clearkey' ? '\n¿Son correctas las claves ClearKey (KID:KEY)?' : '')
+          title: tx('Error de decodificación'),
+          text: tx('El vídeo no se pudo decodificar.') + (drm.system === 'clearkey' ? '\n' + tx('¿Son correctas las claves ClearKey (KID:KEY)?') : '')
         });
         return;
       }
-      this.onError({ title: `Error dash.js ${err.code ?? ''}`.trim(), text: msg });
+      this.onError({ title: `${tx('Error')} dash.js ${err.code ?? ''}`.trim(), text: msg });
     });
 
     const E = dashjs.MediaPlayer.events;
@@ -238,7 +239,7 @@ export class DashEngine {
       return (p.getTracksFor('text') || []).map((t, i) => {
         const roles = roleValues(t);
         const forced = roles.includes('forced-subtitle');
-        const sub = [forced && 'Forzados', (roles.includes('caption') || t.isEmbedded) && 'CC'].filter(Boolean).join(' · ');
+        const sub = [forced && tx('Forzados'), (roles.includes('caption') || t.isEmbedded) && 'CC'].filter(Boolean).join(' · ');
         return { id: i, lang: t.lang || '', label: mediaLabel(t), forced, sub, active: i === idx };
       });
     }, []);
@@ -307,12 +308,12 @@ export class DashEngine {
               if (!res.ok) throw new Error(`HTTP ${res.status}`);
               await session.update(await res.arrayBuffer());
             } catch (err) {
-              this.onError({ title: 'Falló la licencia ClearKey', text: err.message });
+              this.onError({ title: tx('Falló la licencia ClearKey'), text: err.message });
             }
           });
           await session.generateRequest(e.initDataType, e.initData);
         } catch (err) {
-          this.onError({ title: 'Falló la licencia ClearKey', text: err.message });
+          this.onError({ title: tx('Falló la licencia ClearKey'), text: err.message });
         }
       };
       this.video.addEventListener('encrypted', this._onEncrypted);

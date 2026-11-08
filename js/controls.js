@@ -9,11 +9,14 @@
 
 const IDLE_MS = 2600;
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
-const langNames = new Intl.DisplayNames(['es'], { type: 'language' });
+import { t as tx, locale } from './i18n.js';
+let langNames = null;
+let langNamesFor = '';
 
 export function langName(code) {
   if (!code || code === 'und') return '';
   try {
+    if (langNamesFor !== locale()) { langNames = new Intl.DisplayNames([locale()], { type: 'language' }); langNamesFor = locale(); }
     const n = langNames.of(code);
     return n.charAt(0).toUpperCase() + n.slice(1);
   } catch (_) {
@@ -43,7 +46,7 @@ export function trackName(t, i) {
   // Omite etiquetas que solo repiten el idioma («English», «en», «Español»…).
   const same = [lang, t.lang, enName(t.lang)].map((x) => String(x || '').toLowerCase());
   if (label && !same.includes(label.toLowerCase())) parts.push(label);
-  return parts.filter(Boolean).join(' · ') || `Pista ${i + 1}`;
+  return parts.filter(Boolean).join(' · ') || tx('Pista {n}', { n: i + 1 });
 }
 
 export function qualityName(h) {
@@ -160,7 +163,7 @@ export class Controls {
 
   _syncPlayState() {
     this.root.dataset.paused = this.video.paused ? '1' : '';
-    this.q('[data-act="play"]').dataset.tip = this.video.paused ? 'Reproducir' : 'Pausa';
+    this.q('[data-act="play"]').dataset.tip = tx(this.video.paused ? 'Reproducir' : 'Pausa');
     this.wake();
   }
 
@@ -324,7 +327,7 @@ export class Controls {
       if (a?.isLive()) {
         const range = a.seekRange();
         const behind = (range.end - range.start) * (1 - ratio);
-        return behind < 1 ? 'En directo' : `-${fmtTime(behind)}`;
+        return behind < 1 ? tx('En directo') : `-${fmtTime(behind)}`;
       }
       return fmtTime(timeAt(ratio));
     };
@@ -388,13 +391,13 @@ export class Controls {
 
     const pct = span ? Math.round(Math.min(100, Math.max(0, ((t - range.start) / span) * 100))) : 0;
     bar.setAttribute('aria-valuenow', String(pct));
-    bar.setAttribute('aria-valuetext', isLive ? 'En directo' : `${fmtTime(t)} de ${fmtTime(range.end)}`);
+    bar.setAttribute('aria-valuetext', isLive ? tx('En directo') : tx('{a} de {b}', { a: fmtTime(t), b: fmtTime(range.end) }));
 
     if (isLive) {
       const behind = range.end - t;
       const atEdge = behind < 15;
       live.dataset.edge = atEdge ? '1' : '';
-      live.dataset.tip = atEdge ? 'Estás viendo el directo' : 'Volver al directo';
+      live.dataset.tip = tx(atEdge ? 'Estás viendo el directo' : 'Volver al directo');
       timeEl.textContent = !atEdge && span > 60 ? `-${fmtTime(behind)}` : '';
     } else {
       timeEl.textContent = `${fmtTime(t)} / ${fmtTime(range.end)}`;
@@ -434,14 +437,14 @@ export class Controls {
     const on = text.some((t) => t.active);
     this.root.dataset.cc = on ? '1' : '';
     cc.setAttribute('aria-pressed', String(on));
-    cc.dataset.tip = on ? 'Desactivar subtítulos' : 'Activar subtítulos';
+    cc.dataset.tip = tx(on ? 'Desactivar subtítulos' : 'Activar subtítulos');
     const chip = this.q('[data-act="quality"]');
     const qs = a && this.enabled ? a.qualities() : [];
     if (qs.length > 1) {
       const cur = a.currentQuality();
       const name = qualityName(cur?.height);
       chip.hidden = false;
-      chip.textContent = a.isAutoQuality() ? (name ? `Auto · ${name}` : 'Auto') : name;
+      chip.textContent = a.isAutoQuality() ? (name ? `${tx('Auto')} · ${name}` : tx('Auto')) : name;
       chip.dataset.hd = cur?.height >= 720 ? '1' : '';
     } else {
       chip.hidden = true;
@@ -462,7 +465,38 @@ export class Controls {
     this.wake();
   }
 
+  /**
+   * Pinta un panel del menú. Si el menú ya está abierto, anima el cambio:
+   * la altura pasa suavemente de un panel a otro y el contenido entra
+   * deslizándose (hacia la izquierda al entrar en un submenú, a la derecha al volver).
+   */
   renderMenu(pane) {
+    const menu = this.menu;
+    const open = menu.dataset.open != null;
+    const from = this.pane;
+    const h0 = open ? menu.getBoundingClientRect().height : 0;
+    this._buildMenu(pane);
+    if (!open || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const ease = 'cubic-bezier(0.23, 1, 0.32, 1)';
+    if (from !== pane) {
+      const dir = pane === 'main' ? -1 : 1;
+      [...menu.children].forEach((child, i) => {
+        child.animate(
+          [{ opacity: 0, transform: `translateX(${dir * 20}px)` }, { opacity: 1, transform: 'none' }],
+          { duration: 260, easing: ease, delay: Math.min(i, 8) * 14, fill: 'backwards' }
+        );
+      });
+    }
+    const h1 = menu.getBoundingClientRect().height;
+    if (Math.abs(h1 - h0) > 1) {
+      this._menuAnim?.cancel();
+      menu.style.overflow = 'hidden';
+      this._menuAnim = menu.animate([{ height: `${h0}px` }, { height: `${h1}px` }], { duration: 280, easing: ease });
+      this._menuAnim.onfinish = this._menuAnim.oncancel = () => { menu.style.overflow = ''; };
+    }
+  }
+
+  _buildMenu(pane) {
     this.pane = pane;
     const a = this.getAdapter();
     const menu = this.menu;
@@ -504,43 +538,43 @@ export class Controls {
     if (pane === 'main') {
       const cur = a.currentQuality();
       if (qualities.length > 1) {
-        row('Calidad', a.isAutoQuality() ? `Auto${cur ? ' · ' + qualityName(cur.height) : ''}` : qualityName(cur?.height), 'quality');
+        row(tx('Calidad'), a.isAutoQuality() ? `${tx('Auto')}${cur ? ' · ' + qualityName(cur.height) : ''}` : qualityName(cur?.height), 'quality');
       }
       if (audio.length > 1) {
         const i = audio.findIndex((t) => t.active);
-        row('Audio', i >= 0 ? trackName(audio[i], i) : '—', 'audio');
+        row(tx('Audio'), i >= 0 ? trackName(audio[i], i) : '—', 'audio');
       }
       if (text.length) {
         const i = text.findIndex((t) => t.active);
-        row('Subtítulos', i >= 0 ? trackName(text[i], i) : 'Desactivados', 'text');
+        row(tx('Subtítulos'), i >= 0 ? trackName(text[i], i) : tx('Desactivados'), 'text');
       }
       if (!isLive) {
         const r = this.video.playbackRate;
-        row('Velocidad', r === 1 ? 'Normal' : `${r}×`, 'speed');
+        row(tx('Velocidad'), r === 1 ? tx('Normal') : `${r}×`, 'speed');
       }
-      if (!menu.children.length) menu.appendChild(el('div', 'menu-empty', 'No hay opciones para este stream'));
+      if (!menu.children.length) menu.appendChild(el('div', 'menu-empty', tx('No hay opciones para este stream')));
       return;
     }
 
     if (pane === 'quality') {
-      header('Calidad');
+      header(tx('Calidad'));
       const auto = a.isAutoQuality();
       const cur = a.currentQuality();
-      option('Automática', auto && cur ? qualityName(cur.height) : '', auto, () => a.setQuality('auto'));
+      option(tx('Automática'), auto && cur ? qualityName(cur.height) : '', auto, () => a.setQuality('auto'));
       for (const q of qualities) {
         option(qualityName(q.height), mbps(q.bandwidth), !auto && cur?.height === q.height, () => a.setQuality(q.id));
       }
     } else if (pane === 'audio') {
-      header('Audio');
+      header(tx('Audio'));
       audio.forEach((t, i) => option(trackName(t, i), t.sub || '', t.active, () => { a.setAudio(t.id); this.onPick('audio', t); }));
     } else if (pane === 'text') {
-      header('Subtítulos');
-      option('Desactivados', '', !text.some((t) => t.active), () => { a.setText(null); this.onPick('text', null); });
+      header(tx('Subtítulos'));
+      option(tx('Desactivados'), '', !text.some((t) => t.active), () => { a.setText(null); this.onPick('text', null); });
       text.forEach((t, i) => option(trackName(t, i), t.sub || '', t.active, () => { a.setText(t.id); this.lastText = t; this.onPick('text', t); }));
     } else if (pane === 'speed') {
-      header('Velocidad');
+      header(tx('Velocidad'));
       for (const s of SPEEDS) {
-        option(s === 1 ? 'Normal' : `${s}×`, '', this.video.playbackRate === s, () => { this.video.playbackRate = s; });
+        option(s === 1 ? tx('Normal') : `${s}×`, '', this.video.playbackRate === s, () => { this.video.playbackRate = s; });
       }
     }
   }

@@ -9,17 +9,18 @@ import {
 } from './drm.js';
 import { applyHeaderRules } from './headers.js';
 import * as store from './storage.js';
-import { VirtualList } from './virtual-list.js';
 import { DashEngine } from './dash-engine.js';
 import { HlsEngine } from './hls-engine.js';
 import { Controls, langName } from './controls.js';
 import { initTooltips, setTooltipsEnabled, hideTooltip } from './tooltip.js';
 import { startTour, isTourOpen } from './tour.js';
 import { cleanChannel, groupsOf, parseLibraryJSON, exportList } from './library.js';
+import { t, getLang, setLang, detectLang, LANGS, initI18n, translateStatic, locale } from './i18n.js';
 
 const $ = (sel) => document.querySelector(sel);
+const typeLabel = (type) => t(TYPE_LABEL[type] || 'Auto');
 const FAV_ID = '__favorites__';
-const ROW_HEIGHT = 56;
+const RECENT_MAX = 16;
 // Cabeceras que fetch() no deja fijar: se aplican con declarativeNetRequest.
 const FORBIDDEN = new Set(['user-agent', 'referer', 'origin', 'cookie', 'host', 'connection', 'content-length']);
 
@@ -33,14 +34,13 @@ const state = {
   query: '',
   current: null,
   editing: null,
-  libId: null, // lista propia abierta en el editor
-  libEdit: null, // { listId, index } canal de lista propia en edición, o { listId, add: true }
-  cursor: -1 // fila resaltada al navegar la lista con el teclado
+  recents: [],
+  // Diálogo de stream: 'open' (solo reproducir), 'add' (nuevo canal) o 'edit' (canal de una lista propia)
+  streamMode: { kind: 'open' }
 };
 
 let player = null;
 let controls = null;
-let list = null;
 let loadToken = 0;
 let dashEngine = null;
 let hlsEngine = null;
@@ -62,7 +62,7 @@ const KEY_SYSTEM_UNAVAILABLE = 6001; // p. ej. HLS FairPlay: Chrome no tiene CDM
 async function initPlayer() {
   shaka.polyfill.installAll();
   if (!shaka.Player.isBrowserSupported()) {
-    showOverlay('Navegador no compatible', 'Este navegador no soporta Media Source Extensions.', true);
+    showOverlay(t('Navegador no compatible'), t('Este navegador no soporta Media Source Extensions.'), true);
     return;
   }
   const video = $('#video');
@@ -242,18 +242,18 @@ const ROLE_LABEL = {
 
 function audioDetails(channels, roles = [], spatial = false) {
   const parts = [];
-  if (channels > 2) parts.push(channels === 6 ? '5.1' : channels === 8 ? '7.1' : `${channels} canales`);
-  if (spatial) parts.push('Espacial');
-  for (const r of roles) if (ROLE_LABEL[r]) parts.push(ROLE_LABEL[r]);
+  if (channels > 2) parts.push(channels === 6 ? '5.1' : channels === 8 ? '7.1' : t('{n} canales', { n: channels }));
+  if (spatial) parts.push(t('Espacial'));
+  for (const r of roles) if (ROLE_LABEL[r]) parts.push(t(ROLE_LABEL[r]));
   return parts.join(' · ');
 }
 
 function textDetails(kind, roles = [], forced = false) {
   const parts = [];
-  if (forced || roles.includes('forced-subtitle')) parts.push('Forzados');
+  if (forced || roles.includes('forced-subtitle')) parts.push(t('Forzados'));
   if (kind === 'caption' || roles.includes('caption')) parts.push('CC');
-  if (roles.includes('description')) parts.push('Descriptivos');
-  if (roles.includes('commentary')) parts.push('Comentarios');
+  if (roles.includes('description')) parts.push(t('Descriptivos'));
+  if (roles.includes('commentary')) parts.push(t('Comentarios'));
   return parts.join(' · ');
 }
 
@@ -278,17 +278,19 @@ async function play(channel) {
   if (!player) return;
   const token = ++loadToken;
   state.current = channel;
+  showPlayer();
   renderNowPlaying();
-  list?.refresh();
+  markPlaying();
+  pushRecent(channel);
   hideOverlay();
   controls.setEnabled(false);
   controls.setBusy(true);
 
   const type = detectType(channel.url, channel.type);
   const drmText = drmLabel(channel.drm);
-  setStatus(`Cargando ${TYPE_LABEL[type] || ''}${drmText ? ' · ' + drmText : ''}…`);
+  setStatus(t('Cargando {what}…', { what: `${typeLabel(type)}${drmText ? ' · ' + drmText : ''}` }));
 
-  if (channel.errors?.length) setStatus(`Aviso en la entrada M3U: ${channel.errors.join(' · ')}`, 'warn');
+  if (channel.errors?.length) setStatus(t('Aviso en la entrada M3U: {msg}', { msg: channel.errors.join(' · ') }), 'warn');
 
   try {
     await applyHeaderRules(channel.headers, channel.drm?.licenseUrl, channel.drm?.licenseHeaders);
@@ -311,24 +313,51 @@ async function play(channel) {
     if (token !== loadToken) return;
     const video = $('#video');
     if (video.paused) video.play().catch(() => {});
-    setStatus(TYPE_LABEL[type] === 'Auto' ? `Reproduciendo · ${detectLoadedType()}` : 'Reproduciendo', 'ok');
+    setStatus(TYPE_LABEL[type] === 'Auto' ? `${t('Reproduciendo')} · ${detectLoadedType()}` : t('Reproduciendo'), 'ok');
     controls.setEnabled(true);
     store.patchState({ channelUrl: channel.url });
   } catch (err) {
     if (token !== loadToken) return;
     // Shaka no soporta Smooth Streaming en directo → dash.js
     if (err?.code === MSS_LIVE_NOT_SUPPORTED && channel.engine !== 'shaka') {
-      setStatus('Smooth Streaming en directo: cambiando al motor dash.js…', 'warn');
+      setStatus(t('Smooth Streaming en directo: cambiando al motor dash.js…'), 'warn');
       return playWithDash(channel, token, 'mss', drmText);
     }
     // HLS con TS cifrado SAMPLE-AES (FairPlay) → hls.js, si hay clave o proxy de claves
     const fairplay = err?.code === HLS_ENCRYPTED_TS || (err?.code === KEY_SYSTEM_UNAVAILABLE && type === 'hls');
     if (fairplay && channel.engine !== 'shaka' && hasSampleAesKey(channel.drm)) {
-      setStatus('HLS SAMPLE-AES (FairPlay): descifrando con la clave en el motor hls.js…', 'warn');
+      setStatus(t('HLS SAMPLE-AES (FairPlay): descifrando con la clave en el motor hls.js…'), 'warn');
       return playWithHls(channel, token, drmText);
     }
     showError(err);
   }
+}
+
+/** Muestra el reproductor (oculto hasta que se reproduce algo) y sube hasta él. */
+function showPlayer() {
+  const app = $('#app');
+  if (app.dataset.player === '1') return;
+  app.dataset.player = '1';
+  $('#main').scrollTo({ top: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+}
+
+/** Detiene la reproducción y vuelve a ocultar el reproductor. */
+async function stopPlayback() {
+  loadToken++;
+  state.current = null;
+  controls.setEnabled(false);
+  controls.setBusy(false);
+  hideOverlay();
+  if (engine !== 'shaka') await useShaka();
+  else { try { await player.unload(); } catch (_) { /* nada cargado */ } }
+  clearCaptions();
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  $('#app').dataset.player = '';
+  renderNowPlaying();
+  markPlaying();
+  setStatus('');
+  syncMini();
+  store.patchState({ channelUrl: '' });
 }
 
 /** Quita restos de subtítulos del motor anterior (dash.js deja pistas nativas). */
@@ -365,19 +394,19 @@ function hasSampleAesKey(drm) {
 
 async function playWithHls(channel, token, drmText) {
   if (!(await HlsEngine.ensureLoaded())) {
-    showError(new Error('hls.js no está disponible.'));
+    showError(new Error(t('{name} no está disponible.', { name: 'hls.js' })));
     return;
   }
   await useAlt('hlsjs');
   if (token !== loadToken) return;
-  setStatus(`Cargando HLS (hls.js)${drmText ? ' · ' + drmText : ''}…`);
+  setStatus(t('Cargando {what}…', { what: `HLS (hls.js)${drmText ? ' · ' + drmText : ''}` }));
   const video = $('#video');
   // Si no arranca en un tiempo razonable, se dice por qué en vez de quedarse en «Cargando…».
   const watchdog = setTimeout(() => {
     if (token !== loadToken || engine !== 'hlsjs' || !video.paused || video.currentTime > 0) return;
     const issue = hlsEngine.lastIssue || {
-      title: 'El stream no arranca',
-      text: 'hls.js no ha recibido vídeo en ' + HLS_START_TIMEOUT / 1000 + ' s y el servidor no ha devuelto ningún error.\nRevisa la URL, las cabeceras (User-Agent, Referer, Cookie) y la clave o el proxy de claves.'
+      title: t('El stream no arranca'),
+      text: t('hls.js no ha recibido vídeo en {s} s y el servidor no ha devuelto ningún error.\nRevisa la URL, las cabeceras (User-Agent, Referer, Cookie) y la clave o el proxy de claves.', { s: HLS_START_TIMEOUT / 1000 })
     };
     hlsEngine.destroy();
     controls.setEnabled(false);
@@ -388,7 +417,7 @@ async function playWithHls(channel, token, drmText) {
   video.addEventListener('playing', () => {
     clearTimeout(watchdog);
     if (token === loadToken) {
-      setStatus('Reproduciendo · motor hls.js', 'ok');
+      setStatus(`${t('Reproduciendo')} · hls.js`, 'ok');
       controls.refreshTracks();
       store.patchState({ channelUrl: channel.url });
     }
@@ -407,17 +436,17 @@ async function playWithHls(channel, token, drmText) {
 
 async function playWithDash(channel, token, type, drmText) {
   if (!(await DashEngine.ensureLoaded())) {
-    showError(new Error('dash.js no está disponible.'));
+    showError(new Error(t('{name} no está disponible.', { name: 'dash.js' })));
     return;
   }
   await useAlt('dashjs');
   if (token !== loadToken) return;
-  const label = `${TYPE_LABEL[type] || 'Auto'} (dash.js)${drmText ? ' · ' + drmText : ''}`;
-  setStatus(`Cargando ${label}…`);
+  const label = `${typeLabel(type)} (dash.js)${drmText ? ' · ' + drmText : ''}`;
+  setStatus(t('Cargando {what}…', { what: label }));
   const video = $('#video');
   video.addEventListener('playing', () => {
     if (token === loadToken) {
-      setStatus('Reproduciendo · motor dash.js', 'ok');
+      setStatus(`${t('Reproduciendo')} · dash.js`, 'ok');
       controls.refreshTracks();
       store.patchState({ channelUrl: channel.url });
     }
@@ -437,7 +466,7 @@ async function playWithDash(channel, token, type, drmText) {
 
 function detectLoadedType() {
   const t = player.getManifestType?.();
-  return { DASH: 'DASH', HLS: 'HLS', MSS: 'Smooth Streaming' }[t] || 'Progresivo';
+  return { DASH: 'DASH', HLS: 'HLS', MSS: 'Smooth Streaming' }[t] || typeLabel('progressive');
 }
 
 // ---------- Errores ----------
@@ -445,7 +474,7 @@ function detectLoadedType() {
 function describeError(err) {
   const E = shaka.util.Error;
   if (!err || !(err instanceof E)) {
-    return { title: 'No se pudo reproducir', text: String(err?.message || err) };
+    return { title: t('No se pudo reproducir'), text: String(err?.message || err) };
   }
   const C = E.Code;
   const name = Object.keys(C).find((k) => C[k] === err.code) || '';
@@ -460,42 +489,42 @@ function describeError(err) {
     case C.FAILED_TO_CREATE_CDM:
       if (detectType(state.current?.url, state.current?.type) === 'hls') {
         return {
-          title: 'DRM no soportado (¿HLS FairPlay?)',
-          text: 'Chrome no tiene FairPlay. Si el stream usa SAMPLE-AES y conoces la clave de contenido, se puede descifrar.\nCon «Editar», elige DRM ClearKey y pon la clave (solo KEY o *:KEY:IV) o un proxy de claves en «Servidor de licencias».'
+          title: t('DRM no soportado (¿HLS FairPlay?)'),
+          text: t('Chrome no tiene FairPlay. Si el stream usa SAMPLE-AES y conoces la clave de contenido, se puede descifrar.\nCon «Editar», elige DRM ClearKey y pon la clave (solo KEY o *:KEY:IV) o un proxy de claves en «Servidor de licencias».')
         };
       }
       return {
-        title: 'DRM no soportado',
-        text: 'El navegador no soporta el sistema DRM requerido.\nPlayReady solo funciona en Microsoft Edge; en Chrome usa Widevine o ClearKey.'
+        title: t('DRM no soportado'),
+        text: t('El navegador no soporta el sistema DRM requerido.\nPlayReady solo funciona en Microsoft Edge; en Chrome usa Widevine o ClearKey.')
       };
     case C.NO_LICENSE_SERVER_GIVEN:
-      return { title: 'Contenido cifrado', text: 'Falta el servidor de licencias o las claves ClearKey.\nUsa «Editar» para añadirlas.' };
+      return { title: t('Contenido cifrado'), text: t('Falta el servidor de licencias o las claves ClearKey.\nUsa «Editar» para añadirlas.') };
     case C.LICENSE_REQUEST_FAILED:
-      return { title: 'Falló la licencia', text: `El servidor de licencias rechazó la petición ${http(inner)}.\nRevisa la URL y las cabeceras de la licencia.` };
+      return { title: t('Falló la licencia'), text: t('El servidor de licencias rechazó la petición {http}.\nRevisa la URL y las cabeceras de la licencia.', { http: http(inner) }) };
     case C.LICENSE_RESPONSE_REJECTED:
-      return { title: 'Licencia no válida', text: 'El CDM rechazó la respuesta de licencia (¿plantilla de respuesta incorrecta?).' };
+      return { title: t('Licencia no válida'), text: t('El CDM rechazó la respuesta de licencia (¿plantilla de respuesta incorrecta?).') };
     case C.BAD_HTTP_STATUS:
-      return { title: `Error HTTP ${err.data[1]}`, text: `${shortUrl(err.data[0])}\nPuede requerir User-Agent, Referer o Cookie (usa «Editar»).` };
+      return { title: `${t('Error')} HTTP ${err.data[1]}`, text: `${shortUrl(err.data[0])}\n${t('Puede requerir User-Agent, Referer o Cookie (usa «Editar»).')}` };
     case C.HTTP_ERROR:
-      return { title: 'Error de red', text: `No se pudo conectar con ${shortUrl(err.data[0])}.` };
+      return { title: t('Error de red'), text: t('No se pudo conectar con {url}.', { url: shortUrl(err.data[0]) }) };
     case C.TIMEOUT:
-      return { title: 'Tiempo agotado', text: `El servidor no respondió: ${shortUrl(err.data[0])}` };
+      return { title: t('Tiempo agotado'), text: t('El servidor no respondió: {url}', { url: shortUrl(err.data[0]) }) };
     case C.UNABLE_TO_GUESS_MANIFEST_TYPE:
-      return { title: 'Tipo desconocido', text: 'No se pudo detectar el formato.\nIndica el tipo (DASH / HLS / Smooth Streaming) con «Editar».' };
+      return { title: t('Tipo desconocido'), text: t('No se pudo detectar el formato.\nIndica el tipo (DASH / HLS / Smooth Streaming) con «Editar».') };
     case C.CONTENT_UNSUPPORTED_BY_BROWSER:
-      return { title: 'Formato no soportado', text: 'Los códecs de este stream no son compatibles con el navegador.' };
+      return { title: t('Formato no soportado'), text: t('Los códecs de este stream no son compatibles con el navegador.') };
     case C.HLS_MSE_ENCRYPTED_MP2T_NOT_SUPPORTED ?? 4040:
       return {
-        title: 'HLS cifrado con SAMPLE-AES (FairPlay)',
-        text: 'Chrome no tiene FairPlay, pero el stream se puede descifrar si tienes la clave de contenido.\nCon «Editar», elige DRM ClearKey y pon la clave (solo KEY o KID:KEY) o un proxy de claves en «Servidor de licencias».'
+        title: t('HLS cifrado con SAMPLE-AES (FairPlay)'),
+        text: t('Chrome no tiene FairPlay, pero el stream se puede descifrar si tienes la clave de contenido.\nCon «Editar», elige DRM ClearKey y pon la clave (solo KEY o KID:KEY) o un proxy de claves en «Servidor de licencias».')
       };
     case C.VIDEO_ERROR:
       return {
-        title: 'Error de decodificación',
-        text: 'El vídeo no se pudo decodificar.' + (state.current?.drm?.system === 'clearkey' ? '\n¿Son correctas las claves ClearKey (KID:KEY)?' : '')
+        title: t('Error de decodificación'),
+        text: t('El vídeo no se pudo decodificar.') + (state.current?.drm?.system === 'clearkey' ? '\n' + t('¿Son correctas las claves ClearKey (KID:KEY)?') : '')
       };
     default:
-      return { title: `Error ${err.code}`, text: `${name}${inner ? ` (${inner.code})` : ''}\nPrueba a reintentar o revisa el tipo y las cabeceras del stream.` };
+      return { title: `${t('Error')} ${err.code}`, text: `${name}${inner ? ` (${inner.code})` : ''}\n${t('Prueba a reintentar o revisa el tipo y las cabeceras del stream.')}` };
   }
 }
 
@@ -516,90 +545,113 @@ function shortUrl(u) {
   } catch (_) { return String(u || ''); }
 }
 
+
 // ======================================================================
 // Listas y canales
 // ======================================================================
 
+const NO_GROUP = '\u0000';
+const ROW_LIMIT = 24; // tarjetas por fila en la portada
+const GRID_CHUNK = 120; // tarjetas por tanda en la cuadrícula
+const BLOCK_CHUNK = 6; // bloques por tanda en la portada
+const countCache = new Map();
+
+const groupKey = (c) => c.group || NO_GROUP;
+const groupLabel = (g) => (g === NO_GROUP ? t('Sin categoría') : g);
+const activeList = () => state.playlists.find((p) => p.id === state.activeId) || null;
+const manualLists = () => state.playlists.filter((p) => p.source === 'manual');
+const isManualActive = () => activeList()?.source === 'manual';
+
 async function loadData() {
   state.playlists = await store.getPlaylists();
   state.favorites = await store.getFavorites();
+  state.recents = await store.get('recents', []);
 }
 
-function renderPlaylistSelect() {
-  const sel = $('#playlistSelect');
-  sel.replaceChildren();
-  const favOpt = new Option(`★ Favoritos (${state.favorites.length})`, FAV_ID);
-  sel.add(favOpt);
-  for (const pl of state.playlists) sel.add(new Option(pl.source === 'manual' ? `✎ ${pl.name}` : pl.name, pl.id));
-  sel.value = state.activeId || FAV_ID;
+function channelsOf(pl) {
+  return pl.channels.map((c, i) => ({ ...c, id: `m${i}`, index: i, listId: pl.id, errors: [] }));
 }
 
-async function selectPlaylist(id, { refresh = false } = {}) {
+function countOf(pl) {
+  if (pl.source === 'manual') return pl.channels.length;
+  if (pl.id === state.activeId && state.channels.length) return state.channels.length;
+  return countCache.get(`${pl.id}|${pl.updatedAt}`);
+}
+
+async function selectPlaylist(id, { refresh = false, keepGroup = false } = {}) {
   state.activeId = id;
-  state.group = '';
-  $('#playlistSelect').value = id;
+  if (!keepGroup) state.group = '';
   if (id === FAV_ID) {
-    state.channels = state.favorites.map((c, i) => ({ ...c, id: `fav${i}` }));
+    state.channels = state.favorites.map((c, i) => ({ ...c, id: `fav${i}`, favIndex: i }));
   } else {
     const pl = state.playlists.find((p) => p.id === id);
     if (!pl) return selectPlaylist(FAV_ID);
     if (pl.source === 'manual') {
-      state.channels = pl.channels.map((c, i) => ({ ...c, id: `m${i}`, errors: [] }));
-      renderGroups();
-      applyFilter();
-      store.patchState({ playlistId: id });
-      return;
-    }
-    try {
-      if (refresh || !pl.text) await fetchPlaylist(pl);
-      state.channels = parseM3U(pl.text, pl.url).channels;
-    } catch (err) {
-      state.channels = [];
-      setStatus(`No se pudo cargar «${pl.name}»: ${err.message}`, 'err');
+      state.channels = channelsOf(pl);
+    } else {
+      try {
+        if (refresh || !pl.text) await fetchPlaylist(pl);
+        state.channels = parseM3U(pl.text, pl.url).channels;
+        countCache.set(`${pl.id}|${pl.updatedAt}`, state.channels.length);
+      } catch (err) {
+        state.channels = [];
+        setStatus(t('No se pudo cargar «{name}»: {msg}', { name: pl.name, msg: err.message }), 'err');
+      }
     }
   }
-  renderGroups();
-  applyFilter();
-  store.patchState({ playlistId: id });
+  if (state.group && !groupNames().includes(state.group)) state.group = '';
+  renderListPicker();
+  renderBrowse({ animate: true });
+  store.patchState({ playlistId: id, group: state.group });
 }
 
 async function fetchPlaylist(pl) {
   if (pl.source !== 'url') return;
-  setStatus(`Descargando «${pl.name}»…`);
+  setStatus(t('Descargando «{name}»…', { name: pl.name }));
   const res = await fetch(pl.url, { cache: 'no-store' });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   pl.text = await res.text();
   pl.updatedAt = new Date().toISOString();
   await store.savePlaylists(state.playlists);
-  setStatus(`«${pl.name}» actualizada`, 'ok');
+  setStatus(t('«{name}» actualizada', { name: pl.name }), 'ok');
 }
 
-function renderGroups() {
-  const sel = $('#groupSelect');
-  const counts = new Map();
-  for (const c of state.channels) counts.set(c.group, (counts.get(c.group) || 0) + 1);
-  sel.replaceChildren(new Option(`Todos los grupos (${state.channels.length})`, ''));
-  for (const [g, n] of counts) sel.add(new Option(`${g || 'Sin grupo'} (${n})`, g || '\u0000'));
-  sel.value = state.group;
+/** Categorías de la lista activa, en orden; «Sin categoría» al final. */
+function groupNames() {
+  const pl = activeList();
+  const out = pl?.source === 'manual' ? [...groupsOf(pl)] : [];
+  const seen = new Set(out);
+  let loose = false;
+  for (const c of state.channels) {
+    const g = groupKey(c);
+    if (g === NO_GROUP) { loose = true; continue; }
+    if (!seen.has(g)) { seen.add(g); out.push(g); }
+  }
+  if (loose) out.push(NO_GROUP);
+  return out;
+}
+
+function buckets() {
+  const map = new Map(groupNames().map((g) => [g, []]));
+  for (const c of state.channels) map.get(groupKey(c))?.push(c);
+  return map;
 }
 
 const norm = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
-function applyFilter() {
+/** Canales visibles (para anterior / siguiente): portada en orden de bloques. */
+function computeFiltered() {
   const q = norm(state.query);
   const g = state.group;
+  if (!g && !q) {
+    state.filtered = [...buckets().values()].flat();
+    return;
+  }
   state.filtered = state.channels.filter((c) => {
-    if (g && (c.group || '\u0000') !== g) return false;
+    if (g && groupKey(c) !== g) return false;
     if (q && !norm(c.name).includes(q) && !norm(c.group).includes(q)) return false;
     return true;
   });
-  state.cursor = state.filtered.length ? Math.min(state.cursor, state.filtered.length - 1) : -1;
-  list.setItems(state.filtered);
-  const total = state.channels.length;
-  $('#listMeta').textContent = total
-    ? `${state.filtered.length} de ${total} canales`
-    : '';
-  $('#emptyList').hidden = total > 0;
 }
 
 const favKey = (c) => `${c.url}|${c.name}`;
@@ -610,26 +662,39 @@ async function toggleFavorite(channel) {
   const idx = state.favorites.findIndex((f) => favKey(f) === key);
   if (idx >= 0) {
     state.favorites.splice(idx, 1);
-    toast('Eliminado de favoritos');
+    toast(t('Eliminado de favoritos'));
   } else {
-    const { id, ...copy } = channel;
-    state.favorites.push(structuredClone(copy));
-    toast('Añadido a favoritos');
+    state.favorites.push(cleanChannel(channel));
+    toast(t('Añadido a favoritos'));
   }
   await store.saveFavorites(state.favorites);
-  renderPlaylistSelect();
-  if (state.activeId === FAV_ID) {
-    state.channels = state.favorites.map((c, i) => ({ ...c, id: `fav${i}` }));
-    renderGroups();
-    applyFilter();
-  } else {
-    list.refresh();
-  }
+  if (state.activeId === FAV_ID) state.channels = state.favorites.map((c, i) => ({ ...c, id: `fav${i}`, favIndex: i }));
+  renderListPicker();
+  renderBrowse({ preserve: true });
   renderNowPlaying();
+}
+
+function pushRecent(channel) {
+  if (!channel?.url) return;
+  const copy = cleanChannel(channel);
+  state.recents = [copy, ...state.recents.filter((c) => favKey(c) !== favKey(copy))].slice(0, RECENT_MAX);
+  store.set('recents', state.recents).catch(() => {});
+  // Actualiza solo la fila de recientes, sin repintar el resto de la página.
+  const old = document.querySelector('#browseBody .block[data-block="recents"]');
+  if (old) {
+    old.replaceWith(blockEl({ id: 'recents', title: t('Vistos recientemente'), icon: 'i-refresh', items: state.recents, layout: 'row', clear: true }));
+    markPlaying();
+  }
 }
 
 function initials(name) {
   return String(name || '?').replace(/[^\p{L}\p{N} ]/gu, '').trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?';
+}
+
+function hueOf(text) {
+  let h = 0;
+  for (const ch of String(text || '')) h = (h * 31 + ch.codePointAt(0)) % 360;
+  return h;
 }
 
 function logoEl(className, channel) {
@@ -638,6 +703,7 @@ function logoEl(className, channel) {
   if (channel.logo) {
     const img = document.createElement('img');
     img.loading = 'lazy';
+    img.decoding = 'async';
     img.referrerPolicy = 'no-referrer';
     img.alt = '';
     img.src = channel.logo;
@@ -649,52 +715,43 @@ function logoEl(className, channel) {
   return box;
 }
 
-function renderRow(channel, index) {
-  const row = document.createElement('div');
-  const active = !!state.current && favKey(state.current) === favKey(channel);
-  row.className = 'ch' + (active ? ' active' : '') + (index === state.cursor ? ' cursor' : '');
-  row.id = `ch-opt-${index}`;
-  row.setAttribute('role', 'option');
-  row.setAttribute('aria-selected', String(active));
-  row.title = channel.name;
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
 
-  const num = document.createElement('span');
-  num.className = 'ch-num';
-  num.textContent = channel.chno || index + 1;
+function iconEl(id) {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  const use = document.createElementNS(ns, 'use');
+  use.setAttribute('href', `#${id}`);
+  svg.appendChild(use);
+  return svg;
+}
 
-  const text = document.createElement('span');
-  text.className = 'ch-text';
-  const name = document.createElement('span');
-  name.className = 'ch-name';
-  name.textContent = channel.name;
-  const sub = document.createElement('span');
-  sub.className = 'ch-sub';
-  const type = detectType(channel.url, channel.type);
-  sub.textContent = [...new Set([channel.group, type !== 'auto' ? TYPE_LABEL[type] : '', drmLabel(channel.drm)].filter(Boolean))].join(' · ');
-  text.append(name, sub);
-
-  const fav = document.createElement('button');
-  fav.className = 'ch-fav' + (isFav(channel) ? ' on' : '');
-  fav.tabIndex = -1;
-  fav.dataset.tip = isFav(channel) ? 'Quitar de favoritos' : 'Añadir a favoritos';
-  fav.setAttribute('aria-label', fav.dataset.tip);
-  fav.innerHTML = '<svg><use href="#i-star"/></svg>';
-  fav.addEventListener('click', (e) => { e.stopPropagation(); toggleFavorite(channel); });
-
-  row.append(num, logoEl('ch-logo', channel), text, fav);
-  row.addEventListener('click', () => { setCursor(index, false); play(channel); });
-  return row;
+function iconButton(icon, title, onClick, cls = 'icon-btn') {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = cls;
+  b.dataset.tip = title;
+  b.setAttribute('aria-label', title);
+  b.appendChild(iconEl(icon.replace(/^#/, '')));
+  b.addEventListener('click', onClick);
+  return b;
 }
 
 function renderNowPlaying() {
   const c = state.current;
   const logo = $('#npLogo');
-  logo.replaceChildren();
   $('#npMeta').replaceChildren();
   if (!c) {
-    $('#npTitle').textContent = 'Nada en reproducción';
+    logo.replaceChildren();
+    $('#npTitle').textContent = t('Nada en reproducción');
     $('#fsTitle').textContent = '';
     $('#btnFav').classList.remove('on');
+    document.title = 'IP Player';
     return;
   }
   logo.replaceWith(Object.assign(logoEl('np-logo', c), { id: 'npLogo' }));
@@ -702,58 +759,20 @@ function renderNowPlaying() {
   $('#fsTitle').textContent = c.name;
   document.title = `${c.name} · IP Player`;
   const meta = $('#npMeta');
-  const badge = (text, cls) => {
-    const b = document.createElement('span');
-    b.className = `badge ${cls || ''}`;
-    b.textContent = text;
-    meta.appendChild(b);
-    return b;
-  };
+  const badge = (text, cls) => meta.appendChild(el('span', `badge ${cls || ''}`, text));
   const type = detectType(c.url, c.type);
-  badge(TYPE_LABEL[type], 'type');
+  badge(typeLabel(type), 'type');
   if (drmLabel(c.drm)) badge(drmLabel(c.drm), 'drm');
   if (c.group && c.group !== drmLabel(c.drm) && c.group !== TYPE_LABEL[type]) badge(c.group);
   $('#btnFav').classList.toggle('on', isFav(c));
-  $('#btnFav').dataset.tip = isFav(c) ? 'Quitar de favoritos' : 'Añadir a favoritos';
+  $('#btnFav').dataset.tip = t(isFav(c) ? 'Quitar de favoritos' : 'Añadir a favoritos');
 }
 
-/** Mueve la fila resaltada de la lista (teclado). */
-function setCursor(index, scroll = true) {
-  const n = state.filtered.length;
-  if (!n) { state.cursor = -1; $('#channels').removeAttribute('aria-activedescendant'); return; }
-  state.cursor = Math.max(0, Math.min(n - 1, index));
-  if (scroll) list.scrollToIndex(state.cursor);
-  else list.refresh();
-  $('#channels').setAttribute('aria-activedescendant', `ch-opt-${state.cursor}`);
-}
-
-function currentIndex() {
-  return state.current ? state.filtered.findIndex((c) => favKey(c) === favKey(state.current)) : -1;
-}
-
-function onListKey(e) {
-  const n = state.filtered.length;
-  if (!n) return;
-  const inList = e.currentTarget.id === 'channels';
-  const page = Math.max(1, Math.floor($('#channels').clientHeight / ROW_HEIGHT) - 1);
-  const cur = state.cursor < 0 ? Math.max(0, currentIndex()) : state.cursor;
-  const moves = { ArrowDown: cur + 1, ArrowUp: cur - 1 };
-  if (inList) Object.assign(moves, { Home: 0, End: n - 1, PageDown: cur + page, PageUp: cur - page });
-  if (e.key in moves) {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.key === 'ArrowUp' && cur === 0 && inList) { $('#search').focus(); return; }
-    setCursor(inList || state.cursor >= 0 ? moves[e.key] : 0);
-    if (!inList) $('#channels').focus();
-  } else if (e.key === 'Enter' || (e.key === ' ' && inList)) {
-    e.preventDefault();
-    e.stopPropagation();
-    const i = state.cursor < 0 ? 0 : state.cursor;
-    setCursor(i);
-    play(state.filtered[i]);
-  } else if (e.key === 'Escape' && inList) {
-    $('#search').focus();
-  }
+/** Marca la tarjeta del canal en reproducción sin volver a pintar la cuadrícula. */
+function markPlaying() {
+  for (const c of document.querySelectorAll('.card.playing')) c.classList.remove('playing');
+  if (!state.current) return;
+  for (const c of document.querySelectorAll(`.card[data-key="${CSS.escape(favKey(state.current))}"]`)) c.classList.add('playing');
 }
 
 function step(delta) {
@@ -761,23 +780,888 @@ function step(delta) {
   if (!items.length) return;
   let idx = state.current ? items.findIndex((c) => favKey(c) === favKey(state.current)) : -1;
   idx = idx < 0 ? 0 : (idx + delta + items.length) % items.length;
-  state.cursor = idx;
-  list.scrollToIndex(idx);
   play(items[idx]);
 }
 
+// ---------- Menús emergentes (lista, añadir, opciones de canal) ----------
+
+let pop = null;
+
+/** Abre un menú flotante junto a un botón (o en un punto) con animación de entrada. */
+function showPop(menu, anchor, { align = 'start', point = null, focus = false } = {}) {
+  closePop();
+  menu.dataset.open = '';
+  const r = point ? { left: point.x, right: point.x, top: point.y, bottom: point.y } : anchor.getBoundingClientRect();
+  const w = menu.offsetWidth;
+  const h = menu.offsetHeight;
+  let x = align === 'end' ? r.right - w : r.left;
+  x = Math.max(8, Math.min(innerWidth - w - 8, x));
+  let y = r.bottom + 6;
+  let originY = 'top';
+  if (y + h > innerHeight - 8 && r.top - h - 6 > 8) { y = r.top - h - 6; originY = 'bottom'; }
+  menu.style.left = `${x}px`;
+  menu.style.top = `${Math.max(8, Math.min(y, innerHeight - h - 8))}px`;
+  menu.style.transformOrigin = `${align === 'end' ? 'right' : 'left'} ${originY}`;
+  anchor?.setAttribute('aria-expanded', 'true');
+  pop = { menu, anchor };
+  if (focus) menu.querySelector('button:not([disabled])')?.focus({ preventScroll: true });
+}
+
+function closePop({ refocus = false } = {}) {
+  if (!pop) return;
+  const { menu, anchor } = pop;
+  delete menu.dataset.open;
+  anchor?.setAttribute('aria-expanded', 'false');
+  pop = null;
+  if (refocus) anchor?.focus();
+}
+
+function togglePop(menu, anchor, opts) {
+  if (pop?.menu === menu) { closePop(); return; }
+  if (menu._render) menu._render();
+  showPop(menu, anchor, opts);
+}
+
+function menuItem(menu, { icon, label, sub, onClick, danger = false, checked = null, disabled = false }) {
+  const b = el('button', 'pop-item' + (danger ? ' danger' : ''));
+  b.type = 'button';
+  b.setAttribute('role', checked == null ? 'menuitem' : 'menuitemradio');
+  if (checked != null) b.setAttribute('aria-checked', String(checked));
+  b.disabled = disabled;
+  b.appendChild(icon ? iconEl(icon) : el('span', 'pop-ico-space'));
+  const text = el('span', 'pop-text');
+  text.appendChild(el('span', 'pop-label', label));
+  if (sub) text.appendChild(el('span', 'pop-sub', sub));
+  b.appendChild(text);
+  if (checked) {
+    const check = iconEl('i-check');
+    check.classList.add('pop-check');
+    b.appendChild(check);
+  }
+  b.addEventListener('click', () => { closePop(); onClick(); });
+  menu.appendChild(b);
+  return b;
+}
+
+const menuSep = (menu) => menu.appendChild(el('div', 'pop-sep'));
+const menuLabel = (menu, text) => menu.appendChild(el('div', 'pop-group', text));
+
+// ---------- Selector de lista ----------
+
+function renderListPicker() {
+  $('#listPickerValue').textContent = state.activeId === FAV_ID ? t('Favoritos') : activeList()?.name || t('Favoritos');
+}
+
+function buildListMenu() {
+  const menu = $('#listMenu');
+  menu.replaceChildren();
+  menuItem(menu, {
+    icon: 'i-star', label: t('Favoritos'), sub: t('{n} canales', { n: state.favorites.length }),
+    checked: state.activeId === FAV_ID, onClick: () => selectPlaylist(FAV_ID)
+  });
+  if (state.playlists.length) menuLabel(menu, t('Tus listas'));
+  for (const pl of state.playlists) {
+    const n = countOf(pl);
+    const kind = t(pl.source === 'manual' ? 'Lista propia' : pl.source === 'url' ? 'Desde URL' : 'Importada');
+    menuItem(menu, {
+      icon: pl.source === 'manual' ? 'i-edit' : pl.source === 'url' ? 'i-link' : 'i-list',
+      label: pl.name,
+      sub: n != null ? `${t('{n} canales', { n })} · ${kind}` : kind,
+      checked: state.activeId === pl.id,
+      onClick: () => selectPlaylist(pl.id)
+    });
+  }
+  menuSep(menu);
+  menuItem(menu, { icon: 'i-plus', label: t('Añadir lista M3U'), onClick: openAddPlaylist });
+  menuItem(menu, { icon: 'i-folder-plus', label: t('Crear lista propia'), onClick: () => createListFlow() });
+  menuItem(menu, { icon: 'i-gear', label: t('Gestionar listas…'), onClick: openManager });
+}
+
+// ---------- Idioma ----------
+
+function buildLangMenu() {
+  const menu = $('#langMenu');
+  menu.replaceChildren();
+  for (const [code, name] of LANGS) {
+    menuItem(menu, { label: name, checked: getLang() === code, onClick: () => changeLang(code) });
+  }
+}
+
+/** Cambia el idioma de toda la interfaz sin recargar (la reproducción sigue). */
+async function changeLang(code) {
+  setLang(code);
+  translateStatic();
+  await applyUiPrefs({ lang: code });
+  renderListPicker();
+  renderBrowse({ preserve: true });
+  renderNowPlaying();
+  controls._syncPlayState();
+  controls.refreshTracks();
+  controls.updateTime();
+  if (state.current && controls.enabled) setStatus(t('Reproduciendo'), 'ok');
+}
+
+// ---------- Menú «Añadir» ----------
+
+function buildAddMenu() {
+  const menu = $('#addMenu');
+  menu.replaceChildren();
+  const pl = activeList();
+  const opt = (icon, label, sub, fn) => {
+    const b = el('button', 'add-opt');
+    b.type = 'button';
+    b.setAttribute('role', 'menuitem');
+    const ico = el('span', 'add-ico');
+    ico.appendChild(iconEl(icon));
+    const text = el('span', 'add-text');
+    text.append(el('span', 'add-label', label), el('span', 'add-sub', sub));
+    b.append(ico, text);
+    b.addEventListener('click', () => { closePop(); fn(); });
+    menu.appendChild(b);
+  };
+  opt('i-link', t('Canal'), t('Pega el enlace de un stream (.m3u8, .mpd, Manifest)'), () => openAddChannel({ group: state.group && state.group !== NO_GROUP ? state.group : '' }));
+  opt('i-folder-plus', t('Categoría'), pl?.source === 'manual' ? t('Nueva categoría en «{name}»', { name: pl.name }) : t('Para organizar tus listas propias'), () => openCategoryDialog());
+  opt('i-list', t('Lista M3U'), t('Desde un enlace, un archivo o pegando el texto'), openAddPlaylist);
+  opt('i-edit', t('Lista propia'), t('Vacía, para crear tus categorías y canales'), () => createListFlow());
+}
+
+// ---------- Explorador: cabecera, chips y bloques ----------
+
+let gridObserver = null;
+
+function renderBrowse({ animate = false, preserve = false } = {}) {
+  computeFiltered();
+  const body = $('#browseBody');
+  const scrolls = preserve ? new Map([...body.querySelectorAll('.block')].map((b) => [b.dataset.block, b.querySelector('.row')?.scrollLeft || 0])) : null;
+  gridObserver?.disconnect();
+  gridObserver = null;
+  body.dataset.animate = animate && !matchMedia('(prefers-reduced-motion: reduce)').matches ? '1' : '';
+
+  const onboarding = !state.playlists.length && !state.favorites.length;
+  $('#emptyList').hidden = !onboarding;
+  $('#browse').dataset.onboarding = onboarding ? '1' : '';
+  renderBrowseHead();
+  renderChips();
+  body.replaceChildren();
+  if (onboarding) return;
+
+  const q = state.query.trim();
+  const manual = isManualActive();
+  if (q || state.group) {
+    if (!state.filtered.length && !(manual && state.group && !q)) {
+      body.appendChild(emptyBlock(q ? t('Sin resultados para «{q}»', { q }) : t('Esta categoría está vacía'), q ? t('Prueba con otro nombre o revisa la ortografía.') : ''));
+      return;
+    }
+    const title = q ? t('Resultados ({n})', { n: state.filtered.length }) : groupLabel(state.group);
+    body.appendChild(blockEl({ id: q ? 'results' : `g:${state.group}`, title, group: q ? null : state.group, items: state.filtered, layout: 'grid', editable: manual && !q }));
+  } else {
+    renderHome(body, manual);
+  }
+  if (scrolls) {
+    for (const b of body.querySelectorAll('.block')) {
+      const row = b.querySelector('.row');
+      if (row && scrolls.get(b.dataset.block)) row.scrollLeft = scrolls.get(b.dataset.block);
+    }
+  }
+  markPlaying();
+}
+
+function renderHome(body, manual) {
+  const blocks = [];
+  if (state.activeId !== FAV_ID && state.favorites.length) {
+    blocks.push({ id: 'fav', title: t('Favoritos'), icon: 'i-star', items: state.favorites, layout: 'row', more: () => selectPlaylist(FAV_ID) });
+  }
+  if (state.recents.length) {
+    blocks.push({ id: 'recents', title: t('Vistos recientemente'), icon: 'i-refresh', items: state.recents, layout: 'row', clear: true });
+  }
+  const groups = buckets();
+  const single = groups.size <= 1;
+  for (const [g, items] of groups) {
+    if (!items.length && !manual) continue;
+    blocks.push({ id: `g:${g}`, title: single && g === NO_GROUP ? t('Todos los canales') : groupLabel(g), group: g, items, layout: single ? 'grid' : 'row', editable: manual });
+  }
+  if (!state.channels.length && !(manual && groups.size)) {
+    if (state.activeId === FAV_ID) {
+      body.appendChild(emptyBlock(t('Aún no tienes favoritos'), t('Pulsa la estrella de cualquier canal para tenerlo siempre a mano aquí.')));
+    } else if (manual) {
+      const box = emptyBlock(t('Tu lista está vacía'), t('Empieza creando una categoría (Deportes, Noticias…) o añade directamente un canal.'));
+      const actions = el('div', 'empty-actions');
+      const add = el('button', 'btn primary');
+      add.type = 'button';
+      add.append(iconEl('i-plus'), document.createTextNode(t('Añadir canal')));
+      add.addEventListener('click', () => openAddChannel({ listId: state.activeId }));
+      const cat = el('button', 'btn');
+      cat.type = 'button';
+      cat.append(iconEl('i-folder-plus'), document.createTextNode(t('Nueva categoría')));
+      cat.addEventListener('click', () => startNewCategoryChip());
+      actions.append(add, cat);
+      box.appendChild(actions);
+      body.appendChild(box);
+    } else {
+      body.appendChild(emptyBlock(t('Esta lista no tiene canales'), t('Comprueba el enlace o actualízala desde «Gestionar listas».')));
+    }
+  }
+  // Los bloques se pintan por tandas para listas con muchas categorías.
+  let next = 0;
+  const sentinel = el('div', 'sentinel');
+  const more = () => {
+    const end = Math.min(blocks.length, next + BLOCK_CHUNK);
+    for (; next < end; next++) body.insertBefore(blockEl(blocks[next]), sentinel);
+    if (next >= blocks.length) {
+      sentinel.remove();
+      gridObserver?.disconnect();
+      if (manual && (state.channels.length || groups.size)) body.appendChild(newCategoryBlock());
+    }
+  };
+  body.appendChild(sentinel);
+  more();
+  if (next < blocks.length) {
+    gridObserver = new IntersectionObserver((e) => { if (e.some((x) => x.isIntersecting)) more(); }, { root: $('#main'), rootMargin: '900px 0px' });
+    gridObserver.observe(sentinel);
+  }
+}
+
+function emptyBlock(title, text) {
+  const box = el('div', 'empty-block');
+  box.appendChild(iconEl('i-tv'));
+  box.appendChild(el('p', 'empty-title', title));
+  if (text) box.appendChild(el('p', 'empty-text', text));
+  return box;
+}
+
+function renderBrowseHead() {
+  const pl = activeList();
+  const fav = state.activeId === FAV_ID;
+  const title = $('#browseTitle');
+  title.value = fav ? t('Favoritos') : pl?.name || '';
+  title.readOnly = pl?.source !== 'manual';
+  title.tabIndex = title.readOnly ? -1 : 0;
+  if (title.readOnly) delete title.dataset.tip;
+  else title.dataset.tip = t('Haz clic para renombrar la lista');
+  title.style.setProperty('--chars', String(Math.max(4, title.value.length + 1)));
+  const n = state.channels.length;
+  const groups = groupNames().filter((g) => g !== NO_GROUP).length;
+  const parts = [n === 1 ? t('1 canal') : t('{n} canales', { n })];
+  if (groups) parts.push(groups === 1 ? t('1 categoría') : t('{n} categorías', { n: groups }));
+  if (pl?.source === 'manual') parts.push(t('lista propia'));
+  else if (pl?.source === 'url') parts.push(pl.updatedAt ? t('actualizada {when}', { when: relTime(pl.updatedAt) }) : t('desde URL'));
+  $('#browseSub').textContent = parts.join(' · ');
+
+  const actions = $('#browseActions');
+  actions.replaceChildren();
+  if (pl?.source === 'manual') {
+    const add = el('button', 'btn primary sm');
+    add.type = 'button';
+    add.append(iconEl('i-plus'), el('span', 'hide-sm', t('Añadir canal')));
+    add.dataset.tip = t('Añadir un canal a esta lista');
+    add.addEventListener('click', () => openAddChannel({ listId: pl.id, group: state.group && state.group !== NO_GROUP ? state.group : '' }));
+    actions.appendChild(add);
+  }
+  if (pl?.source === 'url') {
+    actions.appendChild(iconButton('i-refresh', t('Actualizar la lista desde su URL'), async () => {
+      try { await selectPlaylist(pl.id, { refresh: true, keepGroup: true }); } catch (err) { toast(err.message); }
+    }));
+  }
+  if (pl && pl.source !== 'manual') {
+    actions.appendChild(iconButton('i-folder-plus', t('Crear una copia editable para organizarla a tu gusto'), async () => {
+      try {
+        const copy = await createManualList(`${pl.name} (copia)`, await listData(pl));
+        await selectPlaylist(copy.id);
+        toast(t('«{name}» creada: ya puedes editarla', { name: copy.name }));
+      } catch (err) { toast(err.message); }
+    }));
+  }
+  if (pl || (fav && state.favorites.length)) {
+    const exp = iconButton('i-download', t('Descargar en M3U o JSON'), (e) => {
+      if (pop?.anchor === exp) { closePop(); return; }
+      const menu = $('#ctxMenu');
+      menu.replaceChildren();
+      const data = async () => (fav ? { name: t('Favoritos'), groups: [], channels: state.favorites } : listData(pl));
+      for (const [fmt, label, sub] of [['m3u', 'M3U', t('Para Kodi, TiviMate, VLC…')], ['json', 'JSON', t('Para volver a importar en IP Player')]]) {
+        menuItem(menu, { icon: 'i-download', label, sub, onClick: async () => {
+          try { const d = await data(); exportList(d, fmt); toast(t('Descargando «{name}» en {fmt}', { name: d.name, fmt: label })); } catch (err) { toast(err.message); }
+        } });
+      }
+      showPop(menu, exp, { align: 'end', focus: e.detail === 0 });
+    });
+    exp.setAttribute('aria-haspopup', 'menu');
+    actions.appendChild(exp);
+  }
+}
+
+function relTime(iso) {
+  const s = (Date.now() - new Date(iso).getTime()) / 1000;
+  const rtf = new Intl.RelativeTimeFormat(locale(), { numeric: 'auto' });
+  if (s < 60) return t('ahora');
+  if (s < 3600) return rtf.format(-Math.round(s / 60), 'minute');
+  if (s < 86400) return rtf.format(-Math.round(s / 3600), 'hour');
+  return rtf.format(-Math.round(s / 86400), 'day');
+}
+
+function renderChips() {
+  const box = $('#chips');
+  const indicator = box.querySelector('.chip-indicator') || el('span', 'chip-indicator');
+  box.replaceChildren(indicator);
+  const groups = groupNames();
+  const counts = buckets();
+  const manual = isManualActive();
+  const chip = (label, value, n) => {
+    const b = el('button', 'chip');
+    b.type = 'button';
+    b.setAttribute('role', 'tab');
+    b.setAttribute('aria-selected', String(state.group === value));
+    b.dataset.group = value;
+    b.appendChild(el('span', 'chip-label', label));
+    if (n != null) b.appendChild(el('span', 'chip-count', String(n)));
+    b.addEventListener('click', () => selectGroup(value));
+    if (manual && value) bindDropTarget(b, { group: value });
+    box.appendChild(b);
+    return b;
+  };
+  chip(t('Todos'), '', state.channels.length);
+  for (const g of groups) chip(groupLabel(g), g, counts.get(g)?.length || 0);
+  if (manual) {
+    const add = el('button', 'chip chip-add');
+    add.type = 'button';
+    add.id = 'chipNewCategory';
+    add.append(iconEl('i-plus'), el('span', 'chip-label', t('Nueva categoría')));
+    add.addEventListener('click', startNewCategoryChip);
+    box.appendChild(add);
+  }
+  $('#chipsBar').hidden = !state.channels.length && !groups.length && !manual;
+  requestAnimationFrame(moveChipIndicator);
+}
+
+function moveChipIndicator() {
+  const box = $('#chips');
+  const active = box.querySelector('.chip[aria-selected="true"]');
+  const ind = box.querySelector('.chip-indicator');
+  if (!active || !ind) return;
+  ind.style.width = `${active.offsetWidth}px`;
+  ind.style.transform = `translateX(${active.offsetLeft}px)`;
+  // Primera colocación sin animación; después se desliza entre chips.
+  requestAnimationFrame(() => { ind.dataset.ready = '1'; });
+  const left = active.offsetLeft - box.scrollLeft;
+  if (left < 0 || left + active.offsetWidth > box.clientWidth) {
+    box.scrollTo({ left: active.offsetLeft - 24, behavior: 'smooth' });
+  }
+}
+
+function selectGroup(value) {
+  if (state.group === value && !state.query) return;
+  state.group = value;
+  if (state.query) { state.query = ''; $('#search').value = ''; }
+  renderBrowse({ animate: true });
+  store.patchState({ group: value });
+  const main = $('#main');
+  const top = $('#browse').offsetTop - 8;
+  if (main.scrollTop > top) main.scrollTo({ top, behavior: 'smooth' });
+}
+
+function startNewCategoryChip() {
+  const pl = activeList();
+  if (pl?.source !== 'manual') { openCategoryDialog(); return; }
+  const btn = $('#chipNewCategory');
+  if (!btn) return;
+  const input = el('input', 'chip chip-input');
+  input.placeholder = t('Nombre de la categoría');
+  input.setAttribute('aria-label', t('Nombre de la nueva categoría'));
+  btn.replaceWith(input);
+  input.focus();
+  let done = false;
+  const finish = async (save) => {
+    if (done) return;
+    done = true;
+    const name = input.value.trim();
+    if (save && name) {
+      const ok = await addCategory(pl, name);
+      if (ok) { selectGroup(name); toast(t('Categoría «{name}» creada. Añade canales o arrástralos aquí.', { name })); return; }
+    }
+    renderChips();
+  };
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finish(false); }
+  });
+  input.addEventListener('blur', () => finish(true));
+}
+
+/** Bloque de canales: fila desplazable (portada) o cuadrícula (categoría / búsqueda). */
+function blockEl({ id, title, icon, group = null, items, layout, editable = false, more = null, clear = false }) {
+  const sec = el('section', `block block-${layout}`);
+  sec.dataset.block = id;
+  const head = el('header', 'block-head');
+  const pl = activeList();
+  const canRename = editable && group && group !== NO_GROUP;
+
+  if (canRename) {
+    const name = el('input', 'block-title block-title-input');
+    name.value = title;
+    name.setAttribute('aria-label', t('Nombre de la categoría'));
+    name.dataset.tip = t('Haz clic para renombrar la categoría');
+    name.style.setProperty('--chars', String(Math.max(4, title.length + 1)));
+    name.addEventListener('input', () => name.style.setProperty('--chars', String(Math.max(4, name.value.length + 1))));
+    name.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); name.blur(); }
+      if (e.key === 'Escape') { name.value = title; name.blur(); }
+    });
+    name.addEventListener('change', () => renameCategory(pl, group, name.value.trim()));
+    head.appendChild(name);
+  } else {
+    const h = el('h3', 'block-title');
+    if (icon) h.appendChild(iconEl(icon));
+    h.appendChild(document.createTextNode(title));
+    head.appendChild(h);
+  }
+  head.appendChild(el('span', 'block-count', String(items.length)));
+  head.appendChild(el('span', 'spacer'));
+
+  const tools = el('div', 'block-tools');
+  if (editable && group != null) {
+    tools.appendChild(iconButton('i-plus', t('Añadir un canal en «{name}»', { name: groupLabel(group) }), () => openAddChannel({ listId: pl.id, group: group === NO_GROUP ? '' : group })));
+    if (canRename) {
+      const gs = groupsOf(pl);
+      const i = gs.indexOf(group);
+      if (layout === 'row') {
+        const up = iconButton('i-up', t('Subir la categoría'), () => moveCategory(pl, group, -1));
+        up.disabled = i <= 0;
+        const down = iconButton('i-down', t('Bajar la categoría'), () => moveCategory(pl, group, 1));
+        down.disabled = i < 0 || i >= gs.length - 1;
+        tools.append(up, down);
+      }
+      tools.appendChild(iconButton('i-trash', t('Eliminar la categoría (sus canales pasan a «Sin categoría»)'), () => deleteCategory(pl, group)));
+    }
+  }
+  if (clear) {
+    tools.appendChild(iconButton('i-trash', t('Borrar el historial de vistos'), async () => {
+      state.recents = [];
+      await store.set('recents', []);
+      renderBrowse({ preserve: true });
+    }));
+  }
+  head.appendChild(tools);
+  if (layout === 'row' && (group != null || more)) {
+    const all = el('button', 'see-all');
+    all.type = 'button';
+    all.append(document.createTextNode(t('Ver todo')), iconEl('i-next'));
+    all.addEventListener('click', () => (more ? more() : selectGroup(group)));
+    head.appendChild(all);
+  }
+  sec.appendChild(head);
+
+  const ctx = { editable, group };
+  if (layout === 'row') {
+    const wrap = el('div', 'row-wrap');
+    const row = el('div', 'row');
+    items.slice(0, ROW_LIMIT).forEach((c, i) => row.appendChild(cardEl(c, ctx, i)));
+    if (items.length > ROW_LIMIT) {
+      const tile = el('button', 'card card-more-tile');
+      tile.type = 'button';
+      tile.append(el('span', 'more-n', `+${items.length - ROW_LIMIT}`), el('span', 'more-t', t('Ver todos')));
+      tile.addEventListener('click', () => (more ? more() : selectGroup(group)));
+      row.appendChild(tile);
+    }
+    if (editable && group != null) row.appendChild(ghostCard(group));
+    const prev = iconButton('i-prev', t('Anteriores'), () => row.scrollBy({ left: -row.clientWidth * 0.85, behavior: 'smooth' }), 'row-nav prev');
+    const next = iconButton('i-next', t('Siguientes'), () => row.scrollBy({ left: row.clientWidth * 0.85, behavior: 'smooth' }), 'row-nav next');
+    prev.tabIndex = -1;
+    next.tabIndex = -1;
+    const sync = () => {
+      wrap.dataset.start = row.scrollLeft <= 4 ? '1' : '';
+      wrap.dataset.end = row.scrollLeft + row.clientWidth >= row.scrollWidth - 4 ? '1' : '';
+    };
+    row.addEventListener('scroll', sync, { passive: true });
+    requestAnimationFrame(sync);
+    wrap.append(row, prev, next);
+    sec.appendChild(wrap);
+  } else {
+    const grid = el('div', 'grid');
+    sec.appendChild(grid);
+    let next = 0;
+    const sentinel = el('div', 'sentinel');
+    grid.appendChild(sentinel);
+    const add = () => {
+      const end = Math.min(items.length, next + GRID_CHUNK);
+      const frag = document.createDocumentFragment();
+      for (; next < end; next++) frag.appendChild(cardEl(items[next], ctx, next % GRID_CHUNK));
+      grid.insertBefore(frag, sentinel);
+      if (next >= items.length) {
+        sentinel.remove();
+        if (editable && group != null) grid.appendChild(ghostCard(group));
+      }
+    };
+    add();
+    if (next < items.length) {
+      const io = new IntersectionObserver((e) => {
+        if (e.some((x) => x.isIntersecting)) add();
+        if (next >= items.length) io.disconnect();
+      }, { root: $('#main'), rootMargin: '900px 0px' });
+      io.observe(sentinel);
+    }
+  }
+  if (editable && group != null) bindDropTarget(sec, { group });
+  return sec;
+}
+
+function newCategoryBlock() {
+  const b = el('button', 'block-new');
+  b.type = 'button';
+  b.append(iconEl('i-folder-plus'), el('span', '', t('Nueva categoría')));
+  b.addEventListener('click', () => {
+    $('#main').scrollTo({ top: $('#browse').offsetTop - 8, behavior: 'smooth' });
+    startNewCategoryChip();
+  });
+  return b;
+}
+
+function ghostCard(group) {
+  const b = el('button', 'card card-ghost');
+  b.type = 'button';
+  b.dataset.tip = t('Añadir un canal en «{name}»', { name: groupLabel(group) });
+  b.append(iconEl('i-plus'), el('span', '', t('Añadir canal')));
+  b.addEventListener('click', () => openAddChannel({ listId: state.activeId, group: group === NO_GROUP ? '' : group }));
+  return b;
+}
+
+function cardEl(channel, ctx, i) {
+  const card = el('div', 'card');
+  card.style.setProperty('--i', String(Math.min(i, 16)));
+  card.style.setProperty('--h', String(hueOf(channel.name)));
+  card.dataset.key = favKey(channel);
+
+  const hit = el('button', 'card-hit');
+  hit.type = 'button';
+  hit.setAttribute('aria-label', t('Reproducir {name}', { name: channel.name }));
+  hit.addEventListener('click', () => play(channel));
+
+  const art = el('span', 'card-art');
+  art.appendChild(logoEl('card-logo', channel));
+  const live = el('span', 'card-live');
+  live.append(el('i'), el('i'), el('i'));
+  art.appendChild(live);
+
+  const body = el('span', 'card-body');
+  body.appendChild(el('span', 'card-name', channel.name));
+  const type = detectType(channel.url, channel.type);
+  const meta = [type !== 'auto' ? typeLabel(type) : '', drmLabel(channel.drm)].filter(Boolean).join(' · ');
+  body.appendChild(el('span', 'card-meta', meta || (ctx.group == null && channel.group ? channel.group : t('Stream'))));
+  hit.append(art, body);
+
+  const fav = iconButton('i-star', t(isFav(channel) ? 'Quitar de favoritos' : 'Añadir a favoritos'), (e) => { e.stopPropagation(); toggleFavorite(channel); }, 'card-fav' + (isFav(channel) ? ' on' : ''));
+  fav.tabIndex = -1;
+  const more = iconButton('i-more', t('Más opciones'), (e) => {
+    e.stopPropagation();
+    if (pop?.anchor === more) { closePop(); return; }
+    openCardMenu(channel, { anchor: more, focus: e.detail === 0 });
+  }, 'card-more');
+  more.tabIndex = -1;
+  more.setAttribute('aria-haspopup', 'menu');
+  card.append(hit, fav, more);
+  card.addEventListener('contextmenu', (e) => { e.preventDefault(); openCardMenu(channel, { point: { x: e.clientX, y: e.clientY } }); });
+  hit.addEventListener('keydown', (e) => {
+    if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) { e.preventDefault(); openCardMenu(channel, { anchor: more, focus: true }); }
+  });
+
+  if (ctx.editable && channel.index != null) {
+    card.draggable = true;
+    card.addEventListener('dragstart', (e) => {
+      drag = { index: channel.index };
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', channel.url);
+      card.classList.add('dragging');
+      document.body.dataset.dragging = '1';
+    });
+    card.addEventListener('dragend', endDrag);
+    bindDropTarget(card, { group: groupKey(channel), target: channel.index });
+  }
+  return card;
+}
+
+function openCardMenu(channel, { anchor = null, point = null, focus = false } = {}) {
+  const menu = $('#ctxMenu');
+  menu.replaceChildren();
+  const pl = channel.listId ? state.playlists.find((p) => p.id === channel.listId) : null;
+  const own = pl?.source === 'manual' && channel.index != null;
+  menuItem(menu, { icon: 'i-play', label: t('Reproducir'), onClick: () => play(channel) });
+  menuItem(menu, { icon: 'i-star', label: t(isFav(channel) ? 'Quitar de favoritos' : 'Añadir a favoritos'), onClick: () => toggleFavorite(channel) });
+  if (own) {
+    menuItem(menu, { icon: 'i-edit', label: t('Editar canal'), sub: t('URL, DRM, cabeceras'), onClick: () => openStreamDialog({ ...channel }, { mode: 'edit', listId: pl.id, index: channel.index }) });
+    const groups = groupsOf(pl);
+    if (groups.length) {
+      menuLabel(menu, 'Mover a');
+      for (const g of [...groups, '']) {
+        const cur = (channel.group || '') === g;
+        menuItem(menu, { label: g || t('Sin categoría'), checked: cur, disabled: cur, onClick: () => moveChannel(pl, channel.index, { group: g || NO_GROUP }) });
+      }
+      menuSep(menu);
+    }
+  } else {
+    menuItem(menu, { icon: 'i-folder-plus', label: t('Guardar en mis listas'), sub: t('Elige lista y categoría'), onClick: () => openSaveDialog(channel) });
+  }
+  menuItem(menu, { icon: 'i-copy', label: t('Copiar URL'), onClick: async () => { await navigator.clipboard.writeText(channel.url); toast(t('URL copiada')); } });
+  if (own) {
+    menuItem(menu, { icon: 'i-trash', label: t('Eliminar de la lista'), danger: true, onClick: () => removeChannel(pl, channel.index) });
+  }
+  showPop(menu, anchor, { point, align: anchor ? 'end' : 'start', focus });
+}
+
+// ---------- Arrastrar canales (listas propias) ----------
+
+let drag = null;
+
+function endDrag() {
+  drag = null;
+  delete document.body.dataset.dragging;
+  for (const n of document.querySelectorAll('.dragging, .drop-before, .drop-after, .drop-into')) {
+    n.classList.remove('dragging', 'drop-before', 'drop-after', 'drop-into');
+  }
+}
+
+function bindDropTarget(node, { group, target = null }) {
+  node.addEventListener('dragover', (e) => {
+    if (!drag) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+    for (const n of document.querySelectorAll('.drop-before, .drop-after, .drop-into')) {
+      if (n !== node) n.classList.remove('drop-before', 'drop-after', 'drop-into');
+    }
+    if (target != null) {
+      const r = node.getBoundingClientRect();
+      const after = e.clientX > r.left + r.width / 2;
+      node.classList.toggle('drop-after', after);
+      node.classList.toggle('drop-before', !after);
+    } else {
+      node.classList.add('drop-into');
+    }
+  });
+  node.addEventListener('dragleave', (e) => {
+    if (!node.contains(e.relatedTarget)) node.classList.remove('drop-before', 'drop-after', 'drop-into');
+  });
+  node.addEventListener('drop', (e) => {
+    if (!drag) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const after = node.classList.contains('drop-after');
+    const from = drag.index;
+    endDrag();
+    const pl = activeList();
+    if (pl?.source === 'manual') moveChannel(pl, from, { group, target, after });
+  });
+}
+
+/** Mueve un canal a otra categoría y, si se indica, junto a otro canal. */
+async function moveChannel(pl, from, { group, target = null, after = false }) {
+  const ch = pl.channels[from];
+  if (!ch) return;
+  const before = ch.group || '';
+  ch.group = group === NO_GROUP ? '' : group;
+  if (target != null && target !== from) {
+    pl.channels.splice(from, 1);
+    let t = target - (from < target ? 1 : 0);
+    if (after) t++;
+    pl.channels.splice(t, 0, ch);
+  } else if (target == null && before !== ch.group) {
+    pl.channels.splice(from, 1);
+    pl.channels.push(ch);
+  }
+  await saveManual(pl);
+  if (before !== ch.group) toast(t('«{name}» movido a {group}', { name: ch.name, group: groupLabel(group) }));
+}
+
+async function removeChannel(pl, index) {
+  const [removed] = pl.channels.splice(index, 1);
+  if (!removed) return;
+  await saveManual(pl);
+  toast(t('«{name}» eliminado', { name: removed.name }), {
+    label: t('Deshacer'),
+    fn: async () => { pl.channels.splice(index, 0, removed); await saveManual(pl); }
+  });
+}
+
+// ---------- Categorías (listas propias) ----------
+
+async function addCategory(pl, name) {
+  if (!name) return false;
+  if (groupsOf(pl).some((g) => g.toLowerCase() === name.toLowerCase())) { toast(t('Esa categoría ya existe')); return false; }
+  pl.groups = [...groupsOf(pl), name];
+  await saveManual(pl);
+  return true;
+}
+
+async function renameCategory(pl, old, nv) {
+  if (!nv || nv === old) { renderBrowse({ preserve: true }); return; }
+  if (groupsOf(pl).includes(nv)) { toast(t('Ya existe una categoría con ese nombre')); renderBrowse({ preserve: true }); return; }
+  pl.groups = groupsOf(pl).map((x) => (x === old ? nv : x));
+  pl.channels.forEach((c) => { if (c.group === old) c.group = nv; });
+  if (state.group === old) state.group = nv;
+  await saveManual(pl);
+  toast(t('Categoría renombrada a «{name}»', { name: nv }));
+}
+
+async function moveCategory(pl, g, dir) {
+  const gs = groupsOf(pl);
+  const i = gs.indexOf(g);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= gs.length) return;
+  [gs[i], gs[j]] = [gs[j], gs[i]];
+  pl.groups = gs;
+  await saveManual(pl);
+}
+
+async function deleteCategory(pl, g) {
+  const n = pl.channels.filter((c) => c.group === g).length;
+  if (n && !confirm(t('¿Eliminar la categoría «{name}»? Sus {n} canales pasarán a «Sin categoría».', { name: g, n }))) return;
+  const prevGroups = groupsOf(pl);
+  const moved = pl.channels.filter((c) => c.group === g);
+  pl.groups = prevGroups.filter((x) => x !== g);
+  moved.forEach((c) => { c.group = ''; });
+  if (state.group === g) state.group = '';
+  await saveManual(pl);
+  toast(t('Categoría «{name}» eliminada', { name: g }), {
+    label: t('Deshacer'),
+    fn: async () => { pl.groups = prevGroups; moved.forEach((c) => { c.group = g; }); await saveManual(pl); }
+  });
+}
+
+// ---------- Teclado en las tarjetas ----------
+
+const FOCUSABLE_CARD = '.card-hit, .card-ghost, .card-more-tile';
+
+function onCardsKey(e) {
+  const hit = e.target.closest(FOCUSABLE_CARD);
+  if (!hit || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) return;
+  e.preventDefault();
+  e.stopPropagation();
+  const container = hit.closest('.row, .grid');
+  const items = [...container.querySelectorAll(FOCUSABLE_CARD)];
+  const i = items.indexOf(hit);
+  let target = null;
+  if (e.key === 'ArrowRight') target = items[i + 1];
+  else if (e.key === 'ArrowLeft') target = items[i - 1];
+  else if (e.key === 'Home') target = items[0];
+  else if (e.key === 'End') target = items[items.length - 1];
+  else if (container.classList.contains('grid')) {
+    const top = items[0].getBoundingClientRect().top;
+    const cols = Math.max(1, items.filter((x) => Math.abs(x.getBoundingClientRect().top - top) < 4).length);
+    target = items[i + (e.key === 'ArrowDown' ? cols : -cols)];
+  }
+  if (!target && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+    // Salta al bloque siguiente / anterior manteniendo la posición.
+    const blocks = [...$('#browseBody').querySelectorAll('.block')];
+    const b = blocks[blocks.indexOf(hit.closest('.block')) + (e.key === 'ArrowDown' ? 1 : -1)];
+    const list = b ? [...b.querySelectorAll(FOCUSABLE_CARD)] : [];
+    target = list[Math.min(i, list.length - 1)] || null;
+    if (!target && e.key === 'ArrowUp') { $('#search').focus(); return; }
+  }
+  if (target) {
+    target.focus({ preventScroll: true });
+    target.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+  }
+}
+
 // ======================================================================
-// Diálogo: abrir / editar stream
+// Selector de categoría (chips) para los diálogos
 // ======================================================================
 
-function openStreamDialog(channel, title) {
+/** Pinta chips de categoría con opción «Nueva». El valor se lee con box.value(). */
+function categoryPicker(box, groups, initial = '') {
+  box.replaceChildren();
+  let value = initial || '';
+  const opts = [];
+  const input = el('input', 'cat-new-input');
+  input.placeholder = t('Nombre de la nueva categoría');
+  input.setAttribute('aria-label', t('Nombre de la nueva categoría'));
+  input.hidden = true;
+  let newBtn = null;
+  const select = (v, btn) => {
+    value = v;
+    for (const o of opts) o.setAttribute('aria-checked', String(o === btn));
+    if (btn !== newBtn) { input.hidden = true; input.value = ''; }
+  };
+  const opt = (label, v) => {
+    const b = el('button', 'cat-opt');
+    b.type = 'button';
+    b.setAttribute('role', 'radio');
+    b.textContent = label;
+    b.addEventListener('click', () => select(v, b));
+    opts.push(b);
+    box.appendChild(b);
+    return b;
+  };
+  opt(t('Sin categoría'), '');
+  for (const g of groups) opt(g, g);
+  newBtn = el('button', 'cat-opt cat-opt-new');
+  newBtn.type = 'button';
+  newBtn.setAttribute('role', 'radio');
+  newBtn.append(iconEl('i-plus'), document.createTextNode(t('Nueva')));
+  newBtn.addEventListener('click', () => { select('', newBtn); input.hidden = false; input.focus(); });
+  opts.push(newBtn);
+  box.append(newBtn, input);
+  input.addEventListener('input', () => { value = input.value.trim(); });
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
+  if (!initial) select('', opts[0]);
+  else if (groups.includes(initial)) select(initial, opts[groups.indexOf(initial) + 1]);
+  else { select(initial, newBtn); input.hidden = false; input.value = initial; value = initial; }
+  box.value = () => value;
+  return box;
+}
+
+/** Rellena un <select> con las listas propias y la opción de crear una nueva. */
+function fillListSelect(sel, preferred) {
+  sel.replaceChildren();
+  for (const pl of manualLists()) sel.add(new Option(pl.name, pl.id));
+  sel.add(new Option(t('＋ Nueva lista…'), '__new__'));
+  const has = (id) => id && manualLists().some((p) => p.id === id);
+  sel.value = has(preferred) ? preferred : has(state.activeId) ? state.activeId : manualLists()[0]?.id || '__new__';
+}
+
+// ======================================================================
+// Diálogo: abrir / añadir / editar canal
+// ======================================================================
+
+function hasAdvanced(c) {
+  return !!(c && ((c.drm && c.drm.system && c.drm.system !== 'none') || Object.keys(c.headers || {}).length || c.type || c.engine));
+}
+
+/**
+ * @param {object|null} channel
+ * @param {{mode?:'open'|'add'|'edit', title?:string, listId?:string, index?:number, group?:string}} [opts]
+ */
+function openStreamDialog(channel, { mode = 'open', title, listId, index, group } = {}) {
+  closePop();
   state.editing = channel || null;
-  $('#streamDialogTitle').textContent = title || (channel ? 'Editar stream' : 'Abrir stream');
+  state.streamMode = { kind: mode, listId, index };
+  const titles = { open: t(channel ? 'Revisar stream' : 'Abrir stream'), add: t('Añadir canal'), edit: t('Editar canal') };
+  $('#streamDialogTitle').textContent = title || titles[mode];
   fillStreamForm(channel || { name: '', url: '', type: '', headers: {}, drm: emptyDrm() });
   $('#streamError').hidden = true;
   $('#fImport').value = '';
+  $('#fAdvanced').open = hasAdvanced(channel);
+
+  $('#fSaveTo').hidden = mode !== 'add';
+  if (mode === 'add') {
+    fillListSelect($('#fList'), listId);
+    syncStreamTarget(group || '');
+  }
+  $('#btnStreamPlay').textContent = t(mode === 'add' ? 'Solo reproducir' : 'Reproducir');
+  $('#btnStreamPlay').classList.toggle('primary', mode === 'open');
+  $('#btnStreamSave').hidden = mode === 'open';
+  $('#btnStreamSave').textContent = t(mode === 'edit' ? 'Guardar cambios' : 'Guardar');
+  $('#btnStreamSaveTo').hidden = mode !== 'open';
   $('#streamDialog').showModal();
-  $('#fUrl').focus();
+  (channel?.url ? $('#fName') : $('#fUrl')).focus();
+}
+
+function syncStreamTarget(group) {
+  const id = $('#fList').value;
+  const pl = manualLists().find((p) => p.id === id);
+  $('#fNewListWrap').hidden = id !== '__new__';
+  categoryPicker($('#fCats'), pl ? groupsOf(pl) : [], group);
+}
+
+function openAddChannel({ listId, group = '' } = {}) {
+  openStreamDialog(null, { mode: 'add', listId: listId || (isManualActive() ? state.activeId : undefined), group });
 }
 
 function fillStreamForm(c) {
@@ -798,14 +1682,14 @@ function fillStreamForm(c) {
 
 function syncDrmFields() {
   const sys = $('#fDrm').value;
-  document.querySelectorAll('#streamForm [data-drm]').forEach((el) => {
-    el.hidden = !el.dataset.drm.split(' ').includes(sys);
+  document.querySelectorAll('#streamForm [data-drm]').forEach((node) => {
+    node.hidden = !node.dataset.drm.split(' ').includes(sys);
   });
 }
 
 function readStreamForm() {
   const url = $('#fUrl').value.trim();
-  if (!url) throw new Error('Indica la URL del stream.');
+  if (!url) throw new Error(t('Indica la URL del stream.'));
   const system = $('#fDrm').value;
   const drm = emptyDrm();
   drm.system = system;
@@ -818,17 +1702,17 @@ function readStreamForm() {
   if (system === 'clearkey') {
     drm.keys = parseClearKeys($('#fKeys').value);
     if (!Object.keys(drm.keys).length && !drm.licenseUrl) {
-      throw new Error('ClearKey necesita claves KID:KEY o un servidor de licencias.');
+      throw new Error(t('ClearKey necesita claves KID:KEY o un servidor de licencias.'));
     }
   }
   if ((system === 'widevine' || system === 'playready') && !drm.licenseUrl) {
-    throw new Error('Indica el servidor de licencias.');
+    throw new Error(t('Indica el servidor de licencias.'));
   }
   const base = state.editing || {};
   return {
     ...base,
     id: base.id || 'manual',
-    name: $('#fName').value.trim() || base.name || url,
+    name: $('#fName').value.trim() || base.name || nameFromUrl(url) || url,
     url,
     type: $('#fType').value,
     engine: $('#fEngine').value,
@@ -845,7 +1729,7 @@ function importIntoForm() {
   if (!/\n\s*[^#\s][^\n]*\s*$/.test(text)) text += '\n' + ($('#fUrl').value.trim() || 'about:blank');
   const { channels } = parseM3U(text);
   if (!channels.length) {
-    showFormError('streamError', 'No se encontró ninguna entrada válida.');
+    showFormError('streamError', t('No se encontró ninguna entrada válida.'));
     return;
   }
   const c = channels[0];
@@ -855,73 +1739,107 @@ function importIntoForm() {
 }
 
 function showFormError(id, msg) {
-  const el = $('#' + id);
-  el.textContent = msg;
-  el.hidden = !msg;
+  const node = $('#' + id);
+  node.textContent = msg;
+  node.hidden = !msg;
+}
+
+async function onStreamSave() {
+  const mode = state.streamMode;
+  try {
+    const ch = readStreamForm();
+    if (mode.kind === 'edit') {
+      const pl = manualLists().find((p) => p.id === mode.listId);
+      if (!pl) throw new Error(t('La lista ya no existe.'));
+      const old = pl.channels[mode.index];
+      pl.channels[mode.index] = cleanChannel({ ...ch, group: old?.group || '' });
+      await saveManual(pl);
+      toast(t('Canal actualizado'));
+    } else if (mode.kind === 'add') {
+      let pl = manualLists().find((p) => p.id === $('#fList').value);
+      if (!pl) pl = await createManualList($('#fNewList').value.trim());
+      const group = $('#fCats').value();
+      if (group && !groupsOf(pl).includes(group)) pl.groups = [...groupsOf(pl), group];
+      const saved = cleanChannel({ ...ch, group });
+      pl.channels.push(saved);
+      await saveManual(pl);
+      if (state.activeId !== pl.id) await selectPlaylist(pl.id);
+      const index = pl.channels.length - 1;
+      toast(t('«{name}» guardado en «{list}»', { name: saved.name, list: pl.name }) + (group ? ' · ' + group : ''), {
+        label: t('Reproducir'),
+        fn: () => play({ ...saved, id: `m${index}`, index, listId: pl.id, errors: [] })
+      });
+    }
+    $('#streamDialog').close();
+  } catch (err) {
+    showFormError('streamError', err.message);
+  }
 }
 
 // ======================================================================
-// Diálogo: listas
+// Diálogos: listas, guardar en lista y categoría
 // ======================================================================
+
+function openManager() {
+  closePop();
+  renderPlaylistManager();
+  showFormError('managerError', '');
+  $('#manageDialog').showModal();
+}
 
 function renderPlaylistManager() {
   const ul = $('#plList');
   ul.replaceChildren();
   if (!state.playlists.length) {
-    const li = document.createElement('li');
-    li.className = 'empty-li';
-    li.textContent = 'Todavía no hay listas.';
-    ul.appendChild(li);
+    ul.appendChild(el('li', 'empty-li', t('Todavía no hay listas. Añade una M3U o crea tu propia lista.')));
     return;
   }
   for (const pl of state.playlists) {
     const li = document.createElement('li');
-    const info = document.createElement('div');
-    info.className = 'pl-info';
-    const name = document.createElement('div');
-    name.className = 'pl-name';
-    name.textContent = pl.name;
-    const sub = document.createElement('div');
-    sub.className = 'pl-sub';
     const manual = pl.source === 'manual';
-    const count = manual ? pl.channels.length : pl.text ? parseM3U(pl.text).channels.length : 0;
-    const date = pl.updatedAt ? new Date(pl.updatedAt).toLocaleString() : '';
-    const origin = manual ? `lista propia · ${groupsOf(pl).length} categorías` : pl.source === 'url' ? pl.url : 'local';
-    sub.textContent = `${count} canales · ${origin}${date ? ' · ' + date : ''}`;
+    const ico = el('span', 'pl-ico');
+    ico.appendChild(iconEl(manual ? 'i-edit' : pl.source === 'url' ? 'i-link' : 'i-list'));
+    const info = el('div', 'pl-info');
+    info.appendChild(el('div', 'pl-name', pl.name));
+    let count = countOf(pl);
+    if (count == null && pl.text) {
+      count = parseM3U(pl.text).channels.length;
+      countCache.set(`${pl.id}|${pl.updatedAt}`, count);
+    }
+    const date = pl.updatedAt ? relTime(pl.updatedAt) : '';
+    const origin = manual ? `${t('lista propia')} · ${t('{n} categorías', { n: groupsOf(pl).length })}` : pl.source === 'url' ? pl.url : t('importada');
+    const sub = el('div', 'pl-sub', `${t('{n} canales', { n: count ?? 0 })} · ${origin}${date ? ' · ' + date : ''}`);
     sub.title = sub.textContent;
-    info.append(name, sub);
-    li.appendChild(info);
+    info.appendChild(sub);
+    li.append(ico, info);
 
+    li.appendChild(iconButton('i-play', t('Abrir esta lista'), async () => { $('#manageDialog').close(); await selectPlaylist(pl.id); }));
     if (pl.source === 'url') {
-      const r = iconButton('#i-refresh', 'Actualizar desde la URL', async () => {
+      li.appendChild(iconButton('i-refresh', t('Actualizar desde la URL'), async () => {
         try {
           await fetchPlaylist(pl);
           renderPlaylistManager();
-          if (state.activeId === pl.id) await selectPlaylist(pl.id);
-        } catch (err) { showFormError('playlistError', `Error al actualizar: ${err.message}`); }
-      });
-      li.appendChild(r);
+          if (state.activeId === pl.id) await selectPlaylist(pl.id, { keepGroup: true });
+        } catch (err) { showFormError('managerError', t('Error al actualizar: {msg}', { msg: err.message })); }
+      }));
     }
-    if (manual) {
-      li.appendChild(iconButton('#i-edit', 'Editar lista y categorías', () => openLibrary(pl.id)));
-    } else {
-      li.appendChild(iconButton('#i-folder-plus', 'Copiar como lista propia editable', async () => {
+    if (!manual) {
+      li.appendChild(iconButton('i-folder-plus', t('Copiar como lista propia editable'), async () => {
         try {
-          const data = await listData(pl);
-          const copy = await createManualList(`${pl.name} (copia)`, data);
+          const copy = await createManualList(`${pl.name} (copia)`, await listData(pl));
           renderPlaylistManager();
-          toast(`«${copy.name}» creada: ya puedes editarla`);
-        } catch (err) { showFormError('playlistError', err.message); }
+          toast(t('«{name}» creada: ya puedes editarla', { name: copy.name }));
+        } catch (err) { showFormError('managerError', err.message); }
       }));
     }
     li.appendChild(exportButton(pl));
-    li.appendChild(iconButton('#i-trash', 'Eliminar lista', async () => {
-      if (!confirm(`¿Eliminar la lista «${pl.name}»?`)) return;
+    li.appendChild(iconButton('i-trash', t('Eliminar lista'), async () => {
+      if (!confirm(t('¿Eliminar la lista «{name}»?', { name: pl.name }))) return;
       state.playlists = state.playlists.filter((p) => p.id !== pl.id);
       await store.savePlaylists(state.playlists);
       renderPlaylistManager();
-      renderPlaylistSelect();
       if (state.activeId === pl.id) await selectPlaylist(state.playlists[0]?.id || FAV_ID);
+      else { renderListPicker(); renderBrowse({ preserve: true }); }
     }));
     ul.appendChild(li);
   }
@@ -929,34 +1847,19 @@ function renderPlaylistManager() {
 
 /** Botón de descarga con elección de formato (M3U / JSON). */
 function exportButton(pl) {
-  const wrap = document.createElement('div');
-  wrap.className = 'export-wrap';
-  const menu = document.createElement('div');
-  menu.className = 'export-menu';
-  menu.hidden = true;
-  for (const [fmt, label, tip] of [['m3u', 'M3U', 'Para Kodi, TiviMate, VLC…'], ['json', 'JSON', 'Para volver a importar en IP Player']]) {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'btn';
-    b.textContent = label;
-    b.dataset.tip = tip;
-    b.addEventListener('click', async () => {
-      menu.hidden = true;
-      btn.setAttribute('aria-expanded', 'false');
-      try {
-        exportList(await listData(pl), fmt);
-        toast(`Descargando «${pl.name}» en ${label}`);
-      } catch (err) { showFormError('playlistError', err.message); }
-    });
-    menu.appendChild(b);
-  }
-  const btn = iconButton('#i-download', 'Descargar en M3U o JSON', () => {
-    menu.hidden = !menu.hidden;
-    btn.setAttribute('aria-expanded', String(!menu.hidden));
+  const btn = iconButton('i-download', t('Descargar en M3U o JSON'), (e) => {
+    if (pop?.anchor === btn) { closePop(); return; }
+    const menu = $('#ctxMenu');
+    menu.replaceChildren();
+    for (const [fmt, label, sub] of [['m3u', 'M3U', t('Para Kodi, TiviMate, VLC…')], ['json', 'JSON', t('Para volver a importar en IP Player')]]) {
+      menuItem(menu, { icon: 'i-download', label, sub, onClick: async () => {
+        try { exportList(await listData(pl), fmt); toast(t('Descargando «{name}» en {fmt}', { name: pl.name, fmt: label })); } catch (err) { showFormError('managerError', err.message); }
+      } });
+    }
+    showPop(menu, btn, { align: 'end', focus: e.detail === 0 });
   });
-  btn.setAttribute('aria-expanded', 'false');
-  wrap.append(btn, menu);
-  return wrap;
+  btn.setAttribute('aria-haspopup', 'menu');
+  return btn;
 }
 
 /** Canales de cualquier lista en formato de lista propia. */
@@ -968,9 +1871,9 @@ async function listData(pl) {
 }
 
 async function createManualList(name, { groups = [], channels = [] } = {}) {
-  let finalName = name || `Mi lista ${state.playlists.filter((x) => x.source === 'manual').length + 1}`;
+  let finalName = name || t('Mi lista {n}', { n: manualLists().length + 1 });
   const taken = new Set(state.playlists.map((x) => x.name));
-  for (let n = 2; taken.has(finalName); n++) finalName = `${name || 'Mi lista'} (${n})`;
+  for (let n = 2; taken.has(finalName); n++) finalName = `${name || t('Mi lista')} (${n})`;
   const pl = {
     id: store.newId(),
     name: finalName,
@@ -981,54 +1884,59 @@ async function createManualList(name, { groups = [], channels = [] } = {}) {
   };
   state.playlists.push(pl);
   await store.savePlaylists(state.playlists);
-  renderPlaylistSelect();
+  renderListPicker();
   return pl;
+}
+
+/** Crea una lista propia vacía y la abre para escribir su nombre. */
+async function createListFlow(name = '') {
+  const pl = await createManualList(name);
+  if ($('#manageDialog').open) $('#manageDialog').close();
+  await selectPlaylist(pl.id);
+  $('#main').scrollTo({ top: $('#browse').offsetTop - 8, behavior: 'smooth' });
+  if (!name) {
+    const title = $('#browseTitle');
+    title.focus({ preventScroll: true });
+    title.select();
+    toast(t('Lista creada: escribe su nombre y añade categorías o canales'));
+  } else {
+    toast(t('«{name}» creada: añade categorías o canales', { name: pl.name }));
+  }
 }
 
 async function saveManual(pl) {
   pl.updatedAt = new Date().toISOString();
   pl.groups = groupsOf(pl);
   await store.savePlaylists(state.playlists);
-  renderPlaylistSelect();
+  renderListPicker();
   if (state.activeId === pl.id) {
-    const keepGroup = state.group;
-    await selectPlaylist(pl.id);
-    if (keepGroup && [...$('#groupSelect').options].some((o) => o.value === keepGroup)) {
-      state.group = keepGroup;
-      $('#groupSelect').value = keepGroup;
-      applyFilter();
-    }
+    state.channels = channelsOf(pl);
+    if (state.group && !groupNames().includes(state.group)) state.group = '';
+    renderBrowse({ preserve: true });
   }
 }
-
-const manualLists = () => state.playlists.filter((p) => p.source === 'manual');
 
 // ---------- Guardar en lista ----------
 
 let saveChannel = null;
 
 function openSaveDialog(channel, { listId } = {}) {
+  closePop();
   saveChannel = channel;
-  const sel = $('#sList');
-  sel.replaceChildren();
-  for (const pl of manualLists()) sel.add(new Option(pl.name, pl.id));
-  sel.add(new Option('＋ Nueva lista…', '__new__'));
-  const has = (id) => id && manualLists().some((p) => p.id === id);
-  sel.value = has(listId) ? listId : has(state.activeId) ? state.activeId : manualLists()[0]?.id || '__new__';
+  fillListSelect($('#sList'), listId);
   $('#sName').value = channel.name && channel.name !== channel.url ? channel.name : nameFromUrl(channel.url) || channel.url;
-  $('#sGroup').value = channel.group || '';
   $('#sNewName').value = '';
   showFormError('saveError', '');
-  syncSaveDialog();
+  syncSaveDialog(channel.group || '');
   $('#saveDialog').showModal();
   $('#sName').select();
 }
 
-function syncSaveDialog() {
-  const isNew = $('#sList').value === '__new__';
-  $('#sNewWrap').hidden = !isNew;
-  const pl = manualLists().find((p) => p.id === $('#sList').value);
-  $('#sGroups').replaceChildren(...(pl ? groupsOf(pl) : []).map((g) => new Option(g)));
+function syncSaveDialog(group = '') {
+  const id = $('#sList').value;
+  $('#sNewWrap').hidden = id !== '__new__';
+  const pl = manualLists().find((p) => p.id === id);
+  categoryPicker($('#sCats'), pl ? groupsOf(pl) : [], group);
 }
 
 async function onSaveSubmit(e) {
@@ -1037,213 +1945,89 @@ async function onSaveSubmit(e) {
   try {
     let pl = manualLists().find((p) => p.id === $('#sList').value);
     if (!pl) pl = await createManualList($('#sNewName').value.trim());
-    const group = $('#sGroup').value.trim();
+    const group = $('#sCats').value();
     const ch = cleanChannel({ ...saveChannel, name: $('#sName').value.trim() || saveChannel.name, group });
-    if (group && !pl.groups.includes(group)) pl.groups.push(group);
+    if (group && !groupsOf(pl).includes(group)) pl.groups = [...groupsOf(pl), group];
     pl.channels.push(ch);
     await saveManual(pl);
     $('#saveDialog').close();
-    if ($('#streamDialog').open && state.libEdit?.add) $('#streamDialog').close();
-    if ($('#libDialog').open && state.libId === pl.id) renderLibrary();
-    toast(`Guardado en «${pl.name}»${group ? ' · ' + group : ''}`);
+    if ($('#streamDialog').open && state.streamMode.kind === 'open') $('#streamDialog').close();
+    toast(t('Guardado en «{list}»', { list: pl.name }) + (group ? ' · ' + group : ''), { label: t('Ver lista'), fn: () => selectPlaylist(pl.id) });
   } catch (err) {
     showFormError('saveError', err.message);
   }
 }
 
-// ---------- Editor de lista propia ----------
+// ---------- Nueva categoría ----------
 
-function openLibrary(id) {
-  const pl = manualLists().find((p) => p.id === id);
-  if (!pl) return;
-  state.libId = id;
-  $('#libName').value = pl.name;
-  $('#libNewGroup').value = '';
-  renderLibrary();
-  if (!$('#libDialog').open) $('#libDialog').showModal();
-}
-
-function libList() { return manualLists().find((p) => p.id === state.libId); }
-
-function renderLibrary() {
-  const pl = libList();
-  const box = $('#libGroups');
-  box.replaceChildren();
-  if (!pl) return;
-  const groups = groupsOf(pl);
-  const sections = [...groups, ...(pl.channels.some((c) => !c.group) || !groups.length ? [''] : [])];
-  $('#libCount').textContent = `${pl.channels.length} canales · ${groups.length} categorías`;
-
-  for (const g of sections) {
-    const sec = document.createElement('section');
-    sec.className = 'lib-group';
-    const head = document.createElement('div');
-    head.className = 'lib-group-head';
-    const items = pl.channels.map((c, i) => ({ c, i })).filter(({ c }) => (c.group || '') === g);
-    if (g) {
-      const name = document.createElement('input');
-      name.className = 'lib-group-name';
-      name.value = g;
-      name.setAttribute('aria-label', 'Nombre de la categoría');
-      name.dataset.tip = 'Escribe para renombrar la categoría';
-      name.addEventListener('change', async () => {
-        const nv = name.value.trim();
-        if (!nv || nv === g) { name.value = g; return; }
-        if (groups.includes(nv)) { toast('Ya existe una categoría con ese nombre'); name.value = g; return; }
-        pl.groups = pl.groups.map((x) => (x === g ? nv : x));
-        pl.channels.forEach((c) => { if (c.group === g) c.group = nv; });
-        await saveManual(pl);
-        renderLibrary();
-      });
-      name.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); name.blur(); } });
-      head.appendChild(name);
-    } else {
-      const t = document.createElement('span');
-      t.className = 'lib-group-name static';
-      t.textContent = 'Sin categoría';
-      head.appendChild(t);
-    }
-    const count = document.createElement('span');
-    count.className = 'lib-group-count';
-    count.textContent = items.length;
-    head.appendChild(count);
-    if (g) {
-      head.appendChild(iconButton('#i-trash', 'Eliminar categoría (los canales pasan a «Sin categoría»)', async () => {
-        if (items.length && !confirm(`¿Eliminar la categoría «${g}»? Sus ${items.length} canales pasarán a «Sin categoría».`)) return;
-        pl.groups = pl.groups.filter((x) => x !== g);
-        pl.channels.forEach((c) => { if (c.group === g) c.group = ''; });
-        await saveManual(pl);
-        renderLibrary();
-      }));
-    }
-    sec.appendChild(head);
-
-    if (!items.length) {
-      const empty = document.createElement('p');
-      empty.className = 'lib-empty';
-      empty.textContent = g
-        ? 'Sin canales. Muévelos aquí con el selector de categoría de cada canal.'
-        : 'Esta lista está vacía. Pulsa «Añadir canal» o guarda canales desde otras listas con el botón de carpeta.';
-      sec.appendChild(empty);
-    }
-    items.forEach(({ c, i }, pos) => sec.appendChild(libRow(pl, c, i, sections, pos, items)));
-    box.appendChild(sec);
+function openCategoryDialog() {
+  closePop();
+  if (isManualActive()) {
+    $('#main').scrollTo({ top: $('#browse').offsetTop - 8, behavior: 'smooth' });
+    startNewCategoryChip();
+    return;
   }
+  fillListSelect($('#cList'));
+  $('#cName').value = '';
+  $('#cNewName').value = '';
+  $('#cNewWrap').hidden = $('#cList').value !== '__new__';
+  showFormError('catError', '');
+  $('#catDialog').showModal();
+  $('#cName').focus();
 }
 
-function libRow(pl, c, i, sections, pos, items) {
-  const row = document.createElement('div');
-  row.className = 'lib-row';
-  const info = document.createElement('div');
-  info.className = 'lib-info';
-  const name = document.createElement('div');
-  name.className = 'lib-name';
-  name.textContent = c.name;
-  const sub = document.createElement('div');
-  sub.className = 'lib-sub';
-  const type = detectType(c.url, c.type);
-  sub.textContent = [type !== 'auto' ? TYPE_LABEL[type] : '', drmLabel(c.drm), shortUrl(c.url)].filter(Boolean).join(' · ');
-  sub.title = c.url;
-  info.append(name, sub);
-
-  const cat = document.createElement('select');
-  cat.className = 'lib-cat';
-  cat.setAttribute('aria-label', `Categoría de ${c.name}`);
-  cat.dataset.tip = 'Mover a otra categoría';
-  for (const g of sections.filter(Boolean)) cat.add(new Option(g, g));
-  cat.add(new Option('Sin categoría', ''));
-  cat.value = c.group || '';
-  cat.addEventListener('change', async () => {
-    c.group = cat.value;
-    await saveManual(pl);
-    renderLibrary();
-  });
-
-  const actions = document.createElement('div');
-  actions.className = 'lib-actions';
-  const move = async (dir) => {
-    const other = items[pos + dir];
-    if (!other) return;
-    [pl.channels[i], pl.channels[other.i]] = [pl.channels[other.i], pl.channels[i]];
-    await saveManual(pl);
-    renderLibrary();
-    // Mantiene el foco en el canal movido para poder seguir moviéndolo con el teclado.
-    $(`#libGroups .lib-row[data-idx="${other.i}"] [data-move="${dir < 0 ? 'up' : 'down'}"]`)?.focus();
-  };
-  const up = iconButton('#i-up', 'Subir', () => move(-1));
-  up.dataset.move = 'up';
-  up.disabled = pos === 0;
-  const down = iconButton('#i-down', 'Bajar', () => move(1));
-  down.dataset.move = 'down';
-  down.disabled = pos === items.length - 1;
-  actions.append(
-    iconButton('#i-play', 'Reproducir', () => { $('#libDialog').close(); play({ ...c, id: `lib${i}`, errors: [] }); }),
-    up,
-    down,
-    iconButton('#i-edit', 'Editar canal (URL, DRM, cabeceras)', () => {
-      openStreamDialog({ ...c, id: `lib${i}`, errors: [] }, 'Editar canal');
-      state.libEdit = { listId: pl.id, index: i };
-      $('#btnStreamSave').textContent = 'Guardar cambios';
-      $('#btnStreamSave').hidden = false;
-    }),
-    iconButton('#i-trash', 'Eliminar canal', async () => {
-      const [removed] = pl.channels.splice(i, 1);
-      await saveManual(pl);
-      renderLibrary();
-      toast(`«${removed.name}» eliminado`, {
-        label: 'Deshacer',
-        fn: async () => {
-          pl.channels.splice(i, 0, removed);
-          await saveManual(pl);
-          if ($('#libDialog').open) renderLibrary();
-        }
-      });
-    })
-  );
-  row.dataset.idx = String(i);
-  row.append(logoEl('lib-logo', c), info, cat, actions);
-  return row;
-}
-
-async function onStreamSave() {
-  const target = state.libEdit;
-  const pl = target && manualLists().find((p) => p.id === target.listId);
-  if (!pl) return;
+async function onCategorySubmit(e) {
+  if (e.submitter?.value !== 'save') return;
+  e.preventDefault();
   try {
-    const ch = readStreamForm();
-    if (target.add) {
-      pl.channels.push(cleanChannel({ ...ch, group: '' }));
-      toast(`Añadido a «${pl.name}»`);
-    } else {
-      const old = pl.channels[target.index];
-      pl.channels[target.index] = cleanChannel({ ...ch, group: old?.group || '' });
-      toast('Canal actualizado');
-    }
-    await saveManual(pl);
-    $('#streamDialog').close();
-    if ($('#libDialog').open) renderLibrary();
+    const name = $('#cName').value.trim();
+    if (!name) throw new Error(t('Escribe el nombre de la categoría.'));
+    let pl = manualLists().find((p) => p.id === $('#cList').value);
+    if (!pl) pl = await createManualList($('#cNewName').value.trim());
+    if (!(await addCategory(pl, name))) return;
+    $('#catDialog').close();
+    await selectPlaylist(pl.id);
+    selectGroup(name);
+    toast(t('Categoría «{name}» creada en «{list}»', { name, list: pl.name }));
   } catch (err) {
-    showFormError('streamError', err.message);
+    showFormError('catError', err.message);
   }
 }
 
-function iconButton(icon, title, onClick) {
-  const b = document.createElement('button');
-  b.type = 'button';
-  b.className = 'icon-btn';
-  b.dataset.tip = title;
-  b.setAttribute('aria-label', title);
-  b.innerHTML = `<svg><use href="${icon}"/></svg>`;
-  b.addEventListener('click', onClick);
-  return b;
+// ---------- Añadir lista M3U ----------
+
+let addTab = 'url';
+
+function openAddPlaylist() {
+  closePop();
+  $('#playlistForm').reset();
+  $('#pFileName').textContent = '';
+  showFormError('playlistError', '');
+  $('#playlistDialog').showModal();
+  setAddTab('url');
+  $('#pUrl').focus();
+}
+
+function setAddTab(tab) {
+  addTab = tab;
+  for (const b of document.querySelectorAll('#addTabs [data-tab]')) {
+    const on = b.dataset.tab === tab;
+    b.setAttribute('aria-selected', String(on));
+    b.tabIndex = on ? 0 : -1;
+  }
+  for (const p of document.querySelectorAll('#playlistForm [data-panel]')) p.hidden = p.dataset.panel !== tab;
+  const active = $(`#addTabs [data-tab="${tab}"]`);
+  const ind = $('#addTabs .seg-indicator');
+  ind.style.width = `${active.offsetWidth}px`;
+  ind.style.transform = `translateX(${active.offsetLeft}px)`;
 }
 
 async function addPlaylist({ name, url, text }) {
   const lib = text ? parseLibraryJSON(text) : null;
   if (lib) {
-    const created = await createManualList(name || lib.name || 'Lista importada', lib);
+    const created = await createManualList(name || lib.name || t('Lista importada'), lib);
     await selectPlaylist(created.id);
-    toast(`«${created.name}» importada: ${created.channels.length} canales`);
+    toast(t('«{name}» importada: {n} canales', { name: created.name, n: created.channels.length }));
     return created;
   }
   const pl = { id: store.newId(), name: '', source: url ? 'url' : 'text', url: url || '', text: text || '', updatedAt: '' };
@@ -1253,16 +2037,15 @@ async function addPlaylist({ name, url, text }) {
     pl.updatedAt = new Date().toISOString();
   }
   if (looksLikeHlsManifest(pl.text)) {
-    throw new Error('Esto parece un stream HLS, no una lista de canales. Ábrelo con «Abrir stream».');
+    throw new Error(t('Esto parece un stream HLS, no una lista de canales. Añádelo como «Canal».'));
   }
   const { channels } = parseM3U(pl.text, pl.url);
-  if (!channels.length) throw new Error('La lista no contiene canales.');
-  pl.name = name || nameFromUrl(url) || `Lista ${state.playlists.length + 1}`;
+  if (!channels.length) throw new Error(t('La lista no contiene canales.'));
+  pl.name = name || nameFromUrl(url) || t('Lista {n}', { n: state.playlists.length + 1 });
   state.playlists.push(pl);
   await store.savePlaylists(state.playlists);
-  renderPlaylistSelect();
   await selectPlaylist(pl.id);
-  toast(`«${pl.name}» añadida: ${channels.length} canales`);
+  toast(t('«{name}» añadida: {n} canales', { name: pl.name, n: channels.length }));
   return pl;
 }
 
@@ -1270,7 +2053,7 @@ function nameFromUrl(url) {
   if (!url) return '';
   try {
     const u = new URL(url);
-    const file = decodeURIComponent(u.pathname.split('/').pop() || '').replace(/\.(m3u8?|txt)$/i, '');
+    const file = decodeURIComponent(u.pathname.split('/').pop() || '').replace(/\.(m3u8?|txt|mpd)$/i, '');
     return file || u.host;
   } catch (_) { return ''; }
 }
@@ -1278,25 +2061,60 @@ function nameFromUrl(url) {
 async function onAddPlaylistClick() {
   showFormError('playlistError', '');
   const name = $('#pName').value.trim();
-  const url = $('#pUrl').value.trim();
-  const file = $('#pFile').files[0];
-  let text = $('#pText').value.trim();
+  const btn = $('#btnAddPlaylist');
+  btn.disabled = true;
   try {
-    if (file) {
-      text = await file.text();
+    if (addTab === 'file') {
+      const file = $('#pFile').files[0];
+      if (!file) throw new Error(t('Elige un archivo .m3u, .m3u8 o .json.'));
+      const text = await file.text();
       await addPlaylist({ name: name || (parseLibraryJSON(text) ? '' : file.name.replace(/\.(m3u8?|txt|json)$/i, '')), text });
-    } else if (text) {
+    } else if (addTab === 'text') {
+      const text = $('#pText').value.trim();
+      if (!text) throw new Error(t('Pega el contenido de la lista.'));
       await addPlaylist({ name, text });
-    } else if (url) {
-      await addPlaylist({ name, url });
     } else {
-      throw new Error('Indica una URL, un archivo o pega el contenido de la lista.');
+      const url = $('#pUrl').value.trim();
+      if (!url) throw new Error(t('Pega el enlace de la lista.'));
+      await addPlaylist({ name, url });
     }
-    $('#playlistForm').reset();
-    renderPlaylistManager();
+    $('#playlistDialog').close();
   } catch (err) {
     showFormError('playlistError', err.message);
+  } finally {
+    btn.disabled = false;
   }
+}
+
+async function addSamplePlaylist() {
+  const text = await (await fetch(chrome.runtime.getURL('sample/ejemplos.m3u'))).text();
+  await addPlaylist({ name: t('Ejemplos (DASH · HLS · MSS · DRM)'), text });
+}
+
+// ======================================================================
+// Mini reproductor al desplazarse
+// ======================================================================
+
+let wrapVisible = true;
+let miniDismissed = false;
+
+function initMiniPlayer() {
+  const io = new IntersectionObserver(([e]) => {
+    wrapVisible = e.intersectionRatio > 0.35;
+    if (wrapVisible) miniDismissed = false;
+    syncMini();
+  }, { root: $('#main'), threshold: [0, 0.35, 0.7] });
+  io.observe($('#playerWrap'));
+  document.addEventListener('fullscreenchange', syncMini);
+  addEventListener('resize', syncMini);
+}
+
+function syncMini() {
+  const on = !wrapVisible && !!state.current && !miniDismissed && !document.fullscreenElement && innerWidth > 640;
+  const app = $('#app');
+  if (on === (app.dataset.mini === '1')) return;
+  app.dataset.mini = on ? '1' : '';
+  controls?.closeMenu();
 }
 
 // ======================================================================
@@ -1304,10 +2122,10 @@ async function onAddPlaylistClick() {
 // ======================================================================
 
 function setStatus(text, kind = '') {
-  const el = $('#status');
-  el.textContent = text;
-  el.title = text;
-  el.className = 'status ' + kind;
+  const node = $('#status');
+  node.textContent = text;
+  node.title = text;
+  node.className = 'status ' + kind;
 }
 
 function showOverlay(title, text, isError = false) {
@@ -1322,46 +2140,45 @@ function hideOverlay() { $('#overlay').hidden = true; }
 
 let toastTimer = 0;
 function toast(msg, action) {
-  const el = $('#toast');
-  el.replaceChildren(document.createTextNode(msg));
+  const node = $('#toast');
+  node.replaceChildren(document.createTextNode(msg));
   if (action) {
-    const b = document.createElement('button');
+    const b = el('button', 'toast-action', action.label);
     b.type = 'button';
-    b.className = 'toast-action';
-    b.textContent = action.label;
-    b.addEventListener('click', () => { el.dataset.show = ''; action.fn(); });
-    el.appendChild(b);
+    b.addEventListener('click', () => { node.dataset.show = ''; action.fn(); });
+    node.appendChild(b);
   }
-  el.dataset.action = action ? '1' : '';
+  node.dataset.action = action ? '1' : '';
   // Popover: queda por encima de cualquier diálogo abierto.
-  try { if (el.matches(':popover-open')) el.hidePopover(); el.showPopover(); } catch (_) { /* sin soporte */ }
-  el.dataset.show = '1';
+  try { if (node.matches(':popover-open')) node.hidePopover(); node.showPopover(); } catch (_) { /* sin soporte */ }
+  node.dataset.show = '1';
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { el.dataset.show = ''; }, action ? 5000 : 2200);
+  toastTimer = setTimeout(() => { node.dataset.show = ''; }, action ? 5000 : 2400);
 }
 
 // ---------- Ayuda ----------
 
 const TOUR_STEPS = [
-  { title: 'Bienvenido a IP Player', text: 'Reproduce listas de canales M3U y enlaces DASH, HLS o Smooth Streaming. Te enseño lo básico en cuatro pasos. Puedes salir cuando quieras con Esc.' },
-  { target: '#btnPlaylists', title: '1. Añade una lista', text: 'Pulsa aquí para añadir tu lista M3U por enlace, archivo o pegando el texto. Si solo quieres probar, usa «Lista de ejemplo».' },
-  { target: '#btnOpenStream', title: 'O abre un enlace suelto', text: 'Para reproducir un solo vídeo sin lista. Aquí también puedes indicar claves o cabeceras si el enlace las necesita.' },
-  { target: '.filters', title: '2. Busca tu canal', text: 'Elige lista y grupo, o escribe para buscar. Atajo: tecla / para buscar, flechas ↑ ↓ para moverte e Intro para reproducir.' },
-  { target: '#channels', title: '3. Elige un canal', text: 'Haz clic en un canal para verlo. La estrella lo guarda en Favoritos.' },
-  { target: '#player', title: '4. Controla la reproducción', text: 'Mueve el ratón sobre el vídeo para ver los controles. El engranaje cambia calidad, idioma y subtítulos. Doble clic: pantalla completa.' },
+  { title: 'Bienvenido a IP Player', text: 'Reproduce listas de canales M3U y enlaces DASH, HLS o Smooth Streaming. Te enseño lo básico en unos pasos. Puedes salir cuando quieras con Esc.' },
+  { target: '#btnAdd', title: '1. Añade lo que quieras ver', text: 'Desde aquí añades una lista M3U, un canal suelto, tu propia lista o una categoría nueva.' },
+  { target: '#btnListPicker', title: '2. Cambia de lista', text: 'Aquí están tus listas y tus Favoritos. Elige cuál ver debajo del reproductor.' },
+  { target: '.search', title: '3. Busca', text: 'Escribe para filtrar los canales de la lista. Atajo: tecla / para buscar y ↓ para saltar a los resultados.' },
+  { target: '#chipsBar', title: '4. Elige un canal', text: 'Debajo del reproductor tienes los canales en bloques por categoría. Clic para verlo, ★ para favoritos y ⋯ para más opciones. En tus listas propias puedes arrastrar canales de una categoría a otra.' },
+  { target: '#player', title: '5. Controla la reproducción', text: 'Mueve el ratón sobre el vídeo para ver los controles. El engranaje cambia calidad, idioma y subtítulos. Si bajas por la página, el vídeo sigue en una ventana pequeña.' },
   { target: '#btnHelp', title: '¿Dudas?', text: 'Aquí tienes esta guía, los atajos de teclado, preguntas frecuentes y la opción de texto más grande.' }
 ];
 
 function openTour() {
   if ($('#helpDialog').open) $('#helpDialog').close();
   hideTooltip();
-  // En escritorio, la guía necesita ver el panel lateral.
-  if ($('#app').dataset.collapsed === '1') setSidebarCollapsed(false);
-  startTour(TOUR_STEPS, { onDone: () => store.patchState({ tourDone: true }) });
+  closePop();
+  $('#main').scrollTo({ top: 0 });
+  startTour(TOUR_STEPS.map((s) => ({ ...s, title: t(s.title), text: t(s.text) })), { onDone: () => store.patchState({ tourDone: true }) });
 }
 
 function openHelp() {
   hideTooltip();
+  closePop();
   if (!$('#helpDialog').open) $('#helpDialog').showModal();
 }
 
@@ -1372,7 +2189,7 @@ async function applyUiPrefs(patch) {
   setTooltipsEnabled(ui.tips);
   $('#optLarge').checked = ui.largeText;
   $('#optTips').checked = ui.tips;
-  list?.refresh();
+  requestAnimationFrame(moveChipIndicator);
 }
 
 // ---------- Indicador en pantalla para el teclado ----------
@@ -1385,164 +2202,167 @@ function osdFor(key) {
     case 'ArrowDown':
       return controls.osd(`${pct} %`, { icon: pct ? 'i-vol' : 'i-mute', level: pct / 100 });
     case 'm':
-      return controls.osd(v.muted || !v.volume ? 'Silenciado' : `Sonido ${pct} %`, { icon: v.muted || !v.volume ? 'i-mute' : 'i-vol' });
+      return controls.osd(v.muted || !v.volume ? t('Silenciado') : t('Sonido {n} %', { n: pct }), { icon: v.muted || !v.volume ? 'i-mute' : 'i-vol' });
     case 'ArrowLeft':
       return controls.osd('−10 s');
     case 'ArrowRight':
       return controls.osd('+10 s');
     case 'c': {
       const a = activeAdapter();
-      const t = a?.textTracks?.().find((x) => x.active);
-      return controls.osd(t ? `Subtítulos: ${langName(t.lang) || t.label || 'activados'}` : 'Subtítulos desactivados', { icon: 'i-cc' });
+      const tr = a?.textTracks?.().find((x) => x.active);
+      return controls.osd(tr ? t('Subtítulos: {name}', { name: langName(tr.lang) || tr.label || t('activados') }) : t('Subtítulos desactivados'), { icon: 'i-cc' });
     }
     default:
       return null;
   }
 }
 
-function setSidebarCollapsed(collapsed) {
-  $('#app').dataset.collapsed = collapsed ? '1' : '';
-  store.patchState({ sidebarCollapsed: collapsed });
-}
-
 function bindEvents() {
-  $('#playlistSelect').addEventListener('change', (e) => selectPlaylist(e.target.value));
-  $('#groupSelect').addEventListener('change', (e) => {
-    state.group = e.target.value;
-    applyFilter();
-    store.patchState({ group: state.group });
-  });
+  // Barra superior
+  const listBtn = $('#btnListPicker');
+  $('#listMenu')._render = buildListMenu;
+  listBtn.addEventListener('click', (e) => togglePop($('#listMenu'), listBtn, { focus: e.detail === 0 }));
+  const addBtn = $('#btnAdd');
+  $('#addMenu')._render = buildAddMenu;
+  addBtn.addEventListener('click', (e) => togglePop($('#addMenu'), addBtn, { align: 'end', focus: e.detail === 0 }));
+  $('#btnManage').addEventListener('click', openManager);
+  const langBtn = $('#btnLang');
+  $('#langMenu')._render = buildLangMenu;
+  langBtn.addEventListener('click', (e) => togglePop($('#langMenu'), langBtn, { align: 'end', focus: e.detail === 0 }));
+
   let searchTimer = 0;
   $('#search').addEventListener('input', (e) => {
     clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => { state.query = e.target.value; applyFilter(); }, 120);
+    searchTimer = setTimeout(() => {
+      const was = state.query;
+      state.query = e.target.value;
+      renderBrowse({ animate: !was && !!state.query });
+      if (!was && state.query) {
+        const main = $('#main');
+        const top = $('#browse').offsetTop - 8;
+        if (main.scrollTop < top - 40) main.scrollTo({ top, behavior: 'smooth' });
+      }
+    }, 120);
   });
-
-  $('#btnOpenStream').addEventListener('click', () => openStreamDialog(null));
-  $('#btnPlaylists').addEventListener('click', () => { renderPlaylistManager(); showFormError('playlistError', ''); $('#playlistDialog').showModal(); });
-  $('#btnEmptyAdd').addEventListener('click', () => $('#btnPlaylists').click());
-  $('#btnEmptySample').addEventListener('click', async () => {
-    try {
-      const text = await (await fetch(chrome.runtime.getURL('sample/ejemplos.m3u'))).text();
-      await addPlaylist({ name: 'Ejemplos (DASH · HLS · MSS · DRM)', text });
-      toast('Lista de ejemplo añadida');
-    } catch (err) {
-      toast(err.message);
+  $('#search').addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      $('#browseBody .card-hit')?.focus();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      clearTimeout(searchTimer);
+      state.query = e.target.value;
+      computeFiltered();
+      if (state.filtered[0]) play(state.filtered[0]);
+    } else if (e.key === 'Escape' && e.target.value) {
+      e.preventDefault();
+      e.target.value = '';
+      state.query = '';
+      renderBrowse();
     }
   });
-  $('#btnEmptyTour').addEventListener('click', openTour);
 
-  // Listas propias
-  $('#btnCreateList').addEventListener('click', async () => {
-    const pl = await createManualList($('#pNewName').value.trim());
-    $('#pNewName').value = '';
-    renderPlaylistManager();
-    $('#playlistDialog').close();
-    await selectPlaylist(pl.id);
-    openLibrary(pl.id);
+  // Menús flotantes: cierre y teclado
+  document.addEventListener('pointerdown', (e) => {
+    if (!pop) return;
+    if (pop.menu.contains(e.target) || pop.anchor?.contains(e.target)) return;
+    closePop();
   });
-  $('#pNewName').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); $('#btnCreateList').click(); } });
-  $('#btnAddTo').addEventListener('click', () => {
-    if (!state.current) { toast('Primero reproduce o abre un canal'); return; }
-    openSaveDialog(state.current);
-  });
-  $('#btnStreamSaveTo').addEventListener('click', () => {
-    try { openSaveDialog(readStreamForm(), { listId: state.libEdit?.listId }); } catch (err) { showFormError('streamError', err.message); }
-  });
-  $('#btnStreamSave').addEventListener('click', onStreamSave);
-  $('#streamDialog').addEventListener('close', () => { state.libEdit = null; $('#btnStreamSave').hidden = true; });
-  $('#sList').addEventListener('change', syncSaveDialog);
-  $('#saveForm').addEventListener('submit', onSaveSubmit);
-  $('#libName').addEventListener('change', async () => {
-    const pl = libList();
-    const v = $('#libName').value.trim();
-    if (!pl || !v) { $('#libName').value = pl?.name || ''; return; }
+  $('#main').addEventListener('scroll', () => { if (pop) closePop(); }, { passive: true });
+  addEventListener('resize', () => { closePop(); moveChipIndicator(); });
+  document.addEventListener('keydown', (e) => {
+    if (!pop) return;
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closePop({ refocus: true }); return; }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      const items = [...pop.menu.querySelectorAll('button:not([disabled])')];
+      if (!items.length) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const i = items.indexOf(document.activeElement);
+      const j = i < 0 ? 0 : (i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+      items[j].focus();
+    }
+  }, true);
+
+  // Explorador
+  $('#browseBody').addEventListener('keydown', onCardsKey);
+  $('#browseTitle').addEventListener('input', (e) => e.target.style.setProperty('--chars', String(Math.max(4, e.target.value.length + 1))));
+  $('#browseTitle').addEventListener('change', async (e) => {
+    const pl = activeList();
+    const v = e.target.value.trim();
+    if (!pl || pl.source !== 'manual' || !v) { renderBrowseHead(); return; }
     pl.name = v;
     await saveManual(pl);
   });
-  $('#libName').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } });
-  const addGroup = async () => {
-    const pl = libList();
-    const g = $('#libNewGroup').value.trim();
-    if (!pl || !g) return;
-    if (groupsOf(pl).includes(g)) { toast('Esa categoría ya existe'); return; }
-    pl.groups.push(g);
-    $('#libNewGroup').value = '';
-    await saveManual(pl);
-    renderLibrary();
-  };
-  $('#btnLibAddGroup').addEventListener('click', addGroup);
-  $('#libNewGroup').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addGroup(); } });
-  $('#btnLibAddChannel').addEventListener('click', () => {
-    const pl = libList();
-    if (!pl) return;
-    openStreamDialog(null, `Añadir canal a «${pl.name}»`);
-    state.libEdit = { listId: pl.id, add: true };
-    $('#btnStreamSave').textContent = 'Añadir a la lista';
-    $('#btnStreamSave').hidden = false;
+  $('#browseTitle').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } });
+
+  // Bienvenida
+  $('#btnEmptyAdd').addEventListener('click', openAddPlaylist);
+  $('#btnEmptyCreate').addEventListener('click', () => createListFlow());
+  $('#btnEmptySample').addEventListener('click', async () => {
+    try { await addSamplePlaylist(); } catch (err) { toast(err.message); }
   });
-  $('#libDialog').addEventListener('click', (e) => {
-    const fmt = e.target.closest('[data-export]')?.dataset.export;
-    if (!fmt) return;
-    const pl = libList();
-    if (pl) { exportList(pl, fmt); toast(`Descargando «${pl.name}» en ${fmt.toUpperCase()}`); }
+  $('#btnEmptyTour').addEventListener('click', openTour);
+
+  // Gestor de listas
+  $('#btnCreateList').addEventListener('click', async () => {
+    const name = $('#pNewName').value.trim();
+    $('#pNewName').value = '';
+    await createListFlow(name);
   });
+  $('#pNewName').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); $('#btnCreateList').click(); } });
+  $('#btnManagerAdd').addEventListener('click', () => { $('#manageDialog').close(); openAddPlaylist(); });
 
-  // Ayuda y accesibilidad
-  $('#btnHelp').addEventListener('click', openHelp);
-  $('#btnStartTour').addEventListener('click', openTour);
-  $('#optLarge').addEventListener('change', (e) => applyUiPrefs({ largeText: e.target.checked }));
-  $('#optTips').addEventListener('change', (e) => applyUiPrefs({ tips: e.target.checked }));
-
-  // Mensaje de error: reintentar o revisar el stream
-  $('#btnRetry').addEventListener('click', () => state.current && play(state.current));
-  $('#btnFixStream').addEventListener('click', () => state.current && openStreamDialog(state.current, 'Revisar stream'));
-
-  // Lista con teclado
-  $('#search').addEventListener('keydown', onListKey);
-  $('#channels').addEventListener('keydown', onListKey);
-  $('#channels').addEventListener('focus', () => {
-    if (state.cursor < 0 && state.filtered.length) setCursor(Math.max(0, currentIndex()));
+  // Añadir lista M3U
+  for (const b of document.querySelectorAll('#addTabs [data-tab]')) b.addEventListener('click', () => setAddTab(b.dataset.tab));
+  $('#addTabs').addEventListener('keydown', (e) => {
+    const tabs = ['url', 'file', 'text'];
+    const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+    if (!d) return;
+    e.preventDefault();
+    const t = tabs[(tabs.indexOf(addTab) + d + tabs.length) % tabs.length];
+    setAddTab(t);
+    $(`#addTabs [data-tab="${t}"]`).focus();
   });
-
-  // Detección del tipo mientras se escribe la URL
-  const urlHint = $('#fUrlHint');
-  const urlHintDefault = urlHint.textContent;
-  const updateUrlHint = () => {
-    const u = $('#fUrl').value.trim();
-    if (!u) { urlHint.textContent = urlHintDefault; urlHint.dataset.kind = ''; return; }
-    if (!/^https?:\/\//i.test(u)) {
-      urlHint.textContent = 'La URL debe empezar por http:// o https://';
-      urlHint.dataset.kind = 'warn';
-      return;
+  const drop = $('#pDrop');
+  $('#pFile').addEventListener('change', () => { $('#pFileName').textContent = $('#pFile').files[0]?.name || ''; });
+  drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.dataset.over = '1'; });
+  drop.addEventListener('dragleave', () => { drop.dataset.over = ''; });
+  drop.addEventListener('drop', (e) => {
+    e.preventDefault();
+    drop.dataset.over = '';
+    if (e.dataTransfer.files.length) {
+      $('#pFile').files = e.dataTransfer.files;
+      $('#pFileName').textContent = e.dataTransfer.files[0].name;
     }
-    const t = detectType(u, $('#fType').value);
-    urlHint.textContent = t === 'auto'
-      ? 'Formato no reconocido por la URL: se intentará detectar al reproducir.'
-      : `Formato detectado: ${TYPE_LABEL[t]}`;
-    urlHint.dataset.kind = t === 'auto' ? '' : 'ok';
-  };
-  $('#fUrl').addEventListener('input', updateUrlHint);
-  $('#fType').addEventListener('change', updateUrlHint);
-  $('#streamDialog').addEventListener('toggle', (e) => { if (e.newState === 'open') updateUrlHint(); });
-
-  $('#btnSidebar').addEventListener('click', () => setSidebarCollapsed($('#app').dataset.collapsed !== '1'));
-  $('#btnFav').addEventListener('click', () => state.current && toggleFavorite(state.current));
-  $('#btnEdit').addEventListener('click', () => openStreamDialog(state.current, state.current ? 'Editar stream' : 'Abrir stream'));
-  $('#btnCopy').addEventListener('click', async () => {
-    if (!state.current) return;
-    await navigator.clipboard.writeText(state.current.url);
-    toast('URL copiada');
+  });
+  $('#btnAddPlaylist').addEventListener('click', onAddPlaylistClick);
+  $('#playlistForm').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && e.target.matches('input:not([type="file"])')) { e.preventDefault(); onAddPlaylistClick(); }
+  });
+  $('#btnSample').addEventListener('click', async () => {
+    showFormError('playlistError', '');
+    try { await addSamplePlaylist(); $('#playlistDialog').close(); } catch (err) { showFormError('playlistError', err.message); }
   });
 
-  // Diálogo de stream
+  // Guardar en lista y categoría
+  $('#sList').addEventListener('change', () => syncSaveDialog());
+  $('#saveForm').addEventListener('submit', onSaveSubmit);
+  $('#cList').addEventListener('change', () => { $('#cNewWrap').hidden = $('#cList').value !== '__new__'; });
+  $('#catForm').addEventListener('submit', onCategorySubmit);
+
+  // Diálogo de canal
+  $('#fList').addEventListener('change', () => syncStreamTarget($('#fCats').value?.() || ''));
+  $('#btnStreamSaveTo').addEventListener('click', () => {
+    try { openSaveDialog(readStreamForm()); } catch (err) { showFormError('streamError', err.message); }
+  });
+  $('#btnStreamSave').addEventListener('click', onStreamSave);
   $('#fDrm').addEventListener('change', syncDrmFields);
   $('#btnImportParse').addEventListener('click', importIntoForm);
   $('#streamForm').addEventListener('submit', (e) => {
     if (e.submitter?.value !== 'play') return;
     try {
-      const ch = readStreamForm();
-      play(ch);
+      play(readStreamForm());
     } catch (err) {
       e.preventDefault();
       showFormError('streamError', err.message);
@@ -1552,29 +2372,71 @@ function bindEvents() {
     try {
       const ch = readStreamForm();
       if (!isFav(ch)) await toggleFavorite(ch);
-      else toast('Ya está en favoritos');
+      else toast(t('Ya está en favoritos'));
     } catch (err) {
       showFormError('streamError', err.message);
     }
   });
 
-  // Diálogo de listas
-  $('#btnAddPlaylist').addEventListener('click', onAddPlaylistClick);
-  $('#btnSample').addEventListener('click', async () => {
-    showFormError('playlistError', '');
-    try {
-      const text = await (await fetch(chrome.runtime.getURL('sample/ejemplos.m3u'))).text();
-      await addPlaylist({ name: 'Ejemplos (DASH · HLS · MSS · DRM)', text });
-      renderPlaylistManager();
-    } catch (err) {
-      showFormError('playlistError', err.message);
+  // Detección del tipo mientras se escribe la URL
+  const urlHint = $('#fUrlHint');
+  const urlHintDefault = () => t('Pega el enlace del vídeo. Suele terminar en .mpd (DASH), .m3u8 (HLS) o /Manifest (Smooth Streaming).');
+  const updateUrlHint = () => {
+    const u = $('#fUrl').value.trim();
+    $('#fName').placeholder = (u && nameFromUrl(u)) || t('Opcional');
+    if (!u) { urlHint.textContent = urlHintDefault(); urlHint.dataset.kind = ''; return; }
+    if (!/^https?:\/\//i.test(u)) {
+      urlHint.textContent = t('La URL debe empezar por http:// o https://');
+      urlHint.dataset.kind = 'warn';
+      return;
     }
+    const ty = detectType(u, $('#fType').value);
+    urlHint.textContent = ty === 'auto'
+      ? t('Formato no reconocido por la URL: se intentará detectar al reproducir.')
+      : t('Formato detectado: {type}', { type: typeLabel(ty) });
+    urlHint.dataset.kind = ty === 'auto' ? '' : 'ok';
+  };
+  $('#fUrl').addEventListener('input', updateUrlHint);
+  $('#fType').addEventListener('change', updateUrlHint);
+  $('#streamDialog').addEventListener('toggle', (e) => { if (e.newState === 'open') updateUrlHint(); });
+
+  // Ayuda y accesibilidad
+  $('#btnHelp').addEventListener('click', openHelp);
+  $('#btnStartTour').addEventListener('click', openTour);
+  $('#optLarge').addEventListener('change', (e) => applyUiPrefs({ largeText: e.target.checked }));
+  $('#optTips').addEventListener('change', (e) => applyUiPrefs({ tips: e.target.checked }));
+
+  // Mensaje de error: reintentar o revisar el stream
+  $('#btnRetry').addEventListener('click', () => state.current && play(state.current));
+  $('#btnFixStream').addEventListener('click', () => $('#btnEdit').click());
+
+  // Barra «en reproducción»
+  $('#btnFav').addEventListener('click', () => state.current && toggleFavorite(state.current));
+  $('#btnAddTo').addEventListener('click', () => {
+    if (!state.current) { toast(t('Primero reproduce o abre un canal')); return; }
+    openSaveDialog(state.current);
   });
+  $('#btnEdit').addEventListener('click', () => {
+    const c = state.current;
+    const pl = c?.listId && manualLists().find((p) => p.id === c.listId);
+    if (pl && pl.channels[c.index]?.url === c.url) openStreamDialog({ ...c }, { mode: 'edit', listId: pl.id, index: c.index });
+    else openStreamDialog(c, { mode: 'open' });
+  });
+  $('#btnClosePlayer').addEventListener('click', stopPlayback);
+  $('#btnCopy').addEventListener('click', async () => {
+    if (!state.current) return;
+    await navigator.clipboard.writeText(state.current.url);
+    toast(t('URL copiada'));
+  });
+
+  // Mini reproductor
+  $('#btnMiniBack').addEventListener('click', () => $('#main').scrollTo({ top: 0, behavior: 'smooth' }));
+  $('#btnMiniClose').addEventListener('click', stopPlayback);
 
   // Atajos de teclado (sin animaciones: se repiten mucho)
   document.addEventListener('keydown', (e) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
-    if (isTourOpen()) return;
+    if (isTourOpen() || pop) return;
     if (e.target.closest('input, textarea, select, dialog[open]')) return;
     const onButton = e.target.closest('button, [role="slider"]');
     const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
@@ -1587,7 +2449,7 @@ function bindEvents() {
       ' ': () => { if (!onButton) controls.togglePlay(); else return false; },
       m: () => controls.toggleMute(),
       c: () => controls.toggleSubtitles(),
-      l: () => setSidebarCollapsed($('#app').dataset.collapsed !== '1'),
+      n: () => openAddChannel(),
       '?': () => openHelp(),
       ArrowLeft: () => (onButton ? false : controls.seekBy(-10)),
       ArrowRight: () => (onButton ? false : controls.seekBy(10)),
@@ -1598,7 +2460,7 @@ function bindEvents() {
     if (fn && fn() !== false) {
       e.preventDefault();
       controls.wake();
-      if (controls.enabled) osdFor(key);
+      if (controls.enabled && key !== 'n') osdFor(key);
     }
   });
 }
@@ -1608,7 +2470,9 @@ function bindEvents() {
 // ======================================================================
 
 async function main() {
-  list = new VirtualList($('#channels'), { rowHeight: ROW_HEIGHT, render: renderRow });
+  // Idioma antes de pintar nada: el guardado o, si no hay, el del navegador.
+  setLang((await store.get('ui', {})).lang || detectLang());
+  initI18n();
   initTooltips();
   bindEvents();
   applyUiPrefs();
@@ -1617,21 +2481,15 @@ async function main() {
   await loadData();
 
   const saved = await store.getState();
-  if (saved.sidebarCollapsed) $('#app').dataset.collapsed = '1';
   state.activeId = saved.playlistId && (saved.playlistId === FAV_ID || state.playlists.some((p) => p.id === saved.playlistId))
     ? saved.playlistId
     : (state.playlists[0]?.id || FAV_ID);
-  renderPlaylistSelect();
   await selectPlaylist(state.activeId);
-  if (saved.group && state.channels.some((c) => (c.group || '\u0000') === saved.group)) {
+  if (saved.group && groupNames().includes(saved.group)) {
     state.group = saved.group;
-    $('#groupSelect').value = saved.group;
-    applyFilter();
+    renderBrowse();
   }
-  if (saved.channelUrl) {
-    const idx = state.filtered.findIndex((c) => c.url === saved.channelUrl);
-    if (idx >= 0) list.scrollToIndex(idx);
-  }
+  initMiniPlayer();
 
   // Parámetros desde el menú contextual
   const params = new URLSearchParams(location.search);
@@ -1639,7 +2497,7 @@ async function main() {
     try {
       await addPlaylist({ url: params.get('playlist') });
     } catch (err) {
-      setStatus(`No se pudo cargar la lista: ${err.message}`, 'err');
+      setStatus(t('No se pudo cargar la lista: {msg}', { msg: err.message }), 'err');
     }
   }
   if (params.get('play')) {
@@ -1654,5 +2512,5 @@ async function main() {
 
 main().catch((err) => {
   console.error(err);
-  setStatus(`Error al iniciar: ${err.message}`, 'err');
+  setStatus(t('Error al iniciar: {msg}', { msg: err.message }), 'err');
 });

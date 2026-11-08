@@ -4,6 +4,8 @@
 // Los pasos cuyo objetivo no está visible (p. ej. el panel plegado) se saltan.
 // Teclado: → / Intro siguiente, ← anterior, Esc cerrar.
 
+import { t } from './i18n.js';
+
 let active = null;
 
 function visibleRect(sel) {
@@ -32,10 +34,10 @@ export function startTour(steps, { onDone } = {}) {
       <p class="tour-text" id="tourText"></p>
       <div class="tour-dots" aria-hidden="true"></div>
       <div class="tour-actions">
-        <button type="button" class="btn ghost" data-tour="skip">Saltar guía</button>
+        <button type="button" class="btn ghost" data-tour="skip">${t('Saltar guía')}</button>
         <span class="spacer"></span>
-        <button type="button" class="btn" data-tour="prev">Atrás</button>
-        <button type="button" class="btn primary" data-tour="next">Siguiente</button>
+        <button type="button" class="btn" data-tour="prev">${t('Atrás')}</button>
+        <button type="button" class="btn primary" data-tour="next">${t('Siguiente')}</button>
       </div>
     </div>`;
   document.body.appendChild(root);
@@ -90,12 +92,12 @@ export function startTour(steps, { onDone } = {}) {
 
   function render() {
     const step = usable[index];
-    root.querySelector('#tourStep').textContent = `Paso ${index + 1} de ${usable.length}`;
+    root.querySelector('#tourStep').textContent = t('Paso {n} de {total}', { n: index + 1, total: usable.length });
     root.querySelector('#tourTitle').textContent = step.title;
     root.querySelector('#tourText').textContent = step.text;
     [...dots.children].forEach((d, i) => { d.dataset.on = i === index ? '1' : ''; });
     root.querySelector('[data-tour="prev"]').hidden = index === 0;
-    root.querySelector('[data-tour="next"]').textContent = index === usable.length - 1 ? 'Entendido' : 'Siguiente';
+    root.querySelector('[data-tour="next"]').textContent = t(index === usable.length - 1 ? 'Entendido' : 'Siguiente');
     layout();
     card.focus({ preventScroll: true });
   }

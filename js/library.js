@@ -9,6 +9,7 @@
 // #EXTINF con tvg-*, group-title; #KODIPROP para DRM y tipo; #EXTVLCOPT / #EXTHTTP para cabeceras.
 
 import { emptyDrm } from './drm.js';
+import { t } from './i18n.js';
 
 export const JSON_FORMAT = 'ip-player-playlist';
 
@@ -116,7 +117,7 @@ export function parseLibraryJSON(text) {
   const channels = Array.isArray(data) ? data : data.channels;
   if (!Array.isArray(channels)) return null;
   const clean = channels.filter((c) => c && c.url).map(cleanChannel);
-  if (!clean.length) throw new Error('El JSON no contiene canales con URL.');
+  if (!clean.length) throw new Error(t('El JSON no contiene canales con URL.'));
   const list = { name: Array.isArray(data) ? '' : String(data.name || ''), groups: [], channels: clean };
   list.groups = Array.isArray(data.groups) ? data.groups.map(String) : [];
   list.groups = groupsOf(list);

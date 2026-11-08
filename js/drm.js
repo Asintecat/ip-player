@@ -16,6 +16,8 @@ export const KEY_SYSTEMS = {
   playready: 'com.microsoft.playready'
 };
 
+import { t } from './i18n.js';
+
 export const MIME = {
   dash: 'application/dash+xml',
   hls: 'application/x-mpegurl',
@@ -104,7 +106,7 @@ export function toHex(value) {
     const hex = bytesToHex(base64ToBytes(v));
     if (hex.length) return hex;
   } catch (_) { /* no es base64 */ }
-  throw new Error(`Valor de clave no válido: "${value}"`);
+  throw new Error(t('Valor de clave no válido: "{v}"', { v: value }));
 }
 
 export function canonicalHeader(name) {
@@ -181,7 +183,7 @@ export function parseClearKeys(input) {
     const i = pair.indexOf(':');
     // Solo KEY (sin KID): clave comodín, útil para HLS SAMPLE-AES / FairPlay.
     if (i < 0 && /^[0-9a-f]{32}$/i.test(pair)) { keys[ANY_KID] = pair.toLowerCase(); continue; }
-    if (i <= 0) throw new Error(`Par ClearKey no válido: "${pair}" (formato esperado KID:KEY o solo KEY)`);
+    if (i <= 0) throw new Error(t('Par ClearKey no válido: "{v}" (formato esperado KID:KEY o solo KEY)', { v: pair }));
     const kid = pair.slice(0, i);
     // KID:KEY:IV → el IV (SAMPLE-AES / FairPlay) se guarda junto a la clave: "key:iv".
     const [key, iv] = pair.slice(i + 1).split(':');
@@ -301,7 +303,7 @@ export function transformLicenseResponse(response, template) {
     const path = template.replace(/^JB?/, '');
     const json = JSON.parse(text);
     b64 = path.split('.').filter(Boolean).reduce((o, k) => (o == null ? o : o[k]), json);
-    if (typeof b64 !== 'string') throw new Error(`Campo "${path}" no encontrado en la respuesta de licencia`);
+    if (typeof b64 !== 'string') throw new Error(t('Campo "{v}" no encontrado en la respuesta de licencia', { v: path }));
   }
   if (b64 != null) response.data = base64ToBytes(b64).buffer;
 }

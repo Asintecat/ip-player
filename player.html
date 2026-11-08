@@ -48,134 +48,179 @@
       <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 7h15M10 11v6M14 11v6M6.5 7l.8 12.2a1 1 0 0 0 1 .8h7.4a1 1 0 0 0 1-.8L17.5 7M9.5 7V4.5h5V7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/></symbol>
       <symbol id="i-close" viewBox="0 0 24 24"><path d="m6.5 6.5 11 11m0-11-11 11" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" fill="none"/></symbol>
       <symbol id="i-tv" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12.5" rx="2.5" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M8.5 20.5h7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+      <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M3.5 12h17M12 3.5c2.3 2.4 3.4 5.2 3.4 8.5s-1.1 6.1-3.4 8.5c-2.3-2.4-3.4-5.2-3.4-8.5s1.1-6.1 3.4-8.5z" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linejoin="round"/></symbol>
+      <symbol id="i-more" viewBox="0 0 24 24"><circle cx="6" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="18" cy="12" r="1.6" fill="currentColor"/></symbol>
     </defs>
   </svg>
 
-  <div class="app" id="app">
-    <!-- ============ Panel lateral ============ -->
-    <aside class="sidebar" id="sidebar">
-      <header class="brand">
-        <img src="icons/icon48.png" alt="" width="24" height="24">
+  <div class="app" id="app" data-player="">
+    <!-- ============ Barra superior ============ -->
+    <header class="topbar">
+      <div class="brand">
+        <img src="icons/icon48.png" alt="" width="26" height="26">
         <span class="brand-name">IP Player</span>
-        <div class="brand-actions">
-          <button class="icon-btn" id="btnOpenStream" data-tip="Abrir un enlace suelto (DASH, HLS, Smooth Streaming)" aria-label="Abrir stream"><svg><use href="#i-link"/></svg></button>
-          <button class="icon-btn" id="btnPlaylists" data-tip="Añadir y gestionar listas M3U" aria-label="Listas M3U"><svg><use href="#i-list"/></svg></button>
-          <button class="icon-btn" id="btnHelp" data-tip="Ayuda, guía rápida y atajos" data-kbd="?" aria-label="Ayuda"><svg><use href="#i-help"/></svg></button>
-        </div>
-      </header>
-
-      <div class="filters">
-        <div class="selects">
-          <select id="playlistSelect" aria-label="Lista" data-tip="Lista de canales activa"></select>
-          <select id="groupSelect" aria-label="Grupo" data-tip="Filtrar por grupo o categoría"></select>
-        </div>
-        <label class="search">
-          <svg><use href="#i-search"/></svg>
-          <input id="search" type="search" placeholder="Buscar canal" autocomplete="off" spellcheck="false" aria-label="Buscar canal" aria-controls="channels" aria-describedby="searchHint">
-          <span class="sr-only" id="searchHint">Usa las flechas para recorrer los resultados e Intro para reproducir.</span>
-          <kbd>/</kbd>
-        </label>
       </div>
-      <div class="list-meta" id="listMeta"></div>
-      <div class="channels" id="channels" role="listbox" tabindex="0" aria-label="Canales"></div>
-      <div class="empty" id="emptyList" hidden>
-        <svg><use href="#i-list"/></svg>
-        <p class="empty-title">Sin canales</p>
-        <p class="empty-text">Una lista M3U es un archivo con enlaces a canales. Añádela por URL, archivo o pegando su contenido.</p>
-        <button class="btn primary" id="btnEmptyAdd"><svg><use href="#i-plus"/></svg>Añadir lista</button>
-        <button class="btn ghost" id="btnEmptySample">Probar con la lista de ejemplo</button>
-        <button class="btn ghost" id="btnEmptyTour"><svg><use href="#i-help"/></svg>Ver guía rápida</button>
+      <button class="list-picker" id="btnListPicker" type="button" aria-haspopup="menu" aria-expanded="false" data-tip="Cambiar de lista">
+        <span class="lp-text"><span class="lp-kicker">Lista</span><span class="lp-value" id="listPickerValue">Favoritos</span></span>
+        <svg class="lp-caret"><use href="#i-down"/></svg>
+      </button>
+      <label class="search">
+        <svg><use href="#i-search"/></svg>
+        <input id="search" type="search" placeholder="Buscar canal" autocomplete="off" spellcheck="false" aria-label="Buscar canal" aria-controls="browseBody" aria-describedby="searchHint">
+        <span class="sr-only" id="searchHint">Pulsa flecha abajo para ir a los resultados e Intro para reproducir el primero.</span>
+        <kbd>/</kbd>
+      </label>
+      <div class="topbar-actions">
+        <button class="btn primary" id="btnAdd" type="button" aria-haspopup="menu" aria-expanded="false" data-tip="Añadir un canal, una categoría o una lista" data-kbd="N"><svg><use href="#i-plus"/></svg><span class="hide-sm">Añadir</span></button>
+        <button class="icon-btn" id="btnLang" type="button" aria-haspopup="menu" aria-expanded="false" data-tip="Idioma" aria-label="Idioma"><svg><use href="#i-globe"/></svg></button>
+        <button class="icon-btn" id="btnManage" type="button" data-tip="Gestionar listas" aria-label="Gestionar listas"><svg><use href="#i-list"/></svg></button>
+        <button class="icon-btn" id="btnHelp" type="button" data-tip="Ayuda, guía rápida y atajos" data-kbd="?" aria-label="Ayuda"><svg><use href="#i-help"/></svg></button>
       </div>
-    </aside>
+    </header>
 
-    <!-- ============ Escenario ============ -->
-    <main class="stage">
-      <div class="player" id="player" data-paused="1">
-        <video id="video" autoplay playsinline></video>
-        <div class="surface"></div>
-        <div class="captions" id="captions"></div>
+    <main class="main" id="main">
+      <!-- ============ Reproductor ============ -->
+      <section class="hero">
+        <div class="player-wrap" id="playerWrap">
+          <div class="player" id="player" data-paused="1">
+            <video id="video" autoplay playsinline></video>
+            <div class="surface"></div>
+            <div class="captions" id="captions"></div>
 
-        <div class="spinner" aria-hidden="true"></div>
+            <div class="spinner" aria-hidden="true"></div>
 
-        <div class="message" id="overlay" role="alert">
-          <svg class="message-icon"><use href="#i-tv"/></svg>
-          <h2 id="overlayTitle">Selecciona un canal</h2>
-          <p id="overlayText">Carga una lista M3U o abre una URL de DASH, HLS o Smooth Streaming.</p>
-          <div class="message-actions" id="overlayActions" hidden>
-            <button type="button" class="btn" id="btnRetry"><svg><use href="#i-refresh"/></svg>Reintentar</button>
-            <button type="button" class="btn primary" id="btnFixStream"><svg><use href="#i-edit"/></svg>Revisar el stream</button>
-          </div>
-        </div>
-
-        <div class="osd" id="osd" aria-hidden="true"></div>
-        <div class="tap-hint" data-side="left" aria-hidden="true">−10 s</div>
-        <div class="tap-hint" data-side="right" aria-hidden="true">+10 s</div>
-
-        <div class="top-chrome">
-          <div class="top-title" id="fsTitle"></div>
-        </div>
-
-        <div class="controls">
-          <div class="seek" tabindex="0" role="slider" aria-label="Posición" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-            <div class="seek-track">
-              <div class="seek-buffer"></div>
-              <div class="seek-fill"></div>
-            </div>
-            <div class="seek-thumb"></div>
-            <div class="seek-tip"></div>
-          </div>
-          <div class="bar">
-            <div class="group">
-              <button class="ctl" data-act="prev" data-tip="Canal anterior" data-kbd="RePág" aria-label="Canal anterior"><svg><use href="#i-skip-prev"/></svg></button>
-              <button class="ctl ctl-play" data-act="play" data-tip="Reproducir" data-kbd="K" aria-label="Reproducir o pausar">
-                <svg class="ico-play"><use href="#i-play"/></svg><svg class="ico-pause"><use href="#i-pause"/></svg>
-              </button>
-              <button class="ctl" data-act="next" data-tip="Canal siguiente" data-kbd="AvPág" aria-label="Canal siguiente"><svg><use href="#i-skip-next"/></svg></button>
-              <div class="volume">
-                <button class="ctl" data-act="mute" data-tip="Silenciar" data-kbd="M" aria-label="Silenciar">
-                  <svg class="ico-vol"><use href="#i-vol"/></svg><svg class="ico-mute"><use href="#i-mute"/></svg>
-                </button>
-                <input type="range" min="0" max="1" step="0.05" value="1" aria-label="Volumen" data-tip="Volumen" data-kbd="↑ ↓">
+            <div class="message" id="overlay" role="alert">
+              <svg class="message-icon"><use href="#i-tv"/></svg>
+              <h2 id="overlayTitle">Selecciona un canal</h2>
+              <p id="overlayText">Elige un canal debajo o añade una lista M3U o un enlace DASH, HLS o Smooth Streaming.</p>
+              <div class="message-actions" id="overlayActions" hidden>
+                <button type="button" class="btn" id="btnRetry"><svg><use href="#i-refresh"/></svg>Reintentar</button>
+                <button type="button" class="btn primary" id="btnFixStream"><svg><use href="#i-edit"/></svg>Revisar el stream</button>
               </div>
-              <button class="live-pill" data-act="live" type="button" data-tip="Ir al directo"><span class="dot"></span>EN DIRECTO</button>
-              <span class="time"></span>
             </div>
-            <div class="group">
-              <button class="ctl ctl-cc" data-act="cc" type="button" data-tip="Activar subtítulos" data-kbd="C" aria-label="Subtítulos" aria-pressed="false" hidden><svg><use href="#i-cc"/></svg></button>
-              <button class="quality-chip" data-act="quality" type="button" data-tip="Calidad de imagen" hidden></button>
-              <button class="ctl" data-act="settings" data-tip="Ajustes: calidad, audio, subtítulos y velocidad" aria-label="Ajustes" aria-haspopup="menu"><svg><use href="#i-gear"/></svg></button>
-              <button class="ctl" data-act="pip" data-tip="Imagen en imagen (ventana flotante)" aria-label="Imagen en imagen"><svg><use href="#i-pip"/></svg></button>
-              <button class="ctl" data-act="fullscreen" data-tip="Pantalla completa" data-kbd="F" aria-label="Pantalla completa">
-                <svg class="ico-expand"><use href="#i-expand"/></svg><svg class="ico-shrink"><use href="#i-shrink"/></svg>
-              </button>
+
+            <div class="osd" id="osd" aria-hidden="true"></div>
+            <div class="tap-hint" data-side="left" aria-hidden="true">−10 s</div>
+            <div class="tap-hint" data-side="right" aria-hidden="true">+10 s</div>
+
+            <div class="top-chrome">
+              <div class="top-title" id="fsTitle"></div>
             </div>
+
+            <div class="mini-bar">
+              <button class="mini-btn" id="btnMiniBack" type="button" data-tip="Volver al reproductor" aria-label="Volver al reproductor"><svg><use href="#i-expand"/></svg></button>
+              <button class="mini-btn" id="btnMiniClose" type="button" data-tip="Detener y cerrar el reproductor" aria-label="Cerrar reproductor"><svg><use href="#i-close"/></svg></button>
+            </div>
+
+            <div class="controls">
+              <div class="seek" tabindex="0" role="slider" aria-label="Posición" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                <div class="seek-track">
+                  <div class="seek-buffer"></div>
+                  <div class="seek-fill"></div>
+                </div>
+                <div class="seek-thumb"></div>
+                <div class="seek-tip"></div>
+              </div>
+              <div class="bar">
+                <div class="group">
+                  <button class="ctl" data-act="prev" data-tip="Canal anterior" data-kbd="RePág" aria-label="Canal anterior"><svg><use href="#i-skip-prev"/></svg></button>
+                  <button class="ctl ctl-play" data-act="play" data-tip="Reproducir" data-kbd="K" aria-label="Reproducir o pausar">
+                    <svg class="ico-play"><use href="#i-play"/></svg><svg class="ico-pause"><use href="#i-pause"/></svg>
+                  </button>
+                  <button class="ctl" data-act="next" data-tip="Canal siguiente" data-kbd="AvPág" aria-label="Canal siguiente"><svg><use href="#i-skip-next"/></svg></button>
+                  <div class="volume">
+                    <button class="ctl" data-act="mute" data-tip="Silenciar" data-kbd="M" aria-label="Silenciar">
+                      <svg class="ico-vol"><use href="#i-vol"/></svg><svg class="ico-mute"><use href="#i-mute"/></svg>
+                    </button>
+                    <input type="range" min="0" max="1" step="0.05" value="1" aria-label="Volumen" data-tip="Volumen" data-kbd="↑ ↓">
+                  </div>
+                  <button class="live-pill" data-act="live" type="button" data-tip="Ir al directo"><span class="dot"></span>EN DIRECTO</button>
+                  <span class="time"></span>
+                </div>
+                <div class="group">
+                  <button class="ctl ctl-cc" data-act="cc" type="button" data-tip="Activar subtítulos" data-kbd="C" aria-label="Subtítulos" aria-pressed="false" hidden><svg><use href="#i-cc"/></svg></button>
+                  <button class="quality-chip" data-act="quality" type="button" data-tip="Calidad de imagen" hidden></button>
+                  <button class="ctl" data-act="settings" data-tip="Ajustes: calidad, audio, subtítulos y velocidad" aria-label="Ajustes" aria-haspopup="menu"><svg><use href="#i-gear"/></svg></button>
+                  <button class="ctl" data-act="pip" data-tip="Imagen en imagen (ventana flotante)" aria-label="Imagen en imagen"><svg><use href="#i-pip"/></svg></button>
+                  <button class="ctl" data-act="fullscreen" data-tip="Pantalla completa" data-kbd="F" aria-label="Pantalla completa">
+                    <svg class="ico-expand"><use href="#i-expand"/></svg><svg class="ico-shrink"><use href="#i-shrink"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="menu" role="menu" aria-label="Ajustes del reproductor"></div>
           </div>
         </div>
 
-        <div class="menu" role="menu" aria-label="Ajustes del reproductor"></div>
-      </div>
-
-      <section class="now" id="nowPlaying">
-        <button class="icon-btn sidebar-toggle" id="btnSidebar" data-tip="Mostrar u ocultar la lista" data-kbd="L" aria-label="Mostrar u ocultar la lista"><svg><use href="#i-sidebar"/></svg></button>
-        <div class="np-logo" id="npLogo"></div>
-        <div class="np-info">
-          <div class="np-title" id="npTitle">Nada en reproducción</div>
-          <div class="np-meta">
-            <span class="np-badges" id="npMeta"></span>
-            <span class="status" id="status" role="status" aria-live="polite"></span>
+        <section class="now" id="nowPlaying">
+          <div class="np-logo" id="npLogo"></div>
+          <div class="np-info">
+            <div class="np-title" id="npTitle">Nada en reproducción</div>
+            <div class="np-meta">
+              <span class="np-badges" id="npMeta"></span>
+              <span class="status" id="status" role="status" aria-live="polite"></span>
+            </div>
           </div>
+          <div class="np-actions">
+            <button class="icon-btn" id="btnAddTo" data-tip="Guardar en una de mis listas" aria-label="Guardar en una de mis listas"><svg><use href="#i-folder-plus"/></svg></button>
+            <button class="icon-btn" id="btnFav" data-tip="Añadir a favoritos" aria-label="Favorito"><svg><use href="#i-star"/></svg></button>
+            <button class="icon-btn" id="btnEdit" data-tip="Editar claves, licencia o cabeceras" aria-label="Editar stream"><svg><use href="#i-edit"/></svg></button>
+            <button class="icon-btn" id="btnCopy" data-tip="Copiar la URL del stream" aria-label="Copiar URL"><svg><use href="#i-copy"/></svg></button>
+            <button class="icon-btn" id="btnClosePlayer" data-tip="Detener y cerrar el reproductor" aria-label="Cerrar reproductor"><svg><use href="#i-close"/></svg></button>
+          </div>
+        </section>
+      </section>
+
+      <!-- ============ Canales en bloques ============ -->
+      <section class="browse" id="browse">
+        <div class="browse-head">
+          <div class="browse-heading">
+            <input class="browse-title" id="browseTitle" type="text" aria-label="Nombre de la lista" spellcheck="false">
+            <p class="browse-sub" id="browseSub"></p>
+          </div>
+          <div class="browse-actions" id="browseActions"></div>
         </div>
-        <div class="np-actions">
-          <button class="icon-btn" id="btnAddTo" data-tip="Guardar en una de mis listas" aria-label="Guardar en una de mis listas"><svg><use href="#i-folder-plus"/></svg></button>
-          <button class="icon-btn" id="btnFav" data-tip="Añadir a favoritos" aria-label="Favorito"><svg><use href="#i-star"/></svg></button>
-          <button class="icon-btn" id="btnEdit" data-tip="Editar claves, licencia o cabeceras" aria-label="Editar stream"><svg><use href="#i-edit"/></svg></button>
-          <button class="icon-btn" id="btnCopy" data-tip="Copiar la URL del stream" aria-label="Copiar URL"><svg><use href="#i-copy"/></svg></button>
+
+        <div class="chips-bar" id="chipsBar">
+          <div class="chips" id="chips" role="tablist" aria-label="Categorías"></div>
+        </div>
+
+        <div class="browse-body" id="browseBody"></div>
+
+        <div class="welcome" id="emptyList" hidden>
+          <h2 class="welcome-title">Empieza a ver tus canales</h2>
+          <p class="welcome-text">Añade una lista M3U de tu proveedor o crea la tuya con los canales y categorías que quieras.</p>
+          <div class="welcome-options">
+            <button class="welcome-card" id="btnEmptyAdd" type="button">
+              <span class="welcome-ico"><svg><use href="#i-list"/></svg></span>
+              <span class="welcome-card-title">Añadir lista M3U</span>
+              <span class="welcome-card-text">Desde un enlace, un archivo o pegando el texto.</span>
+            </button>
+            <button class="welcome-card" id="btnEmptyCreate" type="button">
+              <span class="welcome-ico"><svg><use href="#i-folder-plus"/></svg></span>
+              <span class="welcome-card-title">Crear mi lista</span>
+              <span class="welcome-card-text">Organiza tus canales en categorías a tu gusto.</span>
+            </button>
+            <button class="welcome-card" id="btnEmptySample" type="button">
+              <span class="welcome-ico"><svg><use href="#i-play"/></svg></span>
+              <span class="welcome-card-title">Probar con ejemplos</span>
+              <span class="welcome-card-text">Canales públicos en DASH, HLS, Smooth Streaming y DRM.</span>
+            </button>
+          </div>
+          <button class="btn ghost" id="btnEmptyTour" type="button"><svg><use href="#i-help"/></svg>Ver guía rápida</button>
         </div>
       </section>
     </main>
   </div>
 
-  <!-- ============ Diálogo: abrir / editar stream ============ -->
+  <!-- Menús flotantes -->
+  <div class="pop" id="listMenu" role="menu" aria-label="Listas"></div>
+  <div class="pop pop-add" id="addMenu" role="menu" aria-label="Añadir"></div>
+  <div class="pop" id="langMenu" role="menu" aria-label="Idioma"></div>
+  <div class="pop" id="ctxMenu" role="menu" aria-label="Opciones"></div>
+
+  <!-- ============ Diálogo: abrir / añadir / editar canal ============ -->
   <dialog id="streamDialog" class="dialog">
     <form method="dialog" id="streamForm">
       <header class="dialog-head">
@@ -183,138 +228,180 @@
         <button class="icon-btn" value="cancel" formnovalidate aria-label="Cerrar"><svg><use href="#i-close"/></svg></button>
       </header>
       <div class="dialog-body">
-        <details class="disclosure">
-          <summary>Pegar entrada M3U</summary>
-          <div class="disclosure-body">
-            <textarea id="fImport" rows="5" spellcheck="false" placeholder="#KODIPROP:inputstream.adaptive.license_type=clearkey&#10;#KODIPROP:inputstream.adaptive.license_key=KID:KEY&#10;#EXTINF:-1,Mi canal&#10;https://ejemplo.com/manifest.mpd"></textarea>
-            <button type="button" class="btn" id="btnImportParse">Rellenar formulario</button>
-          </div>
-        </details>
-
-        <label class="field">URL del stream
+        <label class="field">Enlace del stream
           <input id="fUrl" type="url" required placeholder="https://…/manifest.mpd · .m3u8 · .ism/Manifest" aria-describedby="fUrlHint">
           <small id="fUrlHint">Pega el enlace del vídeo. Suele terminar en .mpd (DASH), .m3u8 (HLS) o /Manifest (Smooth Streaming).</small>
         </label>
         <label class="field">Nombre
           <input id="fName" type="text" placeholder="Opcional">
         </label>
-        <div class="row">
-          <label class="field">Tipo
-            <select id="fType" data-tip="Déjalo en Automático salvo que el formato no se detecte">
-              <option value="">Automático</option>
-              <option value="dash">DASH (MPD)</option>
-              <option value="hls">HLS (M3U8)</option>
-              <option value="mss">Smooth Streaming (ISM)</option>
-              <option value="progressive">Progresivo (MP4…)</option>
-            </select>
-          </label>
-          <label class="field">Motor
-            <select id="fEngine" data-tip="Automático usa Shaka Player y cambia a dash.js si hace falta">
-              <option value="">Automático</option>
-              <option value="shaka">Shaka Player</option>
-              <option value="dashjs">dash.js (MSS en directo)</option>
-            </select>
-          </label>
-        </div>
 
-        <section class="section">
-          <h3 class="section-title">DRM</h3>
-          <label class="field">Sistema
-            <select id="fDrm">
-              <option value="none">Sin DRM</option>
-              <option value="clearkey">ClearKey</option>
-              <option value="widevine">Widevine</option>
-              <option value="playready">PlayReady (solo Edge)</option>
-            </select>
-            <small>Solo para contenido cifrado. Si no lo sabes, déjalo en «Sin DRM».</small>
+        <section class="save-to" id="fSaveTo" hidden>
+          <label class="field">Guardar en
+            <select id="fList"></select>
           </label>
-          <label class="field" data-drm="clearkey">Claves ClearKey
-            <textarea id="fKeys" rows="3" spellcheck="false" placeholder="KID:KEY, uno por línea (hex o base64). HLS SAMPLE-AES/FairPlay: solo KEY o *:KEY:IV"></textarea>
-            <small>Ejemplo: 0123…cdef:89ab…4567 (32 caracteres hexadecimales a cada lado).</small>
+          <label class="field" id="fNewListWrap">Nombre de la nueva lista
+            <input id="fNewList" type="text" placeholder="Mi lista">
           </label>
-          <label class="field" data-drm="clearkey widevine playready">Servidor de licencias
-            <input id="fLicense" type="url" placeholder="https://licencias.ejemplo.com/…">
-            <small data-drm="clearkey">Con ClearKey, usa claves locales o un servidor de licencias. En HLS FairPlay, aquí va el proxy de claves (admite {uri}, {id} y {kid}).</small>
-          </label>
-          <label class="field" data-drm="clearkey widevine playready">Cabeceras de la licencia
-            <textarea id="fLicenseHeaders" rows="2" spellcheck="false" placeholder="Authorization: Bearer …"></textarea>
-          </label>
-          <details class="disclosure" data-drm="widevine playready clearkey">
-            <summary>Plantillas avanzadas (formato Kodi)</summary>
-            <div class="disclosure-body row">
-              <label class="field">Cuerpo
-                <input id="fBody" type="text" placeholder="R{SSM} · b{SSM}">
-              </label>
-              <label class="field">Respuesta
-                <input id="fResp" type="text" placeholder="B · JBlicense">
-              </label>
-            </div>
-          </details>
+          <div class="field">Categoría
+            <div class="cat-picker" id="fCats" role="radiogroup" aria-label="Categoría"></div>
+          </div>
         </section>
 
-        <label class="field">Cabeceras HTTP del stream
-          <textarea id="fHeaders" rows="3" spellcheck="false" placeholder="User-Agent: Mozilla/5.0 …&#10;Referer: https://sitio.com/"></textarea>
-          <small>Opcional. Algunos servidores exigen User-Agent, Referer o Cookie. Una por línea: «Nombre: valor».</small>
-        </label>
+        <details class="disclosure advanced" id="fAdvanced">
+          <summary>Opciones avanzadas <span class="summary-hint">formato, DRM y cabeceras</span></summary>
+          <div class="disclosure-body">
+            <details class="disclosure">
+              <summary>Pegar entrada M3U</summary>
+              <div class="disclosure-body">
+                <textarea id="fImport" rows="5" spellcheck="false" placeholder="#KODIPROP:inputstream.adaptive.license_type=clearkey&#10;#KODIPROP:inputstream.adaptive.license_key=KID:KEY&#10;#EXTINF:-1,Mi canal&#10;https://ejemplo.com/manifest.mpd"></textarea>
+                <button type="button" class="btn" id="btnImportParse">Rellenar formulario</button>
+              </div>
+            </details>
+
+            <div class="row">
+              <label class="field">Tipo
+                <select id="fType" data-tip="Déjalo en Automático salvo que el formato no se detecte">
+                  <option value="">Automático</option>
+                  <option value="dash">DASH (MPD)</option>
+                  <option value="hls">HLS (M3U8)</option>
+                  <option value="mss">Smooth Streaming (ISM)</option>
+                  <option value="progressive">Progresivo (MP4…)</option>
+                </select>
+              </label>
+              <label class="field">Motor
+                <select id="fEngine" data-tip="Automático usa Shaka Player y cambia de motor si hace falta">
+                  <option value="">Automático</option>
+                  <option value="shaka">Shaka Player</option>
+                  <option value="dashjs">dash.js (MSS en directo)</option>
+                  <option value="hlsjs">hls.js (HLS SAMPLE-AES)</option>
+                </select>
+              </label>
+            </div>
+
+            <section class="section">
+              <h3 class="section-title">DRM</h3>
+              <label class="field">Sistema
+                <select id="fDrm">
+                  <option value="none">Sin DRM</option>
+                  <option value="clearkey">ClearKey</option>
+                  <option value="widevine">Widevine</option>
+                  <option value="playready">PlayReady (solo Edge)</option>
+                </select>
+                <small>Solo para contenido cifrado. Si no lo sabes, déjalo en «Sin DRM».</small>
+              </label>
+              <label class="field" data-drm="clearkey">Claves ClearKey
+                <textarea id="fKeys" rows="3" spellcheck="false" placeholder="KID:KEY, uno por línea (hex o base64). HLS SAMPLE-AES/FairPlay: solo KEY o *:KEY:IV"></textarea>
+                <small>Ejemplo: 0123…cdef:89ab…4567 (32 caracteres hexadecimales a cada lado).</small>
+              </label>
+              <label class="field" data-drm="clearkey widevine playready">Servidor de licencias
+                <input id="fLicense" type="url" placeholder="https://licencias.ejemplo.com/…">
+                <small data-drm="clearkey">Con ClearKey, usa claves locales o un servidor de licencias. En HLS FairPlay, aquí va el proxy de claves (admite {uri}, {id} y {kid}).</small>
+              </label>
+              <label class="field" data-drm="clearkey widevine playready">Cabeceras de la licencia
+                <textarea id="fLicenseHeaders" rows="2" spellcheck="false" placeholder="Authorization: Bearer …"></textarea>
+              </label>
+              <details class="disclosure" data-drm="widevine playready clearkey">
+                <summary>Plantillas avanzadas (formato Kodi)</summary>
+                <div class="disclosure-body row">
+                  <label class="field">Cuerpo
+                    <input id="fBody" type="text" placeholder="R{SSM} · b{SSM}">
+                  </label>
+                  <label class="field">Respuesta
+                    <input id="fResp" type="text" placeholder="B · JBlicense">
+                  </label>
+                </div>
+              </details>
+            </section>
+
+            <label class="field">Cabeceras HTTP del stream
+              <textarea id="fHeaders" rows="3" spellcheck="false" placeholder="User-Agent: Mozilla/5.0 …&#10;Referer: https://sitio.com/"></textarea>
+              <small>Opcional. Algunos servidores exigen User-Agent, Referer o Cookie. Una por línea: «Nombre: valor».</small>
+            </label>
+          </div>
+        </details>
         <p class="form-error" id="streamError" hidden></p>
       </div>
       <footer class="dialog-foot">
         <button type="button" class="btn ghost" id="btnStreamFav" data-tip="Añadir a favoritos"><svg><use href="#i-star"/></svg><span class="hide-sm">Favorito</span></button>
-        <button type="button" class="btn ghost" id="btnStreamSaveTo" data-tip="Guardar en una de mis listas, con su categoría"><svg><use href="#i-folder-plus"/></svg>Guardar en lista</button>
+        <button type="button" class="btn ghost" id="btnStreamSaveTo" data-tip="Guardar en una de mis listas, con su categoría"><svg><use href="#i-folder-plus"/></svg><span class="hide-sm">Guardar en lista</span></button>
         <span class="spacer"></span>
-        <button type="button" class="btn" id="btnStreamSave" hidden>Guardar cambios</button>
-        <button value="cancel" class="btn" formnovalidate>Cancelar</button>
+        <button value="cancel" class="btn ghost" formnovalidate>Cancelar</button>
         <button type="submit" value="play" class="btn primary" id="btnStreamPlay">Reproducir</button>
+        <button type="button" class="btn primary" id="btnStreamSave" hidden>Guardar</button>
       </footer>
     </form>
   </dialog>
 
-  <!-- ============ Diálogo: listas ============ -->
+  <!-- ============ Diálogo: añadir lista M3U ============ -->
   <dialog id="playlistDialog" class="dialog">
     <form method="dialog" id="playlistForm">
       <header class="dialog-head">
-        <h2>Listas M3U</h2>
+        <h2>Añadir lista M3U</h2>
         <button class="icon-btn" value="cancel" formnovalidate aria-label="Cerrar"><svg><use href="#i-close"/></svg></button>
       </header>
       <div class="dialog-body">
-        <ul class="pl-list" id="plList"></ul>
+        <div class="seg" id="addTabs" role="tablist" aria-label="Origen de la lista">
+          <span class="seg-indicator"></span>
+          <button type="button" role="tab" data-tab="url"><svg><use href="#i-link"/></svg>Enlace</button>
+          <button type="button" role="tab" data-tab="file"><svg><use href="#i-download"/></svg>Archivo</button>
+          <button type="button" role="tab" data-tab="text"><svg><use href="#i-copy"/></svg>Pegar texto</button>
+        </div>
 
-        <section class="section">
-          <h3 class="section-title">Crear lista propia</h3>
-          <p class="section-intro">Crea una lista vacía, organízala en categorías y añade canales a mano. Después puedes descargarla en M3U o JSON con todo configurado.</p>
-          <div class="inline-form">
-            <input id="pNewName" type="text" placeholder="Nombre de la lista (p. ej. Deportes)" aria-label="Nombre de la nueva lista">
-            <button type="button" class="btn primary" id="btnCreateList"><svg><use href="#i-folder-plus"/></svg>Crear</button>
-          </div>
-        </section>
-
-        <section class="section">
-          <h3 class="section-title">Añadir lista</h3>
-          <p class="section-intro">Elige una de las tres formas: enlace, archivo o texto pegado. Solo hace falta una.</p>
-          <label class="field">Nombre
-            <input id="pName" type="text" placeholder="Mi lista">
-          </label>
-          <label class="field">URL
-            <input id="pUrl" type="url" placeholder="https://…/lista.m3u">
-            <small>Las listas por URL se pueden actualizar después con ↻.</small>
-          </label>
-          <div class="or"><span>o</span></div>
-          <label class="field">Archivo
+        <label class="field" data-panel="url">Enlace de la lista
+          <input id="pUrl" type="url" placeholder="https://…/lista.m3u">
+          <small>Te lo da tu proveedor. Las listas por enlace se pueden actualizar después.</small>
+        </label>
+        <div class="field" data-panel="file" hidden>
+          <label class="dropzone" id="pDrop">
             <input id="pFile" type="file" accept=".m3u,.m3u8,.txt,.json,audio/x-mpegurl,application/x-mpegurl,application/json">
-            <small>Acepta M3U y también los JSON exportados desde IP Player (se importan como lista editable).</small>
+            <svg><use href="#i-download"/></svg>
+            <span class="dz-title">Arrastra el archivo aquí o haz clic para elegirlo</span>
+            <span class="dz-sub">M3U, M3U8 o JSON exportado desde IP Player</span>
+            <span class="dz-file" id="pFileName"></span>
           </label>
-          <div class="or"><span>o</span></div>
-          <label class="field">Pegar contenido
-            <textarea id="pText" rows="4" spellcheck="false" placeholder="#EXTM3U&#10;#EXTINF:-1 tvg-logo=&quot;…&quot; group-title=&quot;…&quot;,Canal&#10;https://…"></textarea>
-          </label>
-          <p class="form-error" id="playlistError" hidden></p>
-        </section>
+        </div>
+        <label class="field" data-panel="text" hidden>Contenido de la lista
+          <textarea id="pText" rows="6" spellcheck="false" placeholder="#EXTM3U&#10;#EXTINF:-1 tvg-logo=&quot;…&quot; group-title=&quot;…&quot;,Canal&#10;https://…"></textarea>
+        </label>
+
+        <label class="field">Nombre
+          <input id="pName" type="text" placeholder="Opcional (se toma del enlace o del archivo)">
+        </label>
+        <p class="form-error" id="playlistError" hidden></p>
       </div>
       <footer class="dialog-foot">
         <button type="button" class="btn ghost" id="btnSample" data-tip="Añade canales de prueba públicos para cada formato">Lista de ejemplo</button>
         <span class="spacer"></span>
-        <button value="cancel" class="btn" formnovalidate>Cerrar</button>
+        <button value="cancel" class="btn ghost" formnovalidate>Cancelar</button>
         <button type="button" class="btn primary" id="btnAddPlaylist"><svg><use href="#i-plus"/></svg>Añadir</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- ============ Diálogo: gestionar listas ============ -->
+  <dialog id="manageDialog" class="dialog">
+    <form method="dialog">
+      <header class="dialog-head">
+        <h2>Tus listas</h2>
+        <button class="icon-btn" value="cancel" formnovalidate aria-label="Cerrar"><svg><use href="#i-close"/></svg></button>
+      </header>
+      <div class="dialog-body">
+        <ul class="pl-list" id="plList"></ul>
+        <p class="form-error" id="managerError" hidden></p>
+        <section class="section">
+          <h3 class="section-title">Crear lista propia</h3>
+          <p class="section-intro">Una lista vacía para organizar tus canales en categorías. Puedes descargarla en M3U o JSON cuando quieras.</p>
+          <div class="inline-form">
+            <input id="pNewName" type="text" placeholder="Nombre de la lista (p. ej. Deportes)" aria-label="Nombre de la nueva lista">
+            <button type="button" class="btn" id="btnCreateList"><svg><use href="#i-folder-plus"/></svg>Crear</button>
+          </div>
+        </section>
+      </div>
+      <footer class="dialog-foot">
+        <button type="button" class="btn ghost" id="btnManagerAdd"><svg><use href="#i-plus"/></svg>Añadir lista M3U</button>
+        <span class="spacer"></span>
+        <button value="cancel" class="btn primary" formnovalidate>Listo</button>
       </footer>
     </form>
   </dialog>
@@ -336,44 +423,43 @@
         <label class="field" id="sNewWrap">Nombre de la nueva lista
           <input id="sNewName" type="text" placeholder="Mi lista">
         </label>
-        <label class="field">Categoría
-          <input id="sGroup" type="text" list="sGroups" placeholder="Sin categoría" autocomplete="off">
-          <datalist id="sGroups"></datalist>
-          <small>Elige una existente o escribe una nueva para crearla.</small>
-        </label>
+        <div class="field">Categoría
+          <div class="cat-picker" id="sCats" role="radiogroup" aria-label="Categoría"></div>
+        </div>
         <p class="form-error" id="saveError" hidden></p>
       </div>
       <footer class="dialog-foot">
         <span class="spacer"></span>
-        <button value="cancel" class="btn" formnovalidate>Cancelar</button>
+        <button value="cancel" class="btn ghost" formnovalidate>Cancelar</button>
         <button type="submit" value="save" class="btn primary">Guardar</button>
       </footer>
     </form>
   </dialog>
 
-  <!-- ============ Diálogo: editor de lista propia ============ -->
-  <dialog id="libDialog" class="dialog dialog-wide">
-    <form method="dialog" id="libForm">
+  <!-- ============ Diálogo: nueva categoría ============ -->
+  <dialog id="catDialog" class="dialog dialog-sm">
+    <form method="dialog" id="catForm">
       <header class="dialog-head">
-        <input class="lib-title" id="libName" type="text" aria-label="Nombre de la lista" data-tip="Haz clic para renombrar la lista">
+        <h2>Nueva categoría</h2>
         <button class="icon-btn" value="cancel" formnovalidate aria-label="Cerrar"><svg><use href="#i-close"/></svg></button>
       </header>
       <div class="dialog-body">
-        <div class="lib-toolbar">
-          <div class="inline-form">
-            <input id="libNewGroup" type="text" placeholder="Nueva categoría" aria-label="Nueva categoría">
-            <button type="button" class="btn" id="btnLibAddGroup"><svg><use href="#i-plus"/></svg>Categoría</button>
-          </div>
-          <button type="button" class="btn primary" id="btnLibAddChannel" data-tip="Abre el formulario para añadir un canal a esta lista"><svg><use href="#i-plus"/></svg>Añadir canal</button>
-        </div>
-        <div class="lib-groups" id="libGroups"></div>
+        <p class="section-intro">Las categorías agrupan los canales de tus listas propias (Deportes, Noticias, Cine…).</p>
+        <label class="field">Nombre
+          <input id="cName" type="text" placeholder="p. ej. Deportes">
+        </label>
+        <label class="field">En la lista
+          <select id="cList"></select>
+        </label>
+        <label class="field" id="cNewWrap">Nombre de la nueva lista
+          <input id="cNewName" type="text" placeholder="Mi lista">
+        </label>
+        <p class="form-error" id="catError" hidden></p>
       </div>
       <footer class="dialog-foot">
-        <span class="lib-count" id="libCount"></span>
         <span class="spacer"></span>
-        <button type="button" class="btn" data-export="m3u" data-tip="Para Kodi, TiviMate, VLC… con DRM y cabeceras"><svg><use href="#i-download"/></svg>M3U</button>
-        <button type="button" class="btn" data-export="json" data-tip="Copia exacta para volver a importar en IP Player"><svg><use href="#i-download"/></svg>JSON</button>
-        <button value="cancel" class="btn primary" formnovalidate>Listo</button>
+        <button value="cancel" class="btn ghost" formnovalidate>Cancelar</button>
+        <button type="submit" value="save" class="btn primary">Crear categoría</button>
       </footer>
     </form>
   </dialog>
@@ -394,9 +480,9 @@
         <section class="section">
           <h3 class="section-title">Primeros pasos</h3>
           <ol class="help-steps">
-            <li><strong>Añade una lista</strong> con el botón <svg class="inline"><use href="#i-list"/></svg> (o prueba la lista de ejemplo).</li>
-            <li><strong>Elige un canal</strong> en el panel izquierdo. Puedes buscar con <kbd>/</kbd>.</li>
-            <li><strong>Ajusta</strong> calidad, idioma y subtítulos con <svg class="inline"><use href="#i-gear"/></svg>.</li>
+            <li>Añade una lista o un canal con el botón «Añadir» de arriba a la derecha (o prueba la lista de ejemplo).</li>
+            <li>Elige un canal en los bloques. Puedes buscar con la tecla /.</li>
+            <li>Ajusta la calidad, el idioma y los subtítulos con el engranaje del reproductor.</li>
           </ol>
         </section>
 
@@ -411,8 +497,8 @@
             <div><span class="keys"><kbd>F</kbd></span><span>Pantalla completa</span></div>
             <div><span class="keys"><kbd>RePág</kbd><kbd>AvPág</kbd></span><span>Canal anterior / siguiente</span></div>
             <div><span class="keys"><kbd>/</kbd></span><span>Buscar canal</span></div>
-            <div><span class="keys"><kbd>↑</kbd><kbd>↓</kbd><kbd>Intro</kbd></span><span>Moverse por la lista y reproducir</span></div>
-            <div><span class="keys"><kbd>L</kbd></span><span>Mostrar u ocultar la lista</span></div>
+            <div><span class="keys"><kbd>←</kbd><kbd>→</kbd><kbd>Intro</kbd></span><span>Moverse por los canales y reproducir</span></div>
+            <div><span class="keys"><kbd>N</kbd></span><span>Añadir un canal</span></div>
             <div><span class="keys"><kbd>?</kbd></span><span>Abrir esta ayuda</span></div>
           </div>
           <p class="help-note">En móvil: toca dos veces a la izquierda o a la derecha del vídeo para retroceder o avanzar 10 s. Mantén pulsado un botón para ver qué hace.</p>
@@ -422,10 +508,12 @@
           <h3 class="section-title">Preguntas frecuentes</h3>
           <details class="faq"><summary>¿Qué es una lista M3U?</summary>
             <p>Un archivo de texto con enlaces a canales (y a veces logos y grupos). Te lo da tu proveedor como enlace o archivo.</p></details>
+          <details class="faq"><summary>¿Cómo organizo mis canales en categorías?</summary>
+            <p>Crea una lista propia con «Añadir → Lista propia». Después usa «Nueva categoría» en la fila de categorías y añade canales con el botón + de cada bloque. Puedes arrastrar un canal a otra categoría (o a su chip), renombrar una categoría haciendo clic en su título y reordenarlas con las flechas. Para guardar un canal de otra lista, abre su menú ⋯ → «Guardar en mis listas».</p></details>
           <details class="faq"><summary>Un canal no se reproduce, ¿qué hago?</summary>
             <p>Lee el mensaje que aparece sobre el vídeo: indica la causa y qué probar. Con «Revisar el stream» puedes cambiar el tipo, las cabeceras (User-Agent, Referer) o las claves. Si el enlace ha caducado, actualiza la lista con ↻.</p></details>
           <details class="faq"><summary>¿Cómo cambio el idioma o activo subtítulos?</summary>
-            <p>Abre <svg class="inline"><use href="#i-gear"/></svg> → Audio o Subtítulos, o pulsa el botón CC. Tu elección se recuerda para los siguientes canales.</p></details>
+            <p>Abre el engranaje del reproductor → Audio o Subtítulos, o pulsa el botón CC. Tu elección se recuerda para los siguientes canales.</p></details>
           <details class="faq"><summary>¿Por qué se ve borroso al principio?</summary>
             <p>La calidad automática empieza baja y sube según tu conexión. Puedes fijarla con el botón de calidad.</p></details>
         </section>

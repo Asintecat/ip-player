@@ -9,6 +9,8 @@
 /* global Hls */
 
 import { parseClearKeys, toHex, ANY_KID, base64ToBytes, bytesToBase64 } from './drm.js';
+import { sameLang } from './controls.js';
+import { t as tx, locale } from './i18n.js';
 
 const FORBIDDEN = new Set(['user-agent', 'referer', 'origin', 'cookie', 'host', 'connection', 'content-length']);
 const KEY_SCHEME = 'ipkey:';
@@ -226,7 +228,8 @@ function proxyUrl(template, uri) {
 export function describeHlsError(data) {
   const code = data.response?.code || data.networkDetails?.status || 0;
   const http = code ? ` (HTTP ${code})` : '';
-  const auth = code === 401 || code === 403 ? '\nEl servidor rechazó la petición: puede requerir User-Agent, Referer o Cookie (usa «Editar»).' : '';
+  const auth = code === 401 || code === 403 ? '\n' + tx('El servidor rechazó la petición: puede requerir User-Agent, Referer o Cookie (usa «Editar»).') : '';
+  let D_KEY = null;
   const D = {
     manifestLoadError: ['No se pudo cargar el manifiesto', 'La lista HLS (.m3u8) no se pudo descargar.'],
     manifestLoadTimeOut: ['Tiempo agotado', 'El servidor no envió la lista HLS a tiempo.'],
@@ -235,7 +238,7 @@ export function describeHlsError(data) {
     levelLoadError: ['No se pudo cargar la calidad', 'La lista de segmentos de esta calidad no se pudo descargar.'],
     levelLoadTimeOut: ['Tiempo agotado', 'El servidor no envió la lista de segmentos a tiempo.'],
     audioTrackLoadError: ['No se pudo cargar el audio', 'La lista de la pista de audio no se pudo descargar.'],
-    keyLoadError: ['No se pudo obtener la clave', data.error?.message || data.response?.text || 'La clave de descifrado no se pudo obtener.'],
+    keyLoadError: D_KEY = ['No se pudo obtener la clave', data.error?.message || data.response?.text || tx('La clave de descifrado no se pudo obtener.')],
     keyLoadTimeOut: ['Tiempo agotado', 'El proxy de claves no respondió a tiempo.'],
     fragLoadError: ['No se pudo cargar un segmento', 'Un fragmento de vídeo no se pudo descargar.'],
     fragLoadTimeOut: ['Tiempo agotado', 'Un fragmento de vídeo tardó demasiado en llegar.'],
@@ -244,9 +247,9 @@ export function describeHlsError(data) {
     bufferAddCodecError: ['Formato no soportado', 'El navegador no admite el códec de este stream.'],
     bufferAppendError: ['Error de decodificación', 'El vídeo no se pudo decodificar. ¿Son correctos la clave y el IV?']
   }[data.details];
-  if (D) return { title: D[0] + http, text: D[1] + auth };
-  if (data.type === 'mediaError') return { title: 'Error de decodificación', text: 'El vídeo no se pudo decodificar. ¿Son correctos la clave y el IV?' };
-  return { title: `Error hls.js${http}`, text: String(data.details || data.error?.message || 'Error desconocido') + auth };
+  if (D) return { title: tx(D[0]) + http, text: (D === D_KEY ? D[1] : tx(D[1])) + auth };
+  if (data.type === 'mediaError') return { title: tx('Error de decodificación'), text: tx('El vídeo no se pudo decodificar. ¿Son correctos la clave y el IV?') };
+  return { title: `${tx('Error')} hls.js${http}`, text: String(data.details || data.error?.message || tx('Error desconocido')) + auth };
 }
 
 export class HlsEngine {
@@ -296,23 +299,23 @@ export class HlsEngine {
         const res = kid
           ? await fetch(uri, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ kids: [b64url(kid)], type: 'temporary' }) })
           : await fetch(uri, { headers });
-        if (!res.ok) throw new Error(`El servidor de claves ClearKey respondió HTTP ${res.status}`);
+        if (!res.ok) throw new Error(tx('El servidor de claves ClearKey respondió HTTP {code}', { code: res.status }));
         value = parseKeyResponse(await res.arrayBuffer(), uri, kid);
       }
       if (!value && drm.licenseUrl) {
         const res = await fetch(proxyUrl(drm.licenseUrl, uri), { headers });
-        if (!res.ok) throw new Error(`El proxy de claves respondió HTTP ${res.status}`);
+        if (!res.ok) throw new Error(tx('El proxy de claves respondió HTTP {code}', { code: res.status }));
         value = parseKeyResponse(await res.arrayBuffer(), uri, kid);
       }
       if (!value) {
         throw new Error(kid
-          ? `No hay clave para el KID ${kid}. Añade KID:KEY (o *:KEY) o un proxy de claves con «Editar».`
-          : 'No hay clave para este stream. Añade la clave (KEY o KID:KEY) o un proxy de claves con «Editar».');
+          ? tx('No hay clave para el KID {kid}. Añade KID:KEY (o *:KEY) o un proxy de claves con «Editar».', { kid })
+          : tx('No hay clave para este stream. Añade la clave (KEY o KID:KEY) o un proxy de claves con «Editar».'));
       }
       const [hex, ivOwn = null] = String(value).split(':');
       const iv = ivOwn || skd.iv || null;
-      if (hex.length !== 32) throw new Error(`La clave debe tener 16 bytes (32 caracteres hex); tiene ${hex.length / 2}.`);
-      if (iv && iv.length !== 32) throw new Error(`El IV debe tener 16 bytes (32 caracteres hex); tiene ${iv.length / 2}.`);
+      if (hex.length !== 32) throw new Error(tx('La clave debe tener 16 bytes (32 caracteres hex); tiene {n}.', { n: hex.length / 2 }));
+      if (iv && iv.length !== 32) throw new Error(tx('El IV debe tener 16 bytes (32 caracteres hex); tiene {n}.', { n: iv.length / 2 }));
       return { key: hexToBytes(hex).buffer, iv };
     })();
     this._keyCache.set(cacheKey, p);
@@ -378,7 +381,7 @@ export class HlsEngine {
     await this.destroy();
     const drm = channel.drm || { system: 'none', keys: {} };
     if (drm.system === 'widevine' || drm.system === 'playready') {
-      throw new Error('El motor hls.js de IP Player solo descifra SAMPLE-AES con clave conocida (ClearKey o proxy de claves).');
+      throw new Error(tx('El motor hls.js de IP Player solo descifra SAMPLE-AES con clave conocida (ClearKey o proxy de claves).'));
     }
     const extra = Object.entries(channel.headers || {}).filter(([k]) => !FORBIDDEN.has(k.toLowerCase()));
     const IpLoader = this._makeLoader(drm);
@@ -389,6 +392,13 @@ export class HlsEngine {
       lowLatencyMode: false,
       emeEnabled: false,
       startLevel: -1,
+      // CEA-608 incrustados: etiquetas fijas para reconocer las pistas nativas.
+      enableCEA708Captions: true,
+      captionsTextTrack1Label: 'CC1', captionsTextTrack1LanguageCode: '',
+      captionsTextTrack2Label: 'CC2', captionsTextTrack2LanguageCode: '',
+      captionsTextTrack3Label: 'CC3', captionsTextTrack3LanguageCode: '',
+      captionsTextTrack4Label: 'CC4', captionsTextTrack4LanguageCode: '',
+      audioPreference: opts.audioLang ? { lang: opts.audioLang } : undefined,
       xhrSetup: extra.length ? (xhr) => { for (const [k, v] of extra) xhr.setRequestHeader(k, v); } : undefined
     });
     this.hls = hls;
@@ -406,16 +416,30 @@ export class HlsEngine {
       }
       this.onError(this.lastIssue);
     });
+    hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, () => this._applyWantedAudio());
+    hls.on(Hls.Events.LEVEL_SWITCHED, () => this._applyWantedAudio());
     for (const ev of [Hls.Events.MANIFEST_PARSED, Hls.Events.LEVEL_SWITCHED, Hls.Events.AUDIO_TRACK_SWITCHED, Hls.Events.SUBTITLE_TRACKS_UPDATED, Hls.Events.SUBTITLE_TRACK_SWITCH]) {
       hls.on(ev, () => this.onTracks?.());
     }
     hls.once(Hls.Events.MANIFEST_PARSED, () => {
-      const pick = (tracks, lang) => tracks.findIndex((t) => (t.lang || '').toLowerCase().startsWith(String(lang).toLowerCase().slice(0, 2)));
-      if (opts.audioLang) { const i = pick(hls.audioTracks, opts.audioLang); if (i >= 0) hls.audioTrack = i; }
-      if (opts.textOn && opts.textLang) { const i = pick(hls.subtitleTracks, opts.textLang); if (i >= 0) hls.subtitleTrack = i; }
+      // Idioma preferido (es, es-ES y spa cuentan como el mismo): se busca en todos los grupos.
+      const pick = (tracks, lang) => tracks.findIndex((t) => sameLang(t.lang, lang));
+      if (opts.audioLang) { const i = pick(this._allAudio(hls), opts.audioLang); if (i >= 0) this.setAudio(i); }
+      const subs = hls.allSubtitleTracks?.length ? hls.allSubtitleTracks : hls.subtitleTracks;
+      const s = opts.textOn && opts.textLang ? pick(subs, opts.textLang) : -1;
+      if (s >= 0) this.setText(`s:${s}`);
       else hls.subtitleTrack = -1;
       this.video.play().catch(() => {});
     });
+    // Pistas CC1–CC4: aparecen al llegar los primeros subtítulos; ocultas hasta que se elijan.
+    this._onAddTrack = (e) => {
+      const t = e.track;
+      if (t?.kind === 'captions' && /^CC[1-4]$/.test(t.label)) {
+        t.mode = 'hidden';
+        this.onTracks?.();
+      }
+    };
+    this.video.textTracks.addEventListener('addtrack', this._onAddTrack);
 
     hls.attachMedia(this.video);
     hls.loadSource(channel.url);
@@ -449,21 +473,97 @@ export class HlsEngine {
   isAutoQuality() { return this._safe((h) => h.autoLevelEnabled, true); }
   setQuality(id) { this._safe((h) => { h.currentLevel = id === 'auto' ? -1 : id; }); }
 
-  audioTracks() {
-    return this._safe((h) => h.audioTracks.map((t, i) => ({
-      id: i, lang: t.lang || '', label: t.name || '', sub: t.channels && Number(t.channels) > 2 ? `${t.channels} canales` : '', active: i === h.audioTrack
-    })), []);
+  // hls.js solo expone en audioTracks/subtitleTracks el grupo (GROUP-ID) de la calidad
+  // actual. Se listan las pistas de todos los grupos y, si la elegida es de otro grupo,
+  // setAudioOption/setSubtitleOption cambian a una calidad que lo use.
+
+  _allAudio(h) {
+    const all = h.allAudioTracks?.length ? h.allAudioTracks : h.audioTracks;
+    const seen = new Set();
+    return all.filter((t) => {
+      const k = `${t.url}|${t.name}|${t.lang}`;
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
   }
 
-  setAudio(id) { this._safe((h) => { h.audioTrack = id; }); }
+  audioTracks() {
+    return this._safe((h) => {
+      const cur = h.audioTracks[h.audioTrack];
+      return this._allAudio(h).map((t, i) => ({
+        id: i,
+        lang: t.lang || '',
+        label: t.name || '',
+        sub: [t.channels && Number(t.channels) > 2 ? tx('{n} canales', { n: t.channels }) : '', t.characteristics?.includes('describes-video') ? tx('Audiodescripción') : '']
+          .filter(Boolean).join(' · '),
+        active: !!cur && (t === cur || (t.url === cur.url && t.name === cur.name && (t.lang || '') === (cur.lang || '')))
+      }));
+    }, []);
+  }
+
+  setAudio(id) {
+    this._safe((h) => {
+      const t = this._allAudio(h)[id];
+      if (!t) return;
+      const i = h.audioTracks.findIndex((x) => x === t || (x.url === t.url && x.name === t.name));
+      this._wantAudio = null;
+      if (i >= 0) h.audioTrack = i;
+      else if (typeof h.setAudioOption === 'function') {
+        // Otro grupo: hls.js cambia de calidad pero elige la primera pista del grupo;
+        // la pedida se selecciona al llegar AUDIO_TRACKS_UPDATED.
+        this._wantAudio = t;
+        h.setAudioOption(t);
+      }
+    });
+  }
+
+  _applyWantedAudio() {
+    const t = this._wantAudio;
+    if (!t || !this.hls) return;
+    const i = this.hls.audioTracks.findIndex((x) => x.url === t.url && x.name === t.name);
+    if (i < 0) return;
+    this._wantAudio = null;
+    if (this.hls.audioTrack !== i) this.hls.audioTrack = i;
+  }
+
+  /** Subtítulos CEA-608/708 incrustados en el vídeo (hls.js crea pistas nativas CC1–CC4). */
+  _ccTracks() {
+    return [...this.video.textTracks].filter((t) => t.kind === 'captions' && /^CC[1-4]$/.test(t.label));
+  }
 
   textTracks() {
-    return this._safe((h) => h.subtitleTracks.map((t, i) => ({
-      id: i, lang: t.lang || '', label: t.name || '', forced: !!t.forced, sub: t.forced ? 'Forzados' : '', active: i === h.subtitleTrack
-    })), []);
+    return this._safe((h) => {
+      const all = h.allSubtitleTracks?.length ? h.allSubtitleTracks : h.subtitleTracks;
+      const cur = h.subtitleTrack >= 0 ? h.subtitleTracks[h.subtitleTrack] : null;
+      const list = all.map((t, i) => ({
+        id: `s:${i}`,
+        lang: t.lang || '',
+        label: t.name || '',
+        forced: !!t.forced,
+        sub: t.forced ? tx('Forzados') : t.characteristics?.includes('describes-music-and-sound') ? tx('Para sordos') : '',
+        active: !!cur && (t === cur || (t.url === cur.url && t.name === cur.name))
+      }));
+      for (const t of this._ccTracks()) {
+        list.push({ id: `cc:${t.label}`, lang: t.language || '', label: t.label, forced: false, sub: 'CC', active: t.mode === 'showing' });
+      }
+      return list;
+    }, []);
   }
 
-  setText(id) { this._safe((h) => { h.subtitleTrack = id == null ? -1 : id; }); }
+  setText(id) {
+    this._safe((h) => {
+      for (const t of this._ccTracks()) t.mode = id === `cc:${t.label}` ? 'showing' : 'hidden';
+      if (id == null || String(id).startsWith('cc:')) { h.subtitleTrack = -1; return; }
+      const all = h.allSubtitleTracks?.length ? h.allSubtitleTracks : h.subtitleTracks;
+      const t = all[Number(String(id).slice(2))];
+      if (!t) return;
+      const i = h.subtitleTracks.findIndex((x) => x === t || (x.url === t.url && x.name === t.name));
+      if (i >= 0) h.subtitleTrack = i;
+      else if (typeof h.setSubtitleOption === 'function') h.setSubtitleOption(t);
+      h.subtitleDisplay = true;
+    });
+  }
 
   isLive() { return this._safe((h) => !!h.levels[h.currentLevel >= 0 ? h.currentLevel : 0]?.details?.live, false); }
 
@@ -482,6 +582,11 @@ export class HlsEngine {
     this.lastIssue = null;
     this._keyError = null;
     this._keyCache.clear();
+    this._wantAudio = null;
+    if (this._onAddTrack) {
+      this.video.textTracks.removeEventListener('addtrack', this._onAddTrack);
+      this._onAddTrack = null;
+    }
     if (this.hls) {
       try { this.hls.destroy(); } catch (_) { /* ya destruido */ }
       this.hls = null;

@@ -17,7 +17,9 @@ Reproductor de listas M3U con soporte para **DASH**, **HLS** y **Smooth Streamin
 - **Listas propias** (☰ → *Crear lista propia*): crea listas a mano y organízalas en categorías (crear, renombrar, borrar, mover y reordenar canales). Para guardar un canal en una de tus listas, usa el botón de carpeta de la barra inferior o «Guardar en lista» en el formulario. Cualquier lista, también las de URL, se puede **descargar en M3U** (con `#KODIPROP`, `#EXTVLCOPT` y `#EXTHTTP`: DRM, claves y cabeceras ya configurados, válido para Kodi, TiviMate o VLC) o **en JSON**, que se vuelve a importar como lista editable. Las listas por URL también se pueden copiar como lista propia.
 - **Ayuda integrada**: guía rápida la primera vez (y desde el botón ?), etiquetas emergentes con su atajo en todos los botones (mantén pulsado en móvil), mensajes de error con «Reintentar» y «Revisar el stream», y opción de texto más grande.
 - **Idiomas y subtítulos**: si el stream trae varias pistas, ⚙ → *Audio* y ⚙ → *Subtítulos* las listan con su idioma y detalles (5.1, audiodescripción, CC, forzados). El botón **CC** activa o desactiva los subtítulos. El idioma elegido se recuerda para los siguientes canales, y por defecto se usa el del navegador. Funciona con WebVTT, TTML y CEA-608 en DASH, HLS y Smooth Streaming, con los dos motores.
-- **Favoritos** ★, búsqueda y filtro por grupo. El panel lateral se puede plegar; en móvil, el reproductor queda arriba y la lista debajo.
+- **Reproductor arriba y canales en bloques debajo**: una fila por categoría (más Favoritos y Vistos recientemente), chips para filtrar por categoría, búsqueda y mini reproductor flotante al bajar por la página.
+- **Añadir** desde un único botón: canal (con lista y categoría en el mismo formulario), categoría, lista M3U (enlace, archivo o texto) o lista propia.
+- **Listas propias editables en la propia vista**: renombrar lista y categorías haciendo clic en el título, reordenar categorías, arrastrar canales entre categorías y menú ⋯ por canal (editar, mover, guardar en otra lista, eliminar).
 
 ### Atajos de teclado
 
