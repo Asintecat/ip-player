@@ -1,5 +1,9 @@
 # IP Player — extensión de Chrome
 
+[Español](README.md) · [English](docs/README.en.md) · [Català](docs/README.ca.md) · [Euskara](docs/README.eu.md) · [Français](docs/README.fr.md) · [Português](docs/README.pt.md)
+
+---
+
 Reproductor de listas M3U con soporte para **DASH**, **HLS** y **Smooth Streaming (ISM/ISML)**, con DRM **ClearKey**, **Widevine** y servidores de licencias. Usa [Shaka Player](https://github.com/shaka-project/shaka-player) 4.16, [dash.js](https://github.com/Dash-Industry-Forum/dash.js) 5.3 para MSS en directo y [hls.js](https://github.com/video-dev/hls.js) 1.5 para HLS FairPlay/SAMPLE-AES con clave, todos incluidos en `lib/` sin dependencias remotas.
 
 ## Instalación
