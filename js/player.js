@@ -296,6 +296,7 @@ async function play(channel) {
   markPlaying();
   pushRecent(channel);
   hideOverlay();
+  controls.wake();
   controls.setEnabled(false);
   controls.setBusy(true);
 
@@ -2585,30 +2586,49 @@ function formatDateLabel(d) {
 
 function updateNowPlayingEpg() {
   const npEpg = $('#npEpg');
-  if (!npEpg) return;
+  const fsEpg = $('#fsEpg');
   const c = state.current;
+
   if (!c || !hasEpg()) {
-    npEpg.hidden = true;
+    if (npEpg) npEpg.hidden = true;
+    if (fsEpg) fsEpg.hidden = true;
     return;
   }
   const info = getNowAndNext(c);
   if (!info || !info.now) {
-    npEpg.hidden = true;
+    if (npEpg) npEpg.hidden = true;
+    if (fsEpg) fsEpg.hidden = true;
     return;
   }
-  npEpg.hidden = false;
-  $('#npEpgTitle').textContent = info.now.title;
-  $('#npEpgTime').textContent = `${formatTime(new Date(info.now.start))} - ${formatTime(new Date(info.now.stop))}`;
-  $('#npEpgFill').style.width = `${info.progress}%`;
-  const nextEl = $('#npEpgNext');
-  if (info.next) {
-    nextEl.hidden = false;
-    nextEl.textContent = t('A continuación ({time}): {title}', {
-      time: formatTime(new Date(info.next.start)),
-      title: info.next.title
-    });
-  } else {
-    nextEl.hidden = true;
+
+  const timeStr = `${formatTime(new Date(info.now.start))} - ${formatTime(new Date(info.now.stop))}`;
+  const nextText = info.next ? t('A continuación ({time}): {title}', {
+    time: formatTime(new Date(info.next.start)),
+    title: info.next.title
+  }) : '';
+
+  if (npEpg) {
+    npEpg.hidden = false;
+    $('#npEpgTitle').textContent = info.now.title;
+    $('#npEpgTime').textContent = timeStr;
+    $('#npEpgFill').style.width = `${info.progress}%`;
+    const nextEl = $('#npEpgNext');
+    if (nextEl) {
+      nextEl.hidden = !info.next;
+      nextEl.textContent = nextText;
+    }
+  }
+
+  if (fsEpg) {
+    fsEpg.hidden = false;
+    $('#fsEpgTitle').textContent = info.now.title;
+    $('#fsEpgTime').textContent = timeStr;
+    $('#fsEpgFill').style.width = `${info.progress}%`;
+    const fsNext = $('#fsEpgNext');
+    if (fsNext) {
+      fsNext.hidden = !info.next;
+      fsNext.textContent = nextText;
+    }
   }
 }
 
