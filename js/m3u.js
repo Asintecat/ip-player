@@ -153,7 +153,7 @@ export function parseM3U(text, baseUrl) {
         case 'drm_legacy': p.drmLegacy = v; break;
         case 'drm': p.drmJson = v; break;
         case 'manifest_type': p.type = normalizeType(v); break;
-        case 'ipplayer.engine': p.engine = v === 'dashjs' || v === 'shaka' ? v : ''; break;
+        case 'ipplayer.engine': p.engine = ['dashjs', 'shaka', 'hlsjs'].includes(v) ? v : ''; break;
         case 'stream_headers':
         case 'manifest_headers':
           Object.assign(p.headers, parseQueryHeaders(v)); break;

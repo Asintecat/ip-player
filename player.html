@@ -229,12 +229,12 @@
             <small>Solo para contenido cifrado. Si no lo sabes, déjalo en «Sin DRM».</small>
           </label>
           <label class="field" data-drm="clearkey">Claves ClearKey
-            <textarea id="fKeys" rows="3" spellcheck="false" placeholder="KID:KEY, uno por línea (hex o base64)"></textarea>
+            <textarea id="fKeys" rows="3" spellcheck="false" placeholder="KID:KEY, uno por línea (hex o base64). HLS SAMPLE-AES/FairPlay: solo KEY o *:KEY:IV"></textarea>
             <small>Ejemplo: 0123…cdef:89ab…4567 (32 caracteres hexadecimales a cada lado).</small>
           </label>
           <label class="field" data-drm="clearkey widevine playready">Servidor de licencias
             <input id="fLicense" type="url" placeholder="https://licencias.ejemplo.com/…">
-            <small data-drm="clearkey">Con ClearKey, usa claves locales o un servidor de licencias.</small>
+            <small data-drm="clearkey">Con ClearKey, usa claves locales o un servidor de licencias. En HLS FairPlay, aquí va el proxy de claves (admite {uri}, {id} y {kid}).</small>
           </label>
           <label class="field" data-drm="clearkey widevine playready">Cabeceras de la licencia
             <textarea id="fLicenseHeaders" rows="2" spellcheck="false" placeholder="Authorization: Bearer …"></textarea>

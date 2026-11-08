@@ -1,6 +1,6 @@
 # IP Player — extensión de Chrome
 
-Reproductor de listas M3U con soporte para **DASH**, **HLS** y **Smooth Streaming (ISM/ISML)**, con DRM **ClearKey**, **Widevine** y servidores de licencias. Usa [Shaka Player](https://github.com/shaka-project/shaka-player) 4.16 y [dash.js](https://github.com/Dash-Industry-Forum/dash.js) 5.3 para MSS en directo, ambos incluidos en `lib/` sin dependencias remotas.
+Reproductor de listas M3U con soporte para **DASH**, **HLS** y **Smooth Streaming (ISM/ISML)**, con DRM **ClearKey**, **Widevine** y servidores de licencias. Usa [Shaka Player](https://github.com/shaka-project/shaka-player) 4.16, [dash.js](https://github.com/Dash-Industry-Forum/dash.js) 5.3 para MSS en directo y [hls.js](https://github.com/video-dev/hls.js) 1.5 para HLS FairPlay/SAMPLE-AES con clave, todos incluidos en `lib/` sin dependencias remotas.
 
 ## Instalación
 
@@ -64,6 +64,13 @@ Reproductor de listas M3U con soporte para **DASH**, **HLS** y **Smooth Streamin
 
 # Formato nuevo de Kodi
 #KODIPROP:inputstream.adaptive.drm_legacy=org.w3.clearkey|KID:KEY
+
+# HLS FairPlay (SAMPLE-AES en TS) con la clave de contenido: KID:KEY, solo KEY o *:KEY:IV
+#KODIPROP:inputstream.adaptive.license_type=com.apple.fps
+#KODIPROP:inputstream.adaptive.license_key=*:KEY:IV
+
+# HLS FairPlay con proxy de claves (GET; admite {uri}, {id} = lo que va tras skd:// y {kid})
+#KODIPROP:inputstream.adaptive.license_key=https://mi-proxy/clave?id={id}
 ```
 
 Plantillas: cuerpo `R{SSM}` (binario), `b{SSM}` (base64) o `B{SSM}` (base64 URL-encoded); respuesta vacía (binaria), `B` (base64) o `J<campo>` / `JB<campo>` (campo JSON en base64).
@@ -72,6 +79,7 @@ Plantillas: cuerpo `R{SSM}` (binario), `b{SSM}` (base64) o `B{SSM}` (base64 URL-
 
 - Cabeceras como `User-Agent`, `Referer`, `Origin` y `Cookie` se aplican con `declarativeNetRequest`, solo a peticiones de la propia extensión.
 - **Smooth Streaming en directo**: Shaka Player solo soporta MSS bajo demanda (VOD). Si un MSS es en directo (error 4047), el reproductor cambia automáticamente a **dash.js**. Ese motor admite contenido sin DRM o con ClearKey (claves locales o servidor de licencias ClearKey). También se puede forzar el motor desde «Abrir stream / Editar» → *Motor*.
+- **HLS FairPlay / SAMPLE-AES en TS**: Chrome no tiene CDM FairPlay, así que Shaka falla (error 4040, o 6001). Si el canal trae claves ClearKey (o un proxy de claves), el reproductor cambia automáticamente a **hls.js** (`lib/hls.min.js`, 1.5.20), sustituye las claves `skd://` del manifiesto por esas claves y descifra los segmentos. FairPlay suele entregar el IV en la licencia y no en el manifiesto; en ese caso indica `*:KEY:IV`. El proxy puede devolver la clave (16 bytes) o la clave + IV (32 bytes) en binario, hex, base64 o JSON `{"key","iv"}`. No se pide licencia a servidores FairPlay reales: hace falta la clave de contenido.
 - **PlayReady** solo funciona en Microsoft Edge (Chrome no tiene CDM de PlayReady). En Chrome, usa Widevine o ClearKey.
 - Los streams MPEG-TS directos (`.ts` sin manifiesto) no están soportados; HLS con segmentos TS sí.
 - `sample/ejemplos.m3u` contiene streams públicos de prueba para cada formato (botón «Lista de ejemplo»).

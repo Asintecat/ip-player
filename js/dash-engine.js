@@ -4,7 +4,7 @@
 // porque el manifiesto solo trae cabeceras PlayReady.
 /* global dashjs */
 
-import { bytesToBase64 } from './drm.js';
+import { bytesToBase64, cencKeys } from './drm.js';
 
 const FORBIDDEN = new Set(['user-agent', 'referer', 'origin', 'cookie', 'host', 'connection', 'content-length']);
 const enc = new TextEncoder();
@@ -273,7 +273,7 @@ export class DashEngine {
     const mediaKeys = await access.createMediaKeys();
     await this.video.setMediaKeys(mediaKeys);
 
-    const entries = Object.entries(drm.keys || {});
+    const entries = Object.entries(cencKeys(drm.keys));
     if (entries.length) {
       // Claves locales: se cargan por adelantado en una sesión "keyids".
       const jwk = {

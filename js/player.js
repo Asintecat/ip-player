@@ -11,6 +11,7 @@ import { applyHeaderRules } from './headers.js';
 import * as store from './storage.js';
 import { VirtualList } from './virtual-list.js';
 import { DashEngine } from './dash-engine.js';
+import { HlsEngine } from './hls-engine.js';
 import { Controls, langName } from './controls.js';
 import { initTooltips, setTooltipsEnabled, hideTooltip } from './tooltip.js';
 import { startTour, isTourOpen } from './tour.js';
@@ -42,11 +43,17 @@ let controls = null;
 let list = null;
 let loadToken = 0;
 let dashEngine = null;
-let engine = 'shaka'; // motor activo: 'shaka' | 'dashjs'
+let hlsEngine = null;
+let engine = 'shaka'; // motor activo: 'shaka' | 'dashjs' | 'hlsjs'
+/** Adaptador de pistas del motor activo (ver controls.js). */
+const activeAdapter = () => (engine === 'dashjs' ? dashEngine : engine === 'hlsjs' ? hlsEngine : shakaAdapter);
 // Idiomas preferidos (se recuerdan entre canales y sesiones).
 let prefs = { audioLang: '', textLang: '', textOn: false };
 const browserLang = (navigator.language || 'es').split('-')[0];
 const MSS_LIVE_NOT_SUPPORTED = 4047;
+const HLS_ENCRYPTED_TS = 4040;
+const HLS_START_TIMEOUT = 20000; // ms sin vídeo antes de mostrar el motivo
+const KEY_SYSTEM_UNAVAILABLE = 6001; // p. ej. HLS FairPlay: Chrome no tiene CDM FairPlay
 
 // ======================================================================
 // Reproductor
@@ -65,7 +72,7 @@ async function initPlayer() {
   controls = new Controls({
     root: $('#player'),
     video,
-    getAdapter: () => (engine === 'dashjs' ? dashEngine : shakaAdapter),
+    getAdapter: activeAdapter,
     onPrev: () => step(-1),
     onNext: () => step(1),
     preferredText: () => prefs.textLang || browserLang,
@@ -102,7 +109,7 @@ async function initPlayer() {
     if (type === RT.LICENSE && tpl) transformLicenseResponse(response, tpl);
   });
 
-  dashEngine = new DashEngine(video, {
+  const altHandlers = {
     onError: (info) => {
       controls.setEnabled(false);
       controls.setBusy(false);
@@ -110,7 +117,9 @@ async function initPlayer() {
       setStatus(`${info.title}: ${info.text.split('\n')[0]}`, 'err');
     },
     onTracks: () => controls.refreshTracks()
-  });
+  };
+  dashEngine = new DashEngine(video, altHandlers);
+  hlsEngine = new HlsEngine(video, altHandlers);
 
   const refresh = () => controls.refreshTracks();
   player.addEventListener('error', (e) => showError(e.detail));
@@ -289,6 +298,7 @@ async function play(channel) {
   if (token !== loadToken) return;
 
   if (channel.engine === 'dashjs') return playWithDash(channel, token, type, drmText);
+  if (channel.engine === 'hlsjs') return playWithHls(channel, token, drmText);
   await useShaka();
   if (token !== loadToken) return;
 
@@ -311,6 +321,12 @@ async function play(channel) {
       setStatus('Smooth Streaming en directo: cambiando al motor dash.js…', 'warn');
       return playWithDash(channel, token, 'mss', drmText);
     }
+    // HLS con TS cifrado SAMPLE-AES (FairPlay) → hls.js, si hay clave o proxy de claves
+    const fairplay = err?.code === HLS_ENCRYPTED_TS || (err?.code === KEY_SYSTEM_UNAVAILABLE && type === 'hls');
+    if (fairplay && channel.engine !== 'shaka' && hasSampleAesKey(channel.drm)) {
+      setStatus('HLS SAMPLE-AES (FairPlay): descifrando con la clave en el motor hls.js…', 'warn');
+      return playWithHls(channel, token, drmText);
+    }
     showError(err);
   }
 }
@@ -325,6 +341,7 @@ async function useShaka() {
   if (engine === 'shaka') return;
   engine = 'shaka';
   await dashEngine.destroy();
+  await hlsEngine.destroy();
   clearCaptions();
   const video = $('#video');
   video.autoplay = true; // dash.js lo desactiva al destruirse
@@ -333,11 +350,59 @@ async function useShaka() {
   await player.attach(video);
 }
 
-async function useDash() {
-  if (engine === 'dashjs') return;
-  engine = 'dashjs';
-  await player.detach();
+async function useAlt(name) {
+  if (engine === name) return;
+  if (engine === 'shaka') await player.detach();
+  else await (engine === 'dashjs' ? dashEngine : hlsEngine).destroy();
+  engine = name;
   clearCaptions();
+}
+
+/** ¿Hay con qué descifrar SAMPLE-AES? Claves locales o proxy de claves. */
+function hasSampleAesKey(drm) {
+  return !!drm && drm.system === 'clearkey' && (Object.keys(drm.keys || {}).length > 0 || !!drm.licenseUrl);
+}
+
+async function playWithHls(channel, token, drmText) {
+  if (!(await HlsEngine.ensureLoaded())) {
+    showError(new Error('hls.js no está disponible.'));
+    return;
+  }
+  await useAlt('hlsjs');
+  if (token !== loadToken) return;
+  setStatus(`Cargando HLS (hls.js)${drmText ? ' · ' + drmText : ''}…`);
+  const video = $('#video');
+  // Si no arranca en un tiempo razonable, se dice por qué en vez de quedarse en «Cargando…».
+  const watchdog = setTimeout(() => {
+    if (token !== loadToken || engine !== 'hlsjs' || !video.paused || video.currentTime > 0) return;
+    const issue = hlsEngine.lastIssue || {
+      title: 'El stream no arranca',
+      text: 'hls.js no ha recibido vídeo en ' + HLS_START_TIMEOUT / 1000 + ' s y el servidor no ha devuelto ningún error.\nRevisa la URL, las cabeceras (User-Agent, Referer, Cookie) y la clave o el proxy de claves.'
+    };
+    hlsEngine.destroy();
+    controls.setEnabled(false);
+    controls.setBusy(false);
+    showOverlay(issue.title, issue.text, true);
+    setStatus(`${issue.title}: ${issue.text.split('\n')[0]}`, 'err');
+  }, HLS_START_TIMEOUT);
+  video.addEventListener('playing', () => {
+    clearTimeout(watchdog);
+    if (token === loadToken) {
+      setStatus('Reproduciendo · motor hls.js', 'ok');
+      controls.refreshTracks();
+      store.patchState({ channelUrl: channel.url });
+    }
+  }, { once: true });
+  try {
+    await hlsEngine.load(channel, {
+      audioLang: prefs.audioLang || browserLang,
+      textLang: prefs.textLang || browserLang,
+      textOn: prefs.textOn
+    });
+    if (token === loadToken) controls.setEnabled(true);
+  } catch (err) {
+    if (token === loadToken) showError(err);
+  }
 }
 
 async function playWithDash(channel, token, type, drmText) {
@@ -345,7 +410,7 @@ async function playWithDash(channel, token, type, drmText) {
     showError(new Error('dash.js no está disponible.'));
     return;
   }
-  await useDash();
+  await useAlt('dashjs');
   if (token !== loadToken) return;
   const label = `${TYPE_LABEL[type] || 'Auto'} (dash.js)${drmText ? ' · ' + drmText : ''}`;
   setStatus(`Cargando ${label}…`);
@@ -393,6 +458,12 @@ function describeError(err) {
       return null;
     case C.REQUESTED_KEY_SYSTEM_CONFIG_UNAVAILABLE:
     case C.FAILED_TO_CREATE_CDM:
+      if (detectType(state.current?.url, state.current?.type) === 'hls') {
+        return {
+          title: 'DRM no soportado (¿HLS FairPlay?)',
+          text: 'Chrome no tiene FairPlay. Si el stream usa SAMPLE-AES y conoces la clave de contenido, se puede descifrar.\nCon «Editar», elige DRM ClearKey y pon la clave (solo KEY o *:KEY:IV) o un proxy de claves en «Servidor de licencias».'
+        };
+      }
       return {
         title: 'DRM no soportado',
         text: 'El navegador no soporta el sistema DRM requerido.\nPlayReady solo funciona en Microsoft Edge; en Chrome usa Widevine o ClearKey.'
@@ -415,8 +486,8 @@ function describeError(err) {
       return { title: 'Formato no soportado', text: 'Los códecs de este stream no son compatibles con el navegador.' };
     case C.HLS_MSE_ENCRYPTED_MP2T_NOT_SUPPORTED ?? 4040:
       return {
-        title: 'Cifrado HLS no compatible',
-        text: 'Este stream usa cifrado HLS en segmentos MPEG-TS (FairPlay o SAMPLE-AES), que este reproductor no admite.\nSolo se pueden reproducir streams sin cifrar, con AES-128 estándar o con DRM compatible con Chrome (Widevine, ClearKey en CENC).'
+        title: 'HLS cifrado con SAMPLE-AES (FairPlay)',
+        text: 'Chrome no tiene FairPlay, pero el stream se puede descifrar si tienes la clave de contenido.\nCon «Editar», elige DRM ClearKey y pon la clave (solo KEY o KID:KEY) o un proxy de claves en «Servidor de licencias».'
       };
     case C.VIDEO_ERROR:
       return {
@@ -1320,7 +1391,7 @@ function osdFor(key) {
     case 'ArrowRight':
       return controls.osd('+10 s');
     case 'c': {
-      const a = engine === 'dashjs' ? dashEngine : shakaAdapter;
+      const a = activeAdapter();
       const t = a?.textTracks?.().find((x) => x.active);
       return controls.osd(t ? `Subtítulos: ${langName(t.lang) || t.label || 'activados'}` : 'Subtítulos desactivados', { icon: 'i-cc' });
     }

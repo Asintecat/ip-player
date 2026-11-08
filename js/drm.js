@@ -41,6 +41,9 @@ export function normalizeSystem(value) {
   if (v.includes('clearkey') || v === 'ck') return 'clearkey';
   if (v.includes('widevine') || v === 'wv') return 'widevine';
   if (v.includes('playready') || v === 'pr') return 'playready';
+  // FairPlay no existe en Chrome: se trata como ClearKey para descifrar SAMPLE-AES
+  // con las claves del canal (o con un proxy de claves) en el motor hls.js.
+  if (v.includes('fairplay') || v.includes('com.apple.fps') || v === 'fps' || v.includes('streamingkeydelivery')) return 'clearkey';
   return 'none';
 }
 
@@ -176,10 +179,25 @@ export function parseClearKeys(input) {
   for (const pair of text.split(/[\s,;]+/)) {
     if (!pair) continue;
     const i = pair.indexOf(':');
-    if (i <= 0) throw new Error(`Par ClearKey no válido: "${pair}" (formato esperado KID:KEY)`);
-    keys[toHex(pair.slice(0, i))] = toHex(pair.slice(i + 1));
+    // Solo KEY (sin KID): clave comodín, útil para HLS SAMPLE-AES / FairPlay.
+    if (i < 0 && /^[0-9a-f]{32}$/i.test(pair)) { keys[ANY_KID] = pair.toLowerCase(); continue; }
+    if (i <= 0) throw new Error(`Par ClearKey no válido: "${pair}" (formato esperado KID:KEY o solo KEY)`);
+    const kid = pair.slice(0, i);
+    // KID:KEY:IV → el IV (SAMPLE-AES / FairPlay) se guarda junto a la clave: "key:iv".
+    const [key, iv] = pair.slice(i + 1).split(':');
+    keys[kid === ANY_KID ? ANY_KID : toHex(kid)] = toHex(key) + (iv ? ':' + toHex(iv) : '');
   }
   return keys;
+}
+
+/** KID comodín: clave sin KID (solo la usa el motor hls.js para SAMPLE-AES). */
+export const ANY_KID = '*';
+
+/** Claves con KID real y sin IV (las que entiende EME / CENC). */
+export function cencKeys(keys) {
+  return Object.fromEntries(Object.entries(keys || {})
+    .filter(([kid]) => kid !== ANY_KID)
+    .map(([kid, v]) => [kid, String(v).split(':')[0]]));
 }
 
 export function keysToLines(keys) {
@@ -241,7 +259,7 @@ export function buildShakaDrmConfig(drm) {
   const cfg = { servers: {}, clearKeys: {} };
   if (!drm || drm.system === 'none') return cfg;
   if (drm.system === 'clearkey') {
-    if (Object.keys(drm.keys || {}).length) cfg.clearKeys = { ...drm.keys };
+    if (Object.keys(cencKeys(drm.keys)).length) cfg.clearKeys = cencKeys(drm.keys);
     else if (drm.licenseUrl) cfg.servers[KEY_SYSTEMS.clearkey] = drm.licenseUrl;
   } else if (drm.licenseUrl) {
     cfg.servers[KEY_SYSTEMS[drm.system]] = drm.licenseUrl;
