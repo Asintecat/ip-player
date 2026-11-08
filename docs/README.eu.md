@@ -101,3 +101,10 @@ https://adibidea.eus/stream.m3u8
 - **PlayReady**: Microsoft Edge-n bakarrik dabil erabilgarri. Chrome-n Widevine edo ClearKey erabili behar da.
 - MPEG-TS zuzeneko fitxategi solteak (`.ts` manifesturik gabe) ez dira onartzen; TS segmentuak dituzten HLS zerrendak bai.
 - `sample/ejemplos.m3u` fitxategiak formatu bakoitzeko proba-stream publikoak eskaintzen ditu («Adibide-zerrenda» botoian klik eginez karga daiteke).
+
+## Lizentzia
+
+Proiektu hau [Creative Commons Aitortu-EzKomertziala-PartekatuBerdin 4.0 Nazioartekoa (CC BY-NC-SA 4.0)](../LICENSE) lizentziapean argitaratu da.
+- **Aitortza beharrekoa (BY)**: Egiletza-aitortza eman behar zaio **Francesc Xavier Rosselló Encinas**-i.
+- **Ez komertziala (NC)**: Guztiz debekatuta dago software honen edo haren eratorrien salmenta, ustiapen komertziala edo monetizazioa.
+- **Partekatu Berdin (SA)**: Aldaketak baimenduta daude, betiere edozein lan eratorri lizentzia zorrotz berdin honen pean banatzen bada.

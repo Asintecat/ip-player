@@ -101,3 +101,10 @@ https://exemple.fr/stream.m3u8
 - **PlayReady** : Fonctionne exclusivement sur Microsoft Edge (Chrome ne dispose pas du CDM PlayReady). Sur Chrome, utilisez Widevine ou ClearKey.
 - Les flux MPEG-TS bruts (`.ts` isolés sans manifeste) ne sont pas pris en charge ; les flux HLS contenant des segments TS le sont parfaitement.
 - Le fichier `sample/ejemplos.m3u` fournit des exemples de flux publics pour chaque format (accessible via le bouton « Liste d'exemple »).
+
+## Licence
+
+Ce projet est distribué sous licence [Creative Commons Attribution - Pas d'Utilisation Commerciale - Partage dans les Mêmes Conditions 4.0 International (CC BY-NC-SA 4.0)](../LICENSE).
+- **Attribution obligatoire (BY)** : Vous devez créditer **Francesc Xavier Rosselló Encinas**.
+- **Pas d'utilisation commerciale (NC)** : La vente, la commercialisation ou la monétisation de ce logiciel et de ses dérivés sont strictement interdites.
+- **Partage dans les mêmes conditions (SA)** : Les modifications sont autorisées à condition que toute œuvre dérivée soit diffusée sous cette même licence stricte.

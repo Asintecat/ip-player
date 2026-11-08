@@ -101,3 +101,10 @@ https://exemple.cat/stream.m3u8
 - **PlayReady**: Només és funcional a Microsoft Edge. A Chrome cal utilitzar Widevine o ClearKey.
 - Els fitxers MPEG-TS directes (`.ts` aïllats sense manifest) no són compatibles; les emissions HLS compostes de segments TS sí que ho són.
 - El fitxer `sample/ejemplos.m3u` ofereix emissions de mostra funcionals per a cada format suportat (accessible des del botó «Llista d'exemple»).
+
+## Llicència
+
+Aquest projecte està subjecte a la llicència [Creative Commons Reconeixement-NoComercial-CompartirIgual 4.0 Internacional (CC BY-NC-SA 4.0)](../LICENSE).
+- **Reconeixement requerit (BY)**: Cal atorgar el crèdit corresponent a **Francesc Xavier Rosselló Encinas**.
+- **No comercial (NC)**: Queda expressament prohibida la venda, comercialització o monetització d'aquest programari i els seus derivats.
+- **Compartir igual (SA)**: Es permeten les modificacions sempre que qualsevol obra derivada es distribueixi sota exactament aquesta mateixa llicència estricta.

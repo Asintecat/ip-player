@@ -101,3 +101,10 @@ https://example.com/stream.m3u8
 - **PlayReady**: Only supported on Microsoft Edge (Chrome does not feature PlayReady CDM). On Chrome, Widevine or ClearKey must be used.
 - Raw MPEG-TS streams (`.ts` without an enclosing HLS playlist) are not supported directly; HLS containing TS segments is fully supported.
 - `sample/ejemplos.m3u` provides reference streams for each format (accessible via the "Sample Playlist" button).
+
+## License
+
+This project is licensed under the [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License (CC BY-NC-SA 4.0)](../LICENSE).
+- **Attribution (BY)**: You must give appropriate credit to **Francesc Xavier Rosselló Encinas**.
+- **Non-Commercial (NC)**: Commercial use, monetization, or sale of this software and its derivatives is strictly prohibited.
+- **Share-Alike (SA)**: If you remix, transform, or build upon this material, you must distribute your contributions under this exact same license.
