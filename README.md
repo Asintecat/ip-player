@@ -14,6 +14,7 @@ Reproductor de listas M3U con soporte para **DASH**, **HLS** y **Smooth Streamin
 - **Abrir stream** (icono 🔗): reproduce una URL suelta con tipo, DRM y cabeceras manuales. También acepta pegar una entrada M3U con `#KODIPROP`.
 - **Editar** (lápiz): abre el canal actual en el formulario para cambiar las claves, la licencia o las cabeceras.
 - **Controles propios**, iguales en Shaka y dash.js: calidad (botón con la resolución actual o ⚙ → Calidad), audio, subtítulos, velocidad, barra de progreso con DVR en directo, indicador «EN DIRECTO», volumen, imagen en imagen y pantalla completa.
+- **Idiomas y subtítulos**: si el stream trae varias pistas, ⚙ → *Audio* y ⚙ → *Subtítulos* las listan con su idioma y detalles (5.1, audiodescripción, CC, forzados). El botón **CC** activa o desactiva los subtítulos. El idioma elegido se recuerda para los siguientes canales, y por defecto se usa el del navegador. Funciona con WebVTT, TTML y CEA-608 en DASH, HLS y Smooth Streaming, con los dos motores.
 - **Favoritos** ★, búsqueda y filtro por grupo. El panel lateral se puede plegar; en móvil, el reproductor queda arriba y la lista debajo.
 
 ### Atajos de teclado
@@ -24,10 +25,12 @@ Reproductor de listas M3U con soporte para **DASH**, **HLS** y **Smooth Streamin
 | `←` / `→` | Retroceder / avanzar 10 s |
 | `↑` / `↓` | Volumen |
 | `M` | Silenciar |
+| `C` | Activar / desactivar subtítulos |
 | `F` | Pantalla completa (también doble clic) |
 | `RePág` / `AvPág` | Canal anterior / siguiente |
 | `/` | Buscar canal |
 | `L` | Mostrar u ocultar la lista |
+
 - **Menú contextual**: clic derecho en un enlace → «Reproducir en IP Player» o «Cargar como lista M3U».
 
 ## Etiquetas M3U soportadas

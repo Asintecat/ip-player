@@ -37,6 +37,9 @@ let list = null;
 let loadToken = 0;
 let dashEngine = null;
 let engine = 'shaka'; // motor activo: 'shaka' | 'dashjs'
+// Idiomas preferidos (se recuerdan entre canales y sesiones).
+let prefs = { audioLang: '', textLang: '', textOn: false };
+const browserLang = (navigator.language || 'es').split('-')[0];
 const MSS_LIVE_NOT_SUPPORTED = 4047;
 
 // ======================================================================
@@ -58,7 +61,15 @@ async function initPlayer() {
     video,
     getAdapter: () => (engine === 'dashjs' ? dashEngine : shakaAdapter),
     onPrev: () => step(-1),
-    onNext: () => step(1)
+    onNext: () => step(1),
+    preferredText: () => prefs.textLang || browserLang,
+    onPick: (kind, track) => {
+      const patch = kind === 'audio'
+        ? { audioLang: track?.lang || '' }
+        : track ? { textOn: true, textLang: track.lang || prefs.textLang } : { textOn: false };
+      prefs = { ...prefs, ...patch };
+      store.patchPrefs(patch).catch(() => {});
+    }
   });
 
   const RT = shaka.net.NetworkingEngine.RequestType;
@@ -135,15 +146,38 @@ const shakaAdapter = {
     player.selectVariantTrack(candidates[0], true);
   },
   audioTracks() {
+    // getAudioTracks() (Shaka >= 4.14) da etiqueta, roles y canales por pista.
+    if (typeof player.getAudioTracks === 'function') {
+      const seen = new Map();
+      for (const t of player.getAudioTracks()) {
+        const roles = (t.roles || []).filter((r) => r !== 'main');
+        const key = JSON.stringify([t.language, t.label || '', roles, t.channelsCount || 0]);
+        if (!seen.has(key) || t.active) seen.set(key, { track: t, roles });
+      }
+      return [...seen.values()].map(({ track: t, roles }, i) => ({
+        id: i,
+        _track: t,
+        lang: t.language,
+        label: t.label || '',
+        sub: audioDetails(t.channelsCount, roles, t.spatialAudio),
+        active: !!t.active
+      }));
+    }
     const active = player.getVariantTracks().find((t) => t.active);
     return player.getAudioLanguagesAndRoles().map((l) => ({
       id: JSON.stringify([l.language, l.role || '']),
       lang: l.language,
-      label: l.label || l.role || '',
+      label: l.label || '',
+      sub: audioDetails(0, l.role ? [l.role] : []),
       active: !!active && active.language === l.language && (!l.role || (active.roles || []).includes(l.role))
     }));
   },
   setAudio(id) {
+    if (typeof id === 'number') {
+      const t = this.audioTracks().find((x) => x.id === id);
+      if (t) player.selectAudioTrack(t._track);
+      return;
+    }
     const [lang, role] = JSON.parse(id);
     player.selectAudioLanguage(lang, role || undefined);
   },
@@ -153,6 +187,8 @@ const shakaAdapter = {
       id: t.id,
       lang: t.language,
       label: t.label || '',
+      forced: !!t.forced,
+      sub: textDetails(t.kind, t.roles, t.forced),
       active: visible && t.active
     }));
   },
@@ -178,9 +214,45 @@ const shakaAdapter = {
   goLive() { player.goToLive ? player.goToLive() : ($('#video').currentTime = player.seekRange().end); }
 };
 
+const ROLE_LABEL = {
+  commentary: 'Comentarios',
+  description: 'Audiodescripción',
+  'enhanced-audio-intelligibility': 'Diálogos realzados',
+  dub: 'Doblaje',
+  alternate: 'Alternativo',
+  supplementary: 'Complementario',
+  emergency: 'Emergencia',
+  sign: 'Lengua de signos'
+};
+
+function audioDetails(channels, roles = [], spatial = false) {
+  const parts = [];
+  if (channels > 2) parts.push(channels === 6 ? '5.1' : channels === 8 ? '7.1' : `${channels} canales`);
+  if (spatial) parts.push('Espacial');
+  for (const r of roles) if (ROLE_LABEL[r]) parts.push(ROLE_LABEL[r]);
+  return parts.join(' · ');
+}
+
+function textDetails(kind, roles = [], forced = false) {
+  const parts = [];
+  if (forced || roles.includes('forced-subtitle')) parts.push('Forzados');
+  if (kind === 'caption' || roles.includes('caption')) parts.push('CC');
+  if (roles.includes('description')) parts.push('Descriptivos');
+  if (roles.includes('commentary')) parts.push('Comentarios');
+  return parts.join(' · ');
+}
+
 function baseConfig() {
   const retry = { maxAttempts: 3, baseDelay: 500, backoffFactor: 2, fuzzFactor: 0.5, timeout: 20000 };
+  const captions = $('#captions');
+  const show = shaka.config?.AutoShowText;
   return {
+    preferredAudioLanguage: prefs.audioLang || browserLang,
+    preferredTextLanguage: prefs.textLang || browserLang,
+    // Solo se muestran subtítulos si el usuario los dejó activados.
+    ...(show ? { autoShowText: prefs.textOn ? show.IF_PREFERRED_TEXT_LANGUAGE : show.NEVER } : {}),
+    // Subtítulos en una capa HTML propia: respeta estilos TTML/WebVTT y se aparta de los controles.
+    textDisplayFactory: () => new shaka.text.UITextDisplayer($('#video'), captions),
     manifest: { retryParameters: retry },
     streaming: { retryParameters: retry, bufferingGoal: 30, rebufferingGoal: 2 },
     drm: { retryParameters: retry }
@@ -237,10 +309,17 @@ async function play(channel) {
   }
 }
 
+/** Quita restos de subtítulos del motor anterior (dash.js deja pistas nativas). */
+function clearCaptions() {
+  $('#captions').replaceChildren();
+  for (const t of $('#video').textTracks) t.mode = 'disabled';
+}
+
 async function useShaka() {
   if (engine === 'shaka') return;
   engine = 'shaka';
   await dashEngine.destroy();
+  clearCaptions();
   const video = $('#video');
   video.autoplay = true; // dash.js lo desactiva al destruirse
   video.removeAttribute('src');
@@ -252,6 +331,7 @@ async function useDash() {
   if (engine === 'dashjs') return;
   engine = 'dashjs';
   await player.detach();
+  clearCaptions();
 }
 
 async function playWithDash(channel, token, type, drmText) {
@@ -272,7 +352,12 @@ async function playWithDash(channel, token, type, drmText) {
     }
   }, { once: true });
   try {
-    await dashEngine.load(channel);
+    await dashEngine.load(channel, {
+      captions: $('#captions'),
+      audioLang: prefs.audioLang || browserLang,
+      textLang: prefs.textLang || browserLang,
+      textOn: prefs.textOn
+    });
     if (token === loadToken) controls.setEnabled(true);
   } catch (err) {
     if (token === loadToken) showError(err);
@@ -864,6 +949,7 @@ function bindEvents() {
       k: () => controls.togglePlay(),
       ' ': () => { if (!onButton) controls.togglePlay(); else return false; },
       m: () => controls.toggleMute(),
+      c: () => controls.toggleSubtitles(),
       l: () => setSidebarCollapsed($('#app').dataset.collapsed !== '1'),
       ArrowLeft: () => (onButton ? false : controls.seekBy(-10)),
       ArrowRight: () => (onButton ? false : controls.seekBy(10)),
@@ -885,6 +971,7 @@ function bindEvents() {
 async function main() {
   list = new VirtualList($('#channels'), { rowHeight: ROW_HEIGHT, render: renderRow });
   bindEvents();
+  prefs = { ...prefs, ...(await store.getPrefs()) };
   await initPlayer();
   await loadData();
 

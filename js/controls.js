@@ -2,8 +2,9 @@
 // El motor activo se expone mediante un "adaptador" con esta forma:
 //   qualities() → [{id, height, bandwidth}]   currentQuality() → {height, bandwidth}|null
 //   isAutoQuality()  setQuality(id|'auto')
-//   audioTracks() → [{id, lang, label, active}]  setAudio(id)
-//   textTracks()  → [{id, lang, label, active}]  setText(id|null)
+//   audioTracks() → [{id, lang, label, sub, active}]  setAudio(id)
+//   textTracks()  → [{id, lang, label, sub, active}]  setText(id|null)
+// (sub = detalles secundarios: «5.1», «Audiodescripción», «CC», «Forzados»…)
 //   isLive()  seekRange() → {start, end}  time()  seek(t)  goLive()
 
 const IDLE_MS = 2600;
@@ -18,6 +19,31 @@ export function langName(code) {
   } catch (_) {
     return code;
   }
+}
+
+const enNames = new Intl.DisplayNames(['en'], { type: 'language' });
+function enName(code) {
+  try { return code && code !== 'und' ? enNames.of(code) : ''; } catch (_) { return ''; }
+}
+
+/** Compara idiomas por su subetiqueta principal (es, es-ES, spa → misma lengua). */
+export function sameLang(a, b) {
+  if (!a || !b) return false;
+  const base = (c) => String(c).toLowerCase().split(/[-_]/)[0];
+  if (base(a) === base(b)) return true;
+  const na = langName(base(a));
+  return !!na && na === langName(base(b));
+}
+
+/** Nombre visible de una pista: idioma + etiqueta, sin repetir. */
+export function trackName(t, i) {
+  const lang = langName(t.lang);
+  const label = (t.label || '').trim();
+  const parts = [lang];
+  // Omite etiquetas que solo repiten el idioma («English», «en», «Español»…).
+  const same = [lang, t.lang, enName(t.lang)].map((x) => String(x || '').toLowerCase());
+  if (label && !same.includes(label.toLowerCase())) parts.push(label);
+  return parts.filter(Boolean).join(' · ') || `Pista ${i + 1}`;
 }
 
 export function qualityName(h) {
@@ -55,10 +81,14 @@ function icon(id) {
 
 export class Controls {
   /**
-   * @param {{root:HTMLElement, video:HTMLVideoElement, getAdapter:()=>any, onPrev:()=>void, onNext:()=>void}} opts
+   * @param {{root:HTMLElement, video:HTMLVideoElement, getAdapter:()=>any, onPrev:()=>void, onNext:()=>void,
+   *          onPick?:(kind:'audio'|'text', track:object|null)=>void, preferredText?:()=>string}} opts
    */
-  constructor({ root, video, getAdapter, onPrev, onNext }) {
+  constructor({ root, video, getAdapter, onPrev, onNext, onPick, preferredText }) {
     this.root = root;
+    this.onPick = onPick || (() => {});
+    this.preferredText = preferredText || (() => '');
+    this.lastText = null;
     this.video = video;
     this.getAdapter = getAdapter;
     this.q = (sel) => root.querySelector(sel);
@@ -76,6 +106,7 @@ export class Controls {
     this.q('[data-act="live"]').addEventListener('click', () => this.goLive());
     this.q('[data-act="quality"]').addEventListener('click', () => this.toggleMenu('quality'));
     this.q('[data-act="settings"]').addEventListener('click', () => this.toggleMenu('main'));
+    this.q('[data-act="cc"]').addEventListener('click', () => this.toggleSubtitles());
     this.q('[data-act="pip"]').addEventListener('click', () => this.togglePip());
     this.q('[data-act="fullscreen"]').addEventListener('click', () => this.toggleFullscreen());
 
@@ -312,8 +343,38 @@ export class Controls {
 
   // ---------- Pistas y menú ----------
 
+  /** Activa o desactiva los subtítulos (botón CC / tecla C). */
+  toggleSubtitles() {
+    const a = this.getAdapter();
+    if (!a || !this.enabled) return;
+    const text = a.textTracks();
+    if (!text.length) return;
+    const active = text.find((t) => t.active);
+    if (active) {
+      this.lastText = active;
+      a.setText(null);
+      this.onPick('text', null);
+    } else {
+      // Recupera la última pista usada, si no la preferida, si no la primera.
+      const pref = this.lastText?.lang || this.preferredText();
+      const t = (this.lastText && text.find((x) => x.id === this.lastText.id && sameLang(x.lang, this.lastText.lang)))
+        || text.find((x) => sameLang(x.lang, pref) && !x.forced)
+        || text.find((x) => !x.forced) || text[0];
+      a.setText(t.id);
+      this.onPick('text', t);
+    }
+    this.refreshTracks();
+  }
+
   refreshTracks() {
     const a = this.getAdapter();
+    const cc = this.q('[data-act="cc"]');
+    const text = a && this.enabled ? a.textTracks() : [];
+    cc.hidden = !text.length;
+    const on = text.some((t) => t.active);
+    this.root.dataset.cc = on ? '1' : '';
+    cc.setAttribute('aria-pressed', String(on));
+    cc.title = on ? 'Desactivar subtítulos (C)' : 'Activar subtítulos (C)';
     const chip = this.q('[data-act="quality"]');
     const qs = a && this.enabled ? a.qualities() : [];
     if (qs.length > 1) {
@@ -379,7 +440,6 @@ export class Controls {
       b.addEventListener('click', () => this.renderMenu(target));
       menu.appendChild(b);
     };
-    const trackName = (t, i) => [langName(t.lang), t.label].filter(Boolean).join(' · ') || `Pista ${i + 1}`;
 
     if (pane === 'main') {
       const cur = a.currentQuality();
@@ -412,11 +472,11 @@ export class Controls {
       }
     } else if (pane === 'audio') {
       header('Audio');
-      audio.forEach((t, i) => option(trackName(t, i), '', t.active, () => a.setAudio(t.id)));
+      audio.forEach((t, i) => option(trackName(t, i), t.sub || '', t.active, () => { a.setAudio(t.id); this.onPick('audio', t); }));
     } else if (pane === 'text') {
       header('Subtítulos');
-      option('Desactivados', '', !text.some((t) => t.active), () => a.setText(null));
-      text.forEach((t, i) => option(trackName(t, i), '', t.active, () => a.setText(t.id)));
+      option('Desactivados', '', !text.some((t) => t.active), () => { a.setText(null); this.onPick('text', null); });
+      text.forEach((t, i) => option(trackName(t, i), t.sub || '', t.active, () => { a.setText(t.id); this.lastText = t; this.onPick('text', t); }));
     } else if (pane === 'speed') {
       header('Velocidad');
       for (const s of SPEEDS) {

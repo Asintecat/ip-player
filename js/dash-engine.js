@@ -27,6 +27,35 @@ const EME_CONFIG = [{
   ]
 }];
 
+/** dash.js compara idiomas con una RegExp: «es» debe casar con es, es-ES, spa… */
+function langMatcher(code) {
+  const base = String(code).toLowerCase().split(/[-_]/)[0];
+  const alt = { es: 'spa', en: 'eng', fr: 'fre|fra', de: 'ger|deu', it: 'ita', pt: 'por', ca: 'cat', eu: 'baq|eus', gl: 'glg', nl: 'dut|nld', ja: 'jpn', zh: 'chi|zho', ru: 'rus', pl: 'pol' }[base];
+  return new RegExp(`^(${base}${alt ? '|' + alt : ''})([-_].*)?$`, 'i');
+}
+
+function roleValues(t) {
+  return (t.roles || []).map((r) => (typeof r === 'string' ? r : r?.value)).filter(Boolean);
+}
+
+function mediaLabel(t) {
+  const l = t.labels?.[0];
+  return (typeof l === 'string' ? l : l?.text) || '';
+}
+
+const AUDIO_ROLE = { commentary: 'Comentarios', description: 'Audiodescripción', dub: 'Doblaje', alternate: 'Alternativo', supplementary: 'Complementario' };
+
+function audioSub(t) {
+  const parts = [];
+  const cfg = (t.audioChannelConfiguration || [])[0];
+  const ch = Number(typeof cfg === 'object' ? cfg?.value : cfg);
+  if (ch > 2) parts.push(ch === 6 ? '5.1' : ch === 8 ? '7.1' : `${ch} canales`);
+  for (const r of roleValues(t)) if (AUDIO_ROLE[r]) parts.push(AUDIO_ROLE[r]);
+  const acc = (t.accessibility || []).map((a) => (typeof a === 'string' ? a : a?.value));
+  if (acc.some((a) => a === '1' || a === 'description') && !parts.includes('Audiodescripción')) parts.push('Audiodescripción');
+  return parts.join(' · ');
+}
+
 export class DashEngine {
   /**
    * @param {HTMLVideoElement} video
@@ -44,8 +73,12 @@ export class DashEngine {
     return typeof dashjs !== 'undefined' && !!dashjs.MediaPlayer;
   }
 
-  /** Reproduce un canal. Solo admite contenido sin DRM o con ClearKey. */
-  async load(channel) {
+  /**
+   * Reproduce un canal. Solo admite contenido sin DRM o con ClearKey.
+   * @param {object} channel
+   * @param {{captions?:HTMLElement, audioLang?:string, textLang?:string, textOn?:boolean}} [opts]
+   */
+  async load(channel, opts = {}) {
     await this.destroy();
     const drm = channel.drm || { system: 'none' };
     if (drm.system === 'widevine' || drm.system === 'playready') {
@@ -59,6 +92,10 @@ export class DashEngine {
       debug: { logLevel: dashjs.Debug.LOG_LEVEL_WARNING },
       streaming: {
         buffer: { fastSwitchEnabled: true },
+        // Subtítulos desactivados salvo que el usuario los dejara activos;
+        // TTML se pinta en la capa propia; WebVTT con cues nativos (el renderizado
+        // propio de WebVTT en dash.js 5.3 detiene la reproducción).
+        text: { defaultEnabled: !!opts.textOn },
         retryAttempts: { MPD: 3, MediaSegment: 3, InitializationSegment: 3 }
       }
     });
@@ -90,13 +127,20 @@ export class DashEngine {
     }
 
     this.player = p;
-    p.initialize(this.video, channel.url, true);
+    // Primero la vista (los divs de subtítulos la necesitan) y después la fuente.
+    p.initialize(this.video, null, true);
+    if (opts.captions) {
+      p.attachTTMLRenderingDiv(opts.captions);
+    }
+    if (opts.audioLang) p.setInitialMediaSettingsFor('audio', { lang: langMatcher(opts.audioLang) });
+    if (opts.textLang) p.setInitialMediaSettingsFor('text', { lang: langMatcher(opts.textLang) });
     // Sin el módulo de protección, dash.js rechaza el contenido cifrado (error 24)
     // aunque las claves ya estén cargadas por EME. Capabilities se crea dentro de
     // initialize(), antes de cargar el manifiesto, así que se marca aquí como soportado.
     if (drm.system === 'clearkey') {
       dashjs.FactoryMaker.getSingletonInstance(context, 'Capabilities')?.setEncryptedMediaSupported(true);
     }
+    p.attachSource(channel.url);
   }
 
   // ---------- API de pistas común con el adaptador de Shaka ----------
@@ -141,12 +185,24 @@ export class DashEngine {
   audioTracks() {
     return this._safe((p) => {
       const cur = p.getCurrentTrackFor('audio');
-      return (p.getTracksFor('audio') || []).map((t, i) => ({
-        id: i,
-        lang: t.lang || '',
-        label: t.labels?.[0]?.text || '',
-        active: !!cur && cur.id === t.id && cur.index === t.index
-      }));
+      // El mismo idioma puede venir en varios códecs (AAC, Opus…): se muestra uno,
+      // el activo o, si no, el del mismo tipo que el actual para un cambio sin cortes.
+      const groups = new Map();
+      (p.getTracksFor('audio') || []).forEach((t, i) => {
+        const item = {
+          id: i,
+          lang: t.lang || '',
+          label: mediaLabel(t),
+          sub: audioSub(t),
+          active: !!cur && cur.id === t.id && cur.index === t.index,
+          sameType: !!cur && t.mimeType === cur.mimeType
+        };
+        const key = JSON.stringify([item.lang, item.label, item.sub]);
+        const prev = groups.get(key);
+        const score = (x) => (x.active ? 2 : 0) + (x.sameType ? 1 : 0);
+        if (!prev || score(item) > score(prev)) groups.set(key, item);
+      });
+      return [...groups.values()].sort((a, b) => a.id - b.id);
     }, []);
   }
 
@@ -157,12 +213,12 @@ export class DashEngine {
   textTracks() {
     return this._safe((p) => {
       const idx = p.isTextEnabled() ? p.getCurrentTextTrackIndex() : -1;
-      return (p.getTracksFor('text') || []).map((t, i) => ({
-        id: i,
-        lang: t.lang || '',
-        label: t.labels?.[0]?.text || '',
-        active: i === idx
-      }));
+      return (p.getTracksFor('text') || []).map((t, i) => {
+        const roles = roleValues(t);
+        const forced = roles.includes('forced-subtitle');
+        const sub = [forced && 'Forzados', (roles.includes('caption') || t.isEmbedded) && 'CC'].filter(Boolean).join(' · ');
+        return { id: i, lang: t.lang || '', label: mediaLabel(t), forced, sub, active: i === idx };
+      });
     }, []);
   }
 

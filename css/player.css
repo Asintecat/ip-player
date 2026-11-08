@@ -220,6 +220,42 @@ kbd {
 .player .surface { position: absolute; inset: 0; z-index: 1; }
 .player[data-idle="1"] { cursor: none; }
 
+/* Subtítulos: capa propia para ambos motores (Shaka UITextDisplayer y dash.js).
+   Sube cuando los controles están visibles para no quedar tapada. */
+.captions {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  container-type: size;
+  transform: translateY(0);
+  transition: transform 200ms var(--ease-out);
+}
+.player[data-ready="1"]:not([data-idle="1"]) .captions { transform: translateY(-64px); }
+.captions .shaka-text-container {
+  position: absolute;
+  inset: 0;
+  font-size: clamp(14px, 4.6cqh, 40px);
+  line-height: 1.35;
+  color: #fff;
+}
+.captions .shaka-text-container span.shaka-text-wrapper { display: inline; background: none; }
+.captions .shaka-text-container span:not(.shaka-text-wrapper) { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9); }
+/* WebVTT nativo (dash.js): mismo aspecto y también se aparta de los controles */
+.player video::cue {
+  font-family: var(--font);
+  font-size: clamp(14px, 4.4vmin, 40px);
+  line-height: 1.35;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.6);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+}
+.player video::-webkit-media-text-track-container {
+  transform: translateY(0);
+  transition: transform 200ms var(--ease-out);
+}
+.player[data-ready="1"]:not([data-idle="1"]) video::-webkit-media-text-track-container { transform: translateY(-64px); }
+
 /* Mensaje central (vacío / error) */
 .message {
   position: absolute;
@@ -363,6 +399,21 @@ kbd {
 .live-pill[data-edge="1"] { color: #fff; cursor: default; }
 .live-pill[data-edge="1"] .dot { background: var(--live); box-shadow: 0 0 0 3px rgba(255, 77, 79, 0.2); }
 .player[data-live="1"] .live-pill { display: inline-flex; }
+
+.ctl-cc { position: relative; }
+.ctl-cc::after {
+  content: '';
+  position: absolute;
+  left: 11px;
+  right: 11px;
+  bottom: 6px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transition: transform 160ms var(--ease-out);
+}
+.player[data-cc="1"] .ctl-cc::after { transform: scaleX(1); }
 
 .quality-chip {
   height: 26px;

@@ -2,7 +2,8 @@
 //
 // playlists: [{ id, name, source: 'url'|'text', url, text, updatedAt (ISO 8601) }]
 // favorites: [canal normalizado + { favId }]
-// state:     { playlistId, channelUrl, group }
+// state:     { playlistId, channelUrl, group, sidebarCollapsed }
+// prefs:     { audioLang, textLang, textOn } — idiomas preferidos para audio y subtítulos
 
 const area = chrome.storage.local;
 
@@ -23,6 +24,14 @@ export const getState = () => get('state', {});
 export async function patchState(patch) {
   const s = await getState();
   await set('state', { ...s, ...patch });
+}
+
+export const getPrefs = () => get('prefs', { audioLang: '', textLang: '', textOn: false });
+export async function patchPrefs(patch) {
+  const p = await getPrefs();
+  const next = { ...p, ...patch };
+  await set('prefs', next);
+  return next;
 }
 
 export function newId() {
