@@ -287,37 +287,45 @@ select option { background: var(--surface-2); }
 /* Cromado superior del reproductor (estilo Smart TV OSD) */
 .top-chrome {
   position: absolute;
-  inset: 0 0 auto;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  box-sizing: border-box;
   z-index: 3;
-  padding: 18px 22px 50px;
-  background: linear-gradient(rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0.4) 60%, transparent 100%);
+  padding: 20px 24px 64px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.78) 0%, rgba(0, 0, 0, 0.52) 35%, rgba(0, 0, 0, 0.22) 70%, rgba(0, 0, 0, 0.05) 90%, transparent 100%);
   pointer-events: none;
   opacity: 0;
   transform: translateY(-4px);
-  transition: opacity 200ms ease, transform 200ms ease;
+  transition: opacity 220ms ease, transform 220ms ease;
   display: flex;
   flex-direction: column;
   gap: 3px;
-  max-width: 85%;
 }
 .player[data-ready="1"]:not([data-idle="1"]) .top-chrome {
   opacity: 1;
   transform: translateY(0);
 }
+.app[data-mini="1"] .top-chrome {
+  display: none;
+}
 .top-title {
   font-size: 17px;
   font-weight: 700;
   color: #fff;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8), 0 2px 8px rgba(0, 0, 0, 0.6);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 2px 8px rgba(0, 0, 0, 0.7);
   letter-spacing: -0.01em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: min(80%, 720px);
 }
 .top-epg {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  max-width: min(80%, 720px);
 }
 .top-epg-row {
   display: flex;
@@ -325,7 +333,7 @@ select option { background: var(--surface-2); }
   gap: 8px;
   font-size: 13.5px;
   color: rgba(255, 255, 255, 0.95);
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -371,7 +379,7 @@ select option { background: var(--surface-2); }
 .top-epg-next {
   font-size: 11.5px;
   color: rgba(255, 255, 255, 0.75);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
