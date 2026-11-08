@@ -1822,3 +1822,14 @@ html[data-large="1"] .toast { zoom: 1.15; }
 
 .field small[data-kind="ok"] { color: var(--ok); }
 .field small[data-kind="warn"] { color: var(--warn); }
+
+/* Submenú de variantes de idioma (p. ej. Português → Portugal / Brasil) */
+.pop-sub-toggle .pop-caret { width: 14px; height: 14px; margin-left: auto; color: var(--muted); transition: transform 200ms var(--ease-out); }
+.pop-sub-toggle[aria-expanded="true"] .pop-caret { transform: rotate(90deg); }
+.pop-submenu { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 200ms var(--ease-out); }
+.pop-submenu[data-open="1"] { grid-template-rows: 1fr; }
+.pop-submenu-inner { min-height: 0; overflow: hidden; padding-left: 16px; opacity: 0; transition: opacity 160ms ease; }
+.pop-submenu[data-open="1"] .pop-submenu-inner { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .pop-submenu, .pop-submenu-inner, .pop-sub-toggle .pop-caret { transition: none; }
+}

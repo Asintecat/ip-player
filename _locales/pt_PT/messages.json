@@ -1,0 +1,5 @@
+{
+  "extName": { "message": "IP Player — M3U / DASH / HLS / Smooth Streaming" },
+  "extDescription": { "message": "Leitor de listas M3U compatível com DASH, HLS e Smooth Streaming (ISM), com DRM ClearKey, Widevine e servidores de licenças." },
+  "actionTitle": { "message": "Abrir o IP Player" }
+}

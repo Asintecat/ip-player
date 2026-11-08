@@ -20,6 +20,7 @@ Reproductor de listas M3U con soporte para **DASH**, **HLS** y **Smooth Streamin
 - **Reproductor arriba y canales en bloques debajo**: una fila por categoría (más Favoritos y Vistos recientemente), chips para filtrar por categoría, búsqueda y mini reproductor flotante al bajar por la página.
 - **Añadir** desde un único botón: canal (con lista y categoría en el mismo formulario), categoría, lista M3U (enlace, archivo o texto) o lista propia.
 - **Listas propias editables en la propia vista**: renombrar lista y categorías haciendo clic en el título, reordenar categorías, arrastrar canales entre categorías y menú ⋯ por canal (editar, mover, guardar en otra lista, eliminar).
+- **Idiomas**: castellano, inglés, catalán, euskera, francés y portugués (Portugal y Brasil, en un submenú). Cada idioma es un archivo `locales/<código>.json` con la forma `{ "texto en castellano": "traducción" }`; para añadir uno nuevo basta con crear su JSON y registrarlo en `LANGS` (`js/i18n.js`).
 
 ### Atajos de teclado
 

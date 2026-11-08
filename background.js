@@ -21,13 +21,18 @@ const MENU = {
   en: ['Play in IP Player', 'Load as M3U list in IP Player'],
   ca: ['Reprodueix a IP Player', 'Carrega com a llista M3U a IP Player'],
   eu: ['Erreproduzitu IP Player-en', 'Kargatu M3U zerrenda gisa IP Player-en'],
-  fr: ['Lire dans IP Player', 'Charger comme liste M3U dans IP Player']
+  fr: ['Lire dans IP Player', 'Charger comme liste M3U dans IP Player'],
+  'pt-PT': ['Reproduzir no IP Player', 'Carregar como lista M3U no IP Player'],
+  'pt-BR': ['Reproduzir no IP Player', 'Carregar como lista M3U no IP Player']
 };
 
 async function menuLang() {
   const { ui } = await chrome.storage.local.get('ui');
-  const code = ui?.lang || chrome.i18n.getUILanguage().toLowerCase().split('-')[0];
-  return MENU[code] ? code : 'en';
+  if (MENU[ui?.lang]) return ui.lang;
+  const browser = chrome.i18n.getUILanguage().toLowerCase();
+  if (browser.startsWith('pt')) return browser.includes('br') ? 'pt-BR' : 'pt-PT';
+  const base = browser.split('-')[0];
+  return MENU[base] ? base : 'en';
 }
 
 async function buildMenus() {

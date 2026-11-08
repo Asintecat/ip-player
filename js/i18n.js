@@ -1,39 +1,62 @@
-// Traducciones de la interfaz: castellano (original), inglés, catalán, euskera y francés.
+// Traducciones de la interfaz. El castellano es el idioma original: sus textos son
+// las claves. Cada otro idioma es un archivo locales/<código>.json con la forma
+// { "Texto en castellano": "Traducción" }; se descarga al elegirlo.
 //
 // t('Texto en castellano', { var }) devuelve la traducción del idioma activo; las
-// variables se escriben {var} dentro del texto. Las traducciones están en locales.js
-// con la clave en castellano: { 'Clave': [en, ca, eu, fr] }.
+// variables se escriben {var} dentro del texto. Si falta una clave, se usa el castellano.
 //
 // El HTML estático (textos y atributos placeholder, aria-label, data-tip, title,
 // data-kbd) se traduce con initI18n() al arrancar; translateStatic() lo repite al
 // cambiar de idioma sin recargar la página.
 
-import DICT from './locales.js';
-
+/** Idiomas del menú. Los que tienen variantes (dialectos) se muestran como submenú. */
 export const LANGS = [
-  ['es', 'Español'],
-  ['en', 'English'],
-  ['ca', 'Català'],
-  ['eu', 'Euskara'],
-  ['fr', 'Français']
+  { code: 'es', name: 'Español' },
+  { code: 'en', name: 'English' },
+  { code: 'ca', name: 'Català' },
+  { code: 'eu', name: 'Euskara' },
+  { code: 'fr', name: 'Français' },
+  {
+    name: 'Português',
+    variants: [
+      { code: 'pt-PT', name: 'Português (Portugal)', short: 'Portugal' },
+      { code: 'pt-BR', name: 'Português (Brasil)', short: 'Brasil' }
+    ]
+  }
 ];
-const COLUMN = { en: 0, ca: 1, eu: 2, fr: 3 };
+const CODES = LANGS.flatMap((l) => (l.variants ? l.variants.map((v) => v.code) : [l.code]));
 const ATTRS = ['placeholder', 'aria-label', 'data-tip', 'title', 'data-kbd'];
 
 let lang = 'es';
+let dict = {};
 let registry = null;
+const cache = new Map();
 
 /** Idioma del navegador si está disponible; si no, inglés. */
 export function detectLang() {
   for (const l of navigator.languages || [navigator.language || '']) {
-    const base = String(l).toLowerCase().split('-')[0];
-    if (LANGS.some(([code]) => code === base)) return base;
+    const code = String(l).toLowerCase();
+    if (code.startsWith('pt')) return code.includes('br') ? 'pt-BR' : 'pt-PT';
+    const base = code.split('-')[0];
+    if (CODES.includes(base)) return base;
   }
   return 'en';
 }
 
-export function setLang(code) {
-  lang = LANGS.some(([c]) => c === code) ? code : 'es';
+function loadDict(code) {
+  if (!cache.has(code)) {
+    cache.set(code, fetch(new URL(`../locales/${code}.json`, import.meta.url))
+      .then((r) => (r.ok ? r.json() : {}))
+      .catch(() => ({})));
+  }
+  return cache.get(code);
+}
+
+/** Cambia de idioma (descarga su JSON la primera vez). */
+export async function setLang(code) {
+  const next = CODES.includes(code) ? code : 'es';
+  dict = next === 'es' ? {} : await loadDict(next);
+  lang = next;
   document.documentElement.lang = lang;
 }
 
@@ -42,11 +65,7 @@ export const getLang = () => lang;
 export const locale = () => lang;
 
 export function t(key, vars) {
-  let s = key;
-  if (lang !== 'es') {
-    const row = DICT[key];
-    if (row && row[COLUMN[lang]]) s = row[COLUMN[lang]];
-  }
+  let s = dict[key] || key;
   if (vars) s = s.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m));
   return s;
 }

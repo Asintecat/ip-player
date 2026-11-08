@@ -882,14 +882,44 @@ function buildListMenu() {
 function buildLangMenu() {
   const menu = $('#langMenu');
   menu.replaceChildren();
-  for (const [code, name] of LANGS) {
-    menuItem(menu, { label: name, checked: getLang() === code, onClick: () => changeLang(code) });
+  for (const l of LANGS) {
+    if (!l.variants) {
+      menuItem(menu, { label: l.name, checked: getLang() === l.code, onClick: () => changeLang(l.code) });
+      continue;
+    }
+    // Idioma con variantes: una fila que despliega sus dialectos debajo.
+    const current = l.variants.find((v) => v.code === getLang());
+    const head = el('button', 'pop-item pop-sub-toggle');
+    head.type = 'button';
+    head.setAttribute('aria-expanded', String(!!current));
+    const text = el('span', 'pop-text');
+    text.appendChild(el('span', 'pop-label', l.name));
+    if (current) text.appendChild(el('span', 'pop-sub', current.short));
+    const caret = iconEl('i-next');
+    caret.classList.add('pop-caret');
+    head.append(el('span', 'pop-ico-space'), text, caret);
+    const sub = el('div', 'pop-submenu');
+    sub.dataset.open = current ? '1' : '';
+    const inner = el('div', 'pop-submenu-inner');
+    for (const v of l.variants) {
+      menuItem(inner, { label: v.short, checked: getLang() === v.code, onClick: () => changeLang(v.code) });
+    }
+    inner.inert = !current;
+    sub.appendChild(inner);
+    head.addEventListener('click', () => {
+      const open = sub.dataset.open !== '1';
+      sub.dataset.open = open ? '1' : '';
+      inner.inert = !open;
+      head.setAttribute('aria-expanded', String(open));
+      if (open) inner.querySelector('button')?.focus({ preventScroll: true });
+    });
+    menu.append(head, sub);
   }
 }
 
 /** Cambia el idioma de toda la interfaz sin recargar (la reproducción sigue). */
 async function changeLang(code) {
-  setLang(code);
+  await setLang(code);
   translateStatic();
   await applyUiPrefs({ lang: code });
   renderListPicker();
@@ -2274,7 +2304,8 @@ function bindEvents() {
     if (!pop) return;
     if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closePop({ refocus: true }); return; }
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-      const items = [...pop.menu.querySelectorAll('button:not([disabled])')];
+      // Sin las opciones de un submenú plegado.
+      const items = [...pop.menu.querySelectorAll('button:not([disabled])')].filter((b) => !b.closest('.pop-submenu:not([data-open="1"])'));
       if (!items.length) return;
       e.preventDefault();
       e.stopPropagation();
@@ -2471,7 +2502,7 @@ function bindEvents() {
 
 async function main() {
   // Idioma antes de pintar nada: el guardado o, si no hay, el del navegador.
-  setLang((await store.get('ui', {})).lang || detectLang());
+  await setLang((await store.get('ui', {})).lang || detectLang());
   initI18n();
   initTooltips();
   bindEvents();
