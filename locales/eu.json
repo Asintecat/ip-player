@@ -557,5 +557,7 @@
   "Añade una lista M3U o un receptor con el botón «Añadir».": "Gehitu M3U zerrenda bat edo hargailu bat «Gehitu» botoiarekin.",
   "Elige un canal en la lista de la izquierda.": "Aukeratu kanal bat ezkerreko zerrendan.",
   "Todas las categorías": "Kategoria guztiak",
-  "Todavía no tienes favoritos": "Oraindik ez duzu gogokorik"
+  "Todavía no tienes favoritos": "Oraindik ez duzu gogokorik",
+  "Plegar la lista": "Tolestu zerrenda",
+  "Desplegar la lista": "Zabaldu zerrenda"
 }

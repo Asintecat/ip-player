@@ -557,5 +557,7 @@
   "Añade una lista M3U o un receptor con el botón «Añadir».": "Add an M3U list or a receiver with the “Add” button.",
   "Elige un canal en la lista de la izquierda.": "Pick a channel from the list on the left.",
   "Todas las categorías": "All categories",
-  "Todavía no tienes favoritos": "You don't have favorites yet"
+  "Todavía no tienes favoritos": "You don't have favorites yet",
+  "Plegar la lista": "Collapse the list",
+  "Desplegar la lista": "Expand the list"
 }

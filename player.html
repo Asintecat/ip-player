@@ -87,9 +87,12 @@
     <!-- ============ Vista lateral: canales en una columna ============ -->
     <aside class="side" id="side" aria-label="Canales" hidden>
       <div class="side-head">
-        <div class="side-heading">
-          <div class="side-title" id="sideTitle"></div>
-          <div class="side-sub" id="sideSub"></div>
+        <div class="side-top">
+          <div class="side-heading">
+            <div class="side-title" id="sideTitle"></div>
+            <div class="side-sub" id="sideSub"></div>
+          </div>
+          <button class="icon-btn side-toggle" id="btnSideCollapse" type="button" data-tip="Plegar la lista" aria-label="Plegar la lista" aria-expanded="true" aria-controls="side"><svg><use href="#i-sidebar"/></svg></button>
         </div>
         <select id="sideGroup" aria-label="Categoría" data-tip="Filtrar por categoría"></select>
       </div>

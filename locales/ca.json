@@ -557,5 +557,7 @@
   "Añade una lista M3U o un receptor con el botón «Añadir».": "Afegeix una llista M3U o un receptor amb el botó «Afegeix».",
   "Elige un canal en la lista de la izquierda.": "Tria un canal a la llista de l'esquerra.",
   "Todas las categorías": "Totes les categories",
-  "Todavía no tienes favoritos": "Encara no tens preferits"
+  "Todavía no tienes favoritos": "Encara no tens preferits",
+  "Plegar la lista": "Plega la llista",
+  "Desplegar la lista": "Desplega la llista"
 }

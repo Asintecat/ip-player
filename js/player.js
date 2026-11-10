@@ -1278,6 +1278,26 @@ function refreshTodos() {
 const SIDE_CHUNK = 120; // filas por tanda (las listas pueden tener miles de canales)
 let sideObserver = null;
 let sideGroupSig = '';
+let layoutFrom = null;
+let sideCollapsed = false;
+
+/** Pliega la lista lateral a una columna de logos (o, en móvil, a una tira horizontal). */
+function setSideCollapsed(on) {
+  const changed = on !== sideCollapsed;
+  sideCollapsed = !!on;
+  $('#app').dataset.sideCollapsed = sideCollapsed ? '1' : '';
+  const btn = $('#btnSideCollapse');
+  btn.dataset.tip = sideCollapsed ? t('Desplegar la lista') : t('Plegar la lista');
+  btn.setAttribute('aria-label', btn.dataset.tip);
+  btn.setAttribute('aria-expanded', String(!sideCollapsed));
+  if (!changed || !isSide()) return;
+  // Etiquetas con el nombre del canal solo cuando no se ve el texto
+  for (const row of document.querySelectorAll('#sideList .side-row')) {
+    if (sideCollapsed) row.dataset.tip = row._ch.name;
+    else delete row.dataset.tip;
+  }
+  hideTooltip();
+}
 
 /** Cambia de vista. Las dos comparten reproductor, búsqueda, listas y guía. */
 function setLayout(name) {
@@ -1285,6 +1305,8 @@ function setLayout(name) {
   const changed = next !== layout;
   layout = next;
   const side = isSide();
+  // Las medidas de partida se toman antes de cambiar nada (ver más abajo).
+  if (changed) layoutFrom = $('#app').dataset.mini === '1' ? null : $('#playerWrap').getBoundingClientRect();
   $('#app').dataset.layout = next;
   $('#side').hidden = !side;
   const btn = $('#btnLayout');
@@ -1297,8 +1319,19 @@ function setLayout(name) {
   }
   if (!changed) return;
   if (state.view === 'epg' && side) toggleEpgView(false);
+  const pw = $('#playerWrap');
+  const from = layoutFrom;
+  layoutFrom = null;
   syncMini();
-  renderBrowse({ preserve: true });
+  renderBrowseNow({ preserve: true });
+  flipPlay(new Map());
+  const to = pw.getBoundingClientRect();
+  if (from?.width && to.width && !reduceMotion()) {
+    pw.animate(
+      [{ transformOrigin: '0 0', transform: `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${from.width / to.width})` }, { transformOrigin: '0 0', transform: 'none' }],
+      { duration: 520, easing: FLIP_EASE }
+    );
+  }
   if (side && !state.current) showIdle();
   if (!side && !state.current) hideOverlay();
   if (side) requestAnimationFrame(() => $('#sideList .side-row.playing')?.scrollIntoView({ block: 'center' }));
@@ -1384,6 +1417,7 @@ function sideRow(c, playingKey) {
   row.classList.toggle('playing', playing);
   row.setAttribute('aria-selected', String(playing));
   row.style.setProperty('--h', String(hueOf(c.name)));
+  if (sideCollapsed) row.dataset.tip = c.name;
 
   const text = el('span', 'side-text');
   const top = el('span', 'side-line');
@@ -1468,7 +1502,71 @@ function bindSide() {
 
 let gridObserver = null;
 
-function renderBrowse({ animate = false, preserve = false } = {}) {
+// ---------- Animación FLIP: cada caja se desliza hasta su sitio nuevo ----------
+// Se mide dónde está cada tarjeta, se pinta la vista nueva y se anima cada una
+// desde su posición anterior (First, Last, Invert, Play). Las nuevas aparecen en su sitio.
+
+const FLIP_MS = 440;
+const FLIP_EASE = 'cubic-bezier(0.2, 0.9, 0.25, 1)';
+const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+const FLIP_SEL = '#browseBody .card[data-key], #browseBody .card-ghost, #browseBody .card-more-tile, #browseBody .block-head, #sideList .side-row';
+
+function flipKey(node) {
+  if (node.classList.contains('block-head')) return `h:${node.closest('.block')?.dataset.block || ''}`;
+  if (node.classList.contains('card-ghost') || node.classList.contains('card-more-tile')) return `t:${node.closest('.block')?.dataset.block || ''}:${node.className}`;
+  return `${node.classList.contains('side-row') ? 's' : 'c'}:${node.dataset.key}`;
+}
+
+/** Posiciones en pantalla (solo lo visible: con miles de canales no se mide todo). */
+function flipSnapshot() {
+  const map = new Map();
+  if (reduceMotion()) return map;
+  const vh = innerHeight;
+  for (const node of document.querySelectorAll(FLIP_SEL)) {
+    const r = node.getBoundingClientRect();
+    if (!r.width || r.bottom < -80 || r.top > vh + 80) continue;
+    const k = flipKey(node);
+    if (!map.has(k)) map.set(k, []);
+    map.get(k).push(r);
+  }
+  return map;
+}
+
+function flipPlay(before) {
+  if (!before || reduceMotion()) return;
+  const vh = innerHeight;
+  const vw = innerWidth;
+  let entering = 0;
+  for (const node of document.querySelectorAll(FLIP_SEL)) {
+    const r = node.getBoundingClientRect();
+    if (!r.width || r.bottom < 0 || r.top > vh || r.right < 0 || r.left > vw) continue;
+    const old = before.get(flipKey(node))?.shift();
+    if (old) {
+      const dx = old.left - r.left;
+      const dy = old.top - r.top;
+      const sx = old.width / r.width;
+      const sy = old.height / r.height;
+      if (Math.abs(dx) < 1 && Math.abs(dy) < 1 && Math.abs(sx - 1) < 0.01 && Math.abs(sy - 1) < 0.01) continue;
+      node.animate(
+        [{ transformOrigin: '0 0', transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})` }, { transformOrigin: '0 0', transform: 'none' }],
+        { duration: FLIP_MS, easing: FLIP_EASE }
+      );
+    } else {
+      node.animate(
+        [{ opacity: 0, transform: 'scale(0.94)' }, { opacity: 1, transform: 'none' }],
+        { duration: 280, delay: Math.min(entering++, 14) * 16, easing: 'cubic-bezier(0.23, 1, 0.32, 1)', fill: 'backwards' }
+      );
+    }
+  }
+}
+
+function renderBrowse(opts = {}) {
+  const before = opts.animate || isSide() ? flipSnapshot() : null;
+  renderBrowseNow(opts);
+  if (before) flipPlay(before);
+}
+
+function renderBrowseNow({ animate = false, preserve = false } = {}) {
   computeFiltered();
   const body = $('#browseBody');
   const scrolls = preserve ? new Map([...body.querySelectorAll('.block')].map((b) => [b.dataset.block, b.querySelector('.row')?.scrollLeft || 0])) : null;
@@ -3447,6 +3545,7 @@ function openHelp() {
 async function applyUiPrefs(patch) {
   const ui = { largeText: false, tips: true, beginner: false, layout: 'blocks', ...(await store.get('ui', {})), ...(patch || {}) };
   if (patch) await store.set('ui', ui);
+  setSideCollapsed(!!ui.sideCollapsed);
   setLayout(ui.layout);
   document.documentElement.dataset.large = ui.largeText ? '1' : '';
   beginner = !!ui.beginner;
@@ -3716,6 +3815,7 @@ function bindEvents() {
     b.addEventListener('click', () => applyUiPrefs({ layout: b.dataset.layout }));
   }
   bindSide();
+  $('#btnSideCollapse').addEventListener('click', () => applyUiPrefs({ sideCollapsed: !sideCollapsed }));
   $('#optTips').addEventListener('change', (e) => applyUiPrefs({ tips: e.target.checked }));
   $('#optBeginner').addEventListener('change', (e) => applyUiPrefs({ beginner: e.target.checked }));
   // Proxy general
