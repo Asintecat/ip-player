@@ -13,7 +13,7 @@ import { DashEngine } from './dash-engine.js';
 import { HlsEngine } from './hls-engine.js';
 import { TsEngine } from './ts-engine.js';
 import { catchupInfo, canCatchup, catchupUrl } from './catchup.js';
-import { applyTheme, resolveTheme } from './themes.js';
+import { applyTheme, resolveTheme, defaultFace } from './themes.js';
 import { parseBoxAddress, aboutBox, buildBoxPlaylist, fetchBoxEpg, listBouquets } from './openwebif.js';
 import { Controls, langName } from './controls.js';
 import { initTooltips, setTooltipsEnabled, hideTooltip } from './tooltip.js';
@@ -3765,10 +3765,11 @@ async function faceDataUrl(file) {
 
 function renderFaceSlots() {
   for (const slot of document.querySelectorAll('#optFacesWrap .face-slot')) {
-    const url = uiTheme.faces[slot.dataset.face] || '';
-    slot.querySelector('.face-img').style.backgroundImage = url ? `url("${url}")` : '';
-    slot.classList.toggle('has', !!url);
-    slot.querySelector('.face-del').hidden = !url;
+    const own = uiTheme.faces[slot.dataset.face] || '';
+    const url = own || defaultFace(slot.dataset.face);
+    slot.querySelector('.face-img').style.backgroundImage = `url("${url}")`;
+    slot.classList.add('has');
+    slot.querySelector('.face-del').hidden = !own;
   }
 }
 

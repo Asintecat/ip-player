@@ -592,5 +592,6 @@
   "Quitar": "Remover",
   "Usa fotos que tengas derecho a usar. Se recortan en círculo y se guardan solo en este navegador.": "Use fotos que tenha direito a usar. São recortadas em círculo e guardadas apenas neste navegador.",
   "Elige una imagen.": "Escolha uma imagem.",
-  "No se pudo leer la imagen.": "Não foi possível ler a imagem."
+  "No se pudo leer la imagen.": "Não foi possível ler a imagem.",
+  "Por defecto salen fotos de Wikimedia Commons (créditos en assets/29n/CREDITOS.md). Pulsa una cara para cambiarla por otra foto que tengas derecho a usar: se recorta en círculo y se guarda solo en este navegador.": "Por omissão aparecem fotos do Wikimedia Commons (créditos em assets/29n/CREDITOS.md). Toque numa cara para a trocar por outra foto que tenha direito a usar: é recortada em círculo e guardada apenas neste navegador."
 }

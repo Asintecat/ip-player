@@ -592,5 +592,6 @@
   "Quitar": "Kendu",
   "Usa fotos que tengas derecho a usar. Se recortan en círculo y se guardan solo en este navegador.": "Erabili erabiltzeko eskubidea duzun argazkiak. Zirkuluan mozten dira eta nabigatzaile honetan bakarrik gordetzen dira.",
   "Elige una imagen.": "Aukeratu irudi bat.",
-  "No se pudo leer la imagen.": "Ezin izan da irudia irakurri."
+  "No se pudo leer la imagen.": "Ezin izan da irudia irakurri.",
+  "Por defecto salen fotos de Wikimedia Commons (créditos en assets/29n/CREDITOS.md). Pulsa una cara para cambiarla por otra foto que tengas derecho a usar: se recorta en círculo y se guarda solo en este navegador.": "Lehenespenez Wikimedia Commons-eko argazkiak agertzen dira (kredituak: assets/29n/CREDITOS.md). Sakatu aurpegi bat erabiltzeko eskubidea duzun beste argazki batekin ordezteko: zirkuluan mozten da eta nabigatzaile honetan bakarrik gordetzen da."
 }

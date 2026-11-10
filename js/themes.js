@@ -133,6 +133,12 @@ function stopSnow() {
 // Caras: fotos que sube el usuario en Opciones (se guardan solo en su navegador).
 // Sin foto, se dibuja un muñeco con pelo, gafas o barba de dibujo.
 export const FACES = ['abalos', 'koldo', 'cerdan'];
+
+/** Foto incluida (Wikimedia Commons, ver assets/29n/CREDITOS.md); la que suba el usuario tiene prioridad. */
+export function defaultFace(face) {
+  const path = `assets/29n/${face}.jpg`;
+  return typeof chrome !== 'undefined' && chrome.runtime?.getURL ? chrome.runtime.getURL(path) : path;
+}
 const QUOTES = ['Soy feminista porque soy socialista', '¡Amar no es delito!'];
 let bubbleTimer = 0;
 
@@ -160,6 +166,7 @@ function head(cx, style, photo) {
 }
 
 function mount29n(opts) {
+  opts = { ...opts, faces: Object.fromEntries(FACES.map((f) => [f, opts.faces?.[f] || defaultFace(f)])) };
   // Banda con mensaje (se puede cerrar)
   const banner = document.createElement('div');
   banner.className = 'n29-banner';

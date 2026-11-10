@@ -3134,7 +3134,7 @@ html[data-large="1"] .toast { zoom: 1.15; }
   left: 0;
   bottom: 14px;
   z-index: 70;
-  width: 260px;
+  width: 340px;
   padding: 0;
   border: 0;
   background: none;
@@ -3168,7 +3168,7 @@ html[data-large="1"] .toast { zoom: 1.15; }
 @keyframes n29-spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 640px) {
-  .n29-car { width: 150px; }
+  .n29-car { width: 220px; }
   .n29-banner { top: calc(var(--topbar-h) + 56px); font-size: 12px; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -3180,7 +3180,7 @@ html[data-large="1"] .toast { zoom: 1.15; }
 .n29-bubble {
   position: absolute;
   left: 4px;
-  bottom: calc(100% - 4px);
+  bottom: calc(100% + 6px);
   max-width: 190px;
   padding: 7px 10px;
   border-radius: 12px;
@@ -3196,7 +3196,7 @@ html[data-large="1"] .toast { zoom: 1.15; }
 .n29-bubble::after {
   content: "";
   position: absolute;
-  left: 76px;
+  left: 96px;
   bottom: -7px;
   border: 7px solid transparent;
   border-bottom: 0;

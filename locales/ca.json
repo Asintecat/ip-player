@@ -592,5 +592,6 @@
   "Quitar": "Treu",
   "Usa fotos que tengas derecho a usar. Se recortan en círculo y se guardan solo en este navegador.": "Fes servir fotos que tinguis dret a fer servir. Es retallen en cercle i es desen només en aquest navegador.",
   "Elige una imagen.": "Tria una imatge.",
-  "No se pudo leer la imagen.": "No s'ha pogut llegir la imatge."
+  "No se pudo leer la imagen.": "No s'ha pogut llegir la imatge.",
+  "Por defecto salen fotos de Wikimedia Commons (créditos en assets/29n/CREDITOS.md). Pulsa una cara para cambiarla por otra foto que tengas derecho a usar: se recorta en círculo y se guarda solo en este navegador.": "Per defecte surten fotos de Wikimedia Commons (crèdits a assets/29n/CREDITOS.md). Prem una cara per canviar-la per una altra foto que tinguis dret a fer servir: es retalla en cercle i es desa només en aquest navegador."
 }
