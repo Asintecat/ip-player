@@ -3748,7 +3748,7 @@ function openHelp() {
 // Tema de temporada (ver themes.js); se revisa también al cambiar de día.
 let uiTheme = { theme: 'auto', snow: true, faces: {} };
 function syncTheme() {
-  applyTheme(resolveTheme(uiTheme.theme), { snow: uiTheme.snow, faces: uiTheme.faces, onHonk: () => toast(t('¡Mec, mec! Todos al Peugeot.')) });
+  applyTheme(resolveTheme(uiTheme.theme), { snow: uiTheme.snow, faces: uiTheme.faces, onHonk: (msg) => toast(msg || t('¡Mec, mec! Todos al Peugeot.')) });
 }
 
 /** Foto → cuadrado de 160 px recortado al centro, en JPEG (data: URL pequeña para guardarla). */

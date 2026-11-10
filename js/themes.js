@@ -39,7 +39,7 @@ export function applyTheme(name, opts = {}) {
   current = key;
   document.documentElement.dataset.season = name || '';
   stopSnow();
-  clearInterval(bubbleTimer);
+  stop29n();
   for (const n of document.querySelectorAll('[data-season-deco]')) n.remove();
   if (name === 'xmas') mountXmas(opts);
   if (name === '29n') mount29n(opts);
@@ -139,8 +139,42 @@ export function defaultFace(face) {
   const path = `assets/29n/${face}.jpg`;
   return typeof chrome !== 'undefined' && chrome.runtime?.getURL ? chrome.runtime.getURL(path) : path;
 }
-const QUOTES = ['Soy feminista porque soy socialista', '¡Amar no es delito!'];
-let bubbleTimer = 0;
+// Humor del 29-N (en castellano en todos los idiomas: son chistes de aquí)
+const HEAD_X = { abalos: '30.7%', koldo: '50%', cerdan: '69.3%' }; // centro de cada cabeza
+const QUOTES = [
+  ['abalos', 'Soy feminista porque soy socialista'],
+  ['koldo', '¿Quién ha pedido chistorra?'],
+  ['abalos', '¡Amar no es delito!'],
+  ['cerdan', 'Yo a estos no los conozco de nada'],
+  ['koldo', 'Tranquilos, que conduzco yo'],
+  ['cerdan', '¿Este coche lleva GPS? Por nada…'],
+  ['abalos', 'Koldo, ¿has cogido las mascarillas?'],
+  ['koldo', 'Jefe, nos sigue un coche verde…']
+];
+const HONKS = [
+  '¡Mec, mec! Todos al Peugeot.',
+  'Esto no es lo que parece.',
+  'Gasolina pagada en chistorras.',
+  '¿Alguien ha mirado por el retrovisor?',
+  'Próxima parada: Pamplona.',
+  'Koldo, ¡el intermitente!',
+  'Aquí no ha pasado nada, circulen.'
+];
+const HEADLINES = [
+  'ÚLTIMA HORA: la chistorra se dispara en los mercados',
+  'Se venden mascarillas, poco uso, precio a convenir',
+  'La DGT recuerda que en un Peugeot 407 caben cinco, no una banda',
+  'Koldo renueva el carnet de conducir: «por si acaso»',
+  'Encuesta: 9 de cada 10 Peugeot prefieren viajar sin pasajeros',
+  'La UCO pide a los ciudadanos que no adelanten al Peugeot azul'
+];
+let timers = [];
+
+function stop29n() {
+  for (const id of timers) clearInterval(id);
+  timers = [];
+  delete document.documentElement.dataset.turbo;
+}
 
 /** Cabeza: la foto en un círculo (muñeco cabezón) o el muñeco dibujado. */
 function head(cx, style, photo) {
@@ -173,7 +207,16 @@ function mount29n(opts) {
   banner.dataset.seasonDeco = '';
   banner.setAttribute('role', 'note');
   const text = document.createElement('span');
-  text.textContent = t('Especial 29-N: la banda del Peugeot vuelve a la carretera. Abróchense los cinturones.');
+  const headlines = [t('Especial 29-N: la banda del Peugeot vuelve a la carretera. Abróchense los cinturones.'), ...HEADLINES];
+  let h = 0;
+  text.textContent = headlines[0];
+  timers.push(setInterval(() => {
+    h = (h + 1) % headlines.length;
+    text.classList.remove('is-new');
+    void text.offsetWidth;
+    text.textContent = headlines[h];
+    text.classList.add('is-new');
+  }, 5000));
   const close = document.createElement('button');
   close.type = 'button';
   close.className = 'n29-close';
@@ -210,19 +253,83 @@ function mount29n(opts) {
   for (const img of car.querySelectorAll('image[data-face]')) {
     img.setAttribute('href', opts.faces[img.dataset.face]);
   }
-  // Bocadillo de Ábalos (citas de broma, se alternan)
+  // Bocadillos: hablan los tres por turnos
   const bubble = document.createElement('span');
   bubble.className = 'n29-bubble';
   let q = 0;
-  bubble.textContent = QUOTES[0];
-  bubbleTimer = setInterval(() => {
-    q = (q + 1) % QUOTES.length;
+  const say = () => {
+    const [who, line] = QUOTES[q];
     bubble.classList.remove('is-new');
     void bubble.offsetWidth; // reinicia la animación
-    bubble.textContent = QUOTES[q];
+    bubble.style.setProperty('--x', HEAD_X[who]);
+    bubble.textContent = line;
     bubble.classList.add('is-new');
-  }, 4000);
+  };
+  say();
+  timers.push(setInterval(() => { q = (q + 1) % QUOTES.length; say(); }, 3800));
   car.appendChild(bubble);
-  car.addEventListener('click', () => opts.onHonk?.());
+
+  const uco = document.createElement('div');
+  // Claxon: una frase distinta cada vez; 5 toques seguidos = modo turbo
+  let clicks = [];
+  let honk = 0;
+  car.addEventListener('click', () => {
+    const now = Date.now();
+    clicks = [...clicks.filter((c) => now - c < 2500), now];
+    if (clicks.length >= 5) {
+      clicks = [];
+      // Acelera sin saltos: se cambia la velocidad de la animación, no su duración
+      const drives = [car, uco].flatMap((n) => n.getAnimations().filter((x) => x.animationName === 'n29-drive'));
+      for (const x of drives) x.updatePlaybackRate(3.5);
+      document.documentElement.dataset.turbo = '1';
+      setTimeout(() => {
+        for (const x of drives) x.updatePlaybackRate(1);
+        delete document.documentElement.dataset.turbo;
+      }, 12000);
+      opts.onHonk?.('¡MODO TURBO! Que viene la UCO 🚨');
+      return;
+    }
+    opts.onHonk?.(HONKS[honk++ % HONKS.length]);
+  });
   document.body.appendChild(car);
+
+  // Les persigue la UCO
+  uco.className = 'n29-uco';
+  uco.dataset.seasonDeco = '';
+  uco.setAttribute('aria-hidden', 'true');
+  uco.innerHTML = `
+    <svg viewBox="0 0 220 100">
+      <rect x="92" y="18" width="36" height="10" rx="4" fill="#1f2937"/>
+      <rect class="n29-siren a" x="94" y="12" width="15" height="10" rx="4" fill="#3b82f6"/>
+      <rect class="n29-siren b" x="111" y="12" width="15" height="10" rx="4" fill="#ef4444"/>
+      <path d="M26 62q6-24 34-26h86q26 2 44 26l14 4q8 2 8 10v8H14v-8q0-10 12-12z" fill="#f4f4f5"/>
+      <path d="M14 70h196v10H14z" fill="#15803d"/>
+      <path d="M52 62l11-20h40v20zM110 62V42h40q16 3 28 20z" fill="#bfdbfe" opacity=".5"/>
+      <text x="110" y="78" text-anchor="middle" font-size="11" font-weight="800" fill="#fff" font-family="system-ui, sans-serif">GUARDIA CIVIL · UCO</text>
+      <g transform="translate(58 86)"><g class="n29-wheel"><circle r="13" fill="#18181b"/><circle r="5.5" fill="#a1a1aa"/><path d="M-5 0h10M0-5v10" stroke="#52525b" stroke-width="2"/></g></g>
+      <g transform="translate(170 86)"><g class="n29-wheel"><circle r="13" fill="#18181b"/><circle r="5.5" fill="#a1a1aa"/><path d="M-5 0h10M0-5v10" stroke="#52525b" stroke-width="2"/></g></g>
+    </svg>`;
+  document.body.appendChild(uco);
+
+  // Por la ventanilla salen volando chistorras, mascarillas y algún sobre
+  if (!reduceMotion()) {
+    const loot = ['🌭', '😷', '🌭', '😷', '✉️'];
+    let n = 0;
+    timers.push(setInterval(() => {
+      if (document.hidden) return;
+      const r = car.getBoundingClientRect();
+      if (r.right < 0 || r.left > innerWidth) return;
+      const item = document.createElement('span');
+      item.className = 'n29-loot';
+      item.dataset.seasonDeco = '';
+      item.setAttribute('aria-hidden', 'true');
+      item.textContent = loot[n++ % loot.length];
+      item.style.left = `${r.left + r.width * (0.25 + Math.random() * 0.4)}px`;
+      item.style.top = `${r.top + r.height * 0.3}px`;
+      item.style.setProperty('--dx', `${-40 - Math.random() * 80}px`);
+      item.style.setProperty('--rot', `${(Math.random() - 0.5) * 720}deg`);
+      item.addEventListener('animationend', () => item.remove());
+      document.body.appendChild(item);
+    }, 700));
+  }
 }
