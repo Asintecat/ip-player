@@ -18,7 +18,7 @@ import { initTooltips, setTooltipsEnabled, hideTooltip } from './tooltip.js';
 import { startTour, isTourOpen } from './tour.js';
 import { cleanChannel, groupsOf, parseLibraryJSON, exportList } from './library.js';
 import { t, getLang, setLang, detectLang, LANGS, initI18n, translateStatic, locale } from './i18n.js';
-import { enhanceSelects, refreshSelects } from './select.js';
+import { enhanceSelect, enhanceSelects, refreshSelects } from './select.js';
 import { parseProxy, setProxy, ensureUrl, clearProxy, describeProxy, proxyControl, isProxyAvailable, activeProxy } from './proxy.js';
 import {
   loadCachedEpg, loadEpgFromUrl, loadEpgFromFile, clearEpg,
@@ -63,6 +63,9 @@ const ALT_ENGINES = () => ({ dashjs: dashEngine, hlsjs: hlsEngine, mpegts: tsEng
 const activeAdapter = () => ALT_ENGINES()[engine] || shakaAdapter;
 // Idiomas preferidos (se recuerdan entre canales y sesiones).
 let prefs = { audioLang: '', textLang: '', textOn: false };
+// Vista: 'blocks' (portada por bloques) o 'side' (canales en una columna lateral).
+let layout = 'blocks';
+const isSide = () => layout === 'side';
 const browserLang = (navigator.language || 'es').split('-')[0];
 const MSS_LIVE_NOT_SUPPORTED = 4047;
 const HLS_ENCRYPTED_TS = 4040;
@@ -392,6 +395,7 @@ async function stopPlayback() {
   renderNowPlaying();
   markPlaying();
   setStatus('');
+  if (isSide()) showIdle();
   syncMini();
   store.patchState({ channelUrl: '' });
 }
@@ -950,9 +954,16 @@ function renderNowPlaying() {
 
 /** Marca la tarjeta del canal en reproducción sin volver a pintar la cuadrícula. */
 function markPlaying() {
-  for (const c of document.querySelectorAll('.card.playing')) c.classList.remove('playing');
+  for (const c of document.querySelectorAll('.card.playing, .side-row.playing')) {
+    c.classList.remove('playing');
+    if (c.classList.contains('side-row')) c.setAttribute('aria-selected', 'false');
+  }
   if (!state.current) return;
-  for (const c of document.querySelectorAll(`.card[data-key="${CSS.escape(favKey(state.current))}"]`)) c.classList.add('playing');
+  const key = CSS.escape(favKey(state.current));
+  for (const c of document.querySelectorAll(`.card[data-key="${key}"], .side-row[data-key="${key}"]`)) {
+    c.classList.add('playing');
+    if (c.classList.contains('side-row')) c.setAttribute('aria-selected', 'true');
+  }
 }
 
 function step(delta) {
@@ -1262,6 +1273,197 @@ function refreshTodos() {
   if ($('#catDialog')?.open) catTodo();
 }
 
+// ---------- Vista lateral: canales en una columna ----------
+
+const SIDE_CHUNK = 120; // filas por tanda (las listas pueden tener miles de canales)
+let sideObserver = null;
+let sideGroupSig = '';
+
+/** Cambia de vista. Las dos comparten reproductor, búsqueda, listas y guía. */
+function setLayout(name) {
+  const next = name === 'side' ? 'side' : 'blocks';
+  const changed = next !== layout;
+  layout = next;
+  const side = isSide();
+  $('#app').dataset.layout = next;
+  $('#side').hidden = !side;
+  const btn = $('#btnLayout');
+  btn.querySelector('use').setAttribute('href', side ? '#i-grid' : '#i-sidebar');
+  btn.dataset.tip = side ? t('Vista de bloques') : t('Vista con lista lateral');
+  btn.setAttribute('aria-label', btn.dataset.tip);
+  btn.setAttribute('aria-pressed', String(side));
+  for (const b of document.querySelectorAll('#layoutPick [data-layout]')) {
+    b.setAttribute('aria-checked', String(b.dataset.layout === next));
+  }
+  if (!changed) return;
+  if (state.view === 'epg' && side) toggleEpgView(false);
+  syncMini();
+  renderBrowse({ preserve: true });
+  if (side && !state.current) showIdle();
+  if (!side && !state.current) hideOverlay();
+  if (side) requestAnimationFrame(() => $('#sideList .side-row.playing')?.scrollIntoView({ block: 'center' }));
+}
+
+/** Mensaje del reproductor vacío en la vista lateral. */
+function showIdle() {
+  const none = !state.playlists.length && !state.favorites.length;
+  showOverlay(t('Selecciona un canal'), none
+    ? t('Añade una lista M3U o un receptor con el botón «Añadir».')
+    : t('Elige un canal en la lista de la izquierda.'));
+}
+
+function renderSide() {
+  const pl = activeList();
+  $('#sideTitle').textContent = state.activeId === FAV_ID ? t('Favoritos') : (pl?.name || '');
+
+  // Categorías en un desplegable (se rehace solo si cambian)
+  const names = groupNames();
+  const sel = $('#sideGroup');
+  const sig = `${getLang()}|${state.activeId}|${state.channels.length}|${names.join('\u0001')}`;
+  if (sig !== sideGroupSig) {
+    sideGroupSig = sig;
+    const opts = [new Option(`${t('Todas las categorías')} · ${state.channels.length}`, '')];
+    for (const g of names) opts.push(new Option(`${groupLabel(g)} · ${buckets().get(g)?.length || 0}`, g));
+    sel.replaceChildren(...opts);
+  }
+  sel.value = names.includes(state.group) ? state.group : '';
+  (sel._custom?.button || sel).hidden = names.length < 2;
+
+  const q = state.query.trim();
+  $('#sideSub').textContent = q
+    ? t('Resultados ({n})', { n: state.filtered.length })
+    : t('{n} canales', { n: state.filtered.length });
+
+  const list = $('#sideList');
+  sideObserver?.disconnect();
+  sideObserver = null;
+  list.replaceChildren();
+  list.scrollTop = 0;
+  const items = state.filtered;
+  const empty = $('#sideEmpty');
+  empty.hidden = items.length > 0;
+  if (!items.length) {
+    empty.replaceChildren(
+      el('div', 'side-empty-title', q ? t('Sin resultados para «{q}»', { q }) : state.activeId === FAV_ID ? t('Todavía no tienes favoritos') : t('Esta lista no tiene canales')),
+      el('div', 'side-empty-text', q ? t('Prueba con otro nombre o revisa la ortografía.') : t('Añade una lista M3U o un receptor con el botón «Añadir».'))
+    );
+    return;
+  }
+  const playingKey = state.current ? favKey(state.current) : '';
+  let done = 0;
+  const more = () => {
+    const frag = document.createDocumentFragment();
+    const end = Math.min(items.length, done + SIDE_CHUNK);
+    for (let i = done; i < end; i++) frag.appendChild(sideRow(items[i], playingKey));
+    done = end;
+    list.querySelector('.side-sentinel')?.remove();
+    list.appendChild(frag);
+    if (done < items.length) {
+      const sentinel = el('div', 'side-sentinel');
+      list.appendChild(sentinel);
+      sideObserver ??= new IntersectionObserver((entries) => { if (entries.some((e) => e.isIntersecting)) more(); }, { root: list, rootMargin: '600px 0px' });
+      sideObserver.observe(sentinel);
+    }
+  };
+  more();
+  // Si el canal en reproducción está más abajo, se cargan filas hasta llegar a él.
+  const idx = playingKey ? items.findIndex((c) => favKey(c) === playingKey) : -1;
+  while (idx >= done && done < items.length) more();
+  const focusRow = list.querySelector('.side-row.playing') || list.querySelector('.side-row');
+  if (focusRow) focusRow.tabIndex = 0;
+}
+
+function sideRow(c, playingKey) {
+  const row = el('button', 'side-row');
+  row.type = 'button';
+  row.setAttribute('role', 'option');
+  row.tabIndex = -1;
+  row.dataset.key = favKey(c);
+  row._ch = c;
+  const playing = row.dataset.key === playingKey;
+  row.classList.toggle('playing', playing);
+  row.setAttribute('aria-selected', String(playing));
+  row.style.setProperty('--h', String(hueOf(c.name)));
+
+  const text = el('span', 'side-text');
+  const top = el('span', 'side-line');
+  top.appendChild(el('span', 'side-name', c.name));
+  if (isFav(c)) {
+    const star = iconEl('i-star');
+    star.classList.add('side-fav');
+    top.appendChild(star);
+  }
+  text.append(top, el('span', 'side-epg'));
+  row.append(logoEl('side-logo', c), text);
+  if (c.chno) row.appendChild(el('span', 'side-chno', c.chno));
+  fillSideEpg(row);
+
+  row.addEventListener('click', () => play(c));
+  row.addEventListener('contextmenu', (e) => { e.preventDefault(); openCardMenu(c, { point: { x: e.clientX, y: e.clientY } }); });
+  return row;
+}
+
+/** Programa en curso y barra de progreso de una fila (o, sin guía, el grupo y el tipo). */
+function fillSideEpg(row) {
+  const c = row._ch;
+  const box = row.querySelector('.side-epg');
+  const info = hasEpg() ? getNowAndNext(c) : null;
+  if (info?.now?.title) {
+    box.className = 'side-epg has-now';
+    box.title = `${info.now.title} (${formatTime(new Date(info.now.start))} - ${formatTime(new Date(info.now.stop))})`;
+    const bar = el('span', 'side-bar');
+    const fill = el('span', 'side-fill');
+    fill.style.width = `${info.progress}%`;
+    bar.appendChild(fill);
+    box.replaceChildren(el('span', 'side-prog', info.now.title), bar);
+    return;
+  }
+  box.className = 'side-epg';
+  box.removeAttribute('title');
+  const type = detectType(c.url, c.type);
+  const meta = [state.group ? '' : c.group, type !== 'auto' ? typeLabel(type) : ''].filter(Boolean).join(' · ');
+  box.replaceChildren(el('span', 'side-meta', meta || t('Stream')));
+}
+
+function refreshSideEpg() {
+  if (!hasEpg()) return;
+  for (const row of document.querySelectorAll('#sideList .side-row')) fillSideEpg(row);
+}
+
+function bindSide() {
+  enhanceSelect($('#sideGroup'));
+  $('#sideGroup').addEventListener('change', (e) => {
+    state.group = e.target.value;
+    if (state.query) { state.query = ''; $('#search').value = ''; }
+    renderBrowse();
+    store.patchState({ group: state.group });
+  });
+  // Teclado: flechas para moverse, Inicio/Fin; Intro reproduce (lo hace el botón).
+  $('#sideList').addEventListener('keydown', (e) => {
+    const row = e.target.closest('.side-row');
+    if (!row) return;
+    const rows = () => [...$('#sideList').querySelectorAll('.side-row')];
+    let next = null;
+    if (e.key === 'ArrowDown') next = row.nextElementSibling?.classList.contains('side-row') ? row.nextElementSibling : null;
+    else if (e.key === 'ArrowUp') next = row.previousElementSibling || null;
+    else if (e.key === 'Home') next = rows()[0];
+    else if (e.key === 'End') next = rows().at(-1);
+    else if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
+      e.preventDefault();
+      openCardMenu(row._ch, { anchor: row, focus: true });
+      return;
+    } else return;
+    e.preventDefault();
+    e.stopPropagation(); // las flechas no deben cambiar el volumen
+    if (e.key === 'ArrowUp' && !next) { $('#search').focus(); return; }
+    if (!next) return;
+    row.tabIndex = -1;
+    next.tabIndex = 0;
+    next.focus();
+    next.scrollIntoView({ block: 'nearest' });
+  });
+}
+
 // ---------- Explorador: cabecera, chips y bloques ----------
 
 let gridObserver = null;
@@ -1280,7 +1482,8 @@ function renderBrowse({ animate = false, preserve = false } = {}) {
   renderBrowseHead();
   renderChips();
   body.replaceChildren();
-  if (onboarding) return;
+  if (isSide()) renderSide();
+  if (onboarding || isSide()) return;
 
   const q = state.query.trim();
   const manual = isManualActive();
@@ -2549,7 +2752,7 @@ async function addPlaylist({ name, url, text, epg }) {
     toast(t('«{name}» importada: {n} canales', { name: created.name, n: created.channels.length }));
     return created;
   }
-  const pl = { id: store.newId(), name: '', source: url ? 'url' : 'text', url: url || '', text: text || '', updatedAt: '', epg: epg || '' };
+  const pl = { id: store.newId(), name: name || nameFromUrl(url) || t('Lista {n}', { n: state.playlists.length + 1 }), source: url ? 'url' : 'text', url: url || '', text: text || '', updatedAt: '', epg: epg || '' };
   if (url) {
     await fetchPlaylist(pl);
   } else {
@@ -2562,7 +2765,6 @@ async function addPlaylist({ name, url, text, epg }) {
   const channels = parsed.channels;
   if (!channels.length) throw new Error(t('La lista no contiene canales.'));
   if (!pl.epg && parsed.epg) pl.epg = parsed.epg;
-  pl.name = name || nameFromUrl(url) || t('Lista {n}', { n: state.playlists.length + 1 });
   state.playlists.push(pl);
   await store.savePlaylists(state.playlists);
   await selectPlaylist(pl.id);
@@ -2685,7 +2887,7 @@ function initMiniPlayer() {
 }
 
 function syncMini() {
-  const on = !wrapVisible && !!state.current && !miniDismissed && !document.fullscreenElement && innerWidth > 640;
+  const on = !isSide() && !wrapVisible && !!state.current && !miniDismissed && !document.fullscreenElement && innerWidth > 640;
   const app = $('#app');
   if (on === (app.dataset.mini === '1')) return;
   app.dataset.mini = on ? '1' : '';
@@ -3243,8 +3445,9 @@ function openHelp() {
 }
 
 async function applyUiPrefs(patch) {
-  const ui = { largeText: false, tips: true, beginner: false, ...(await store.get('ui', {})), ...(patch || {}) };
+  const ui = { largeText: false, tips: true, beginner: false, layout: 'blocks', ...(await store.get('ui', {})), ...(patch || {}) };
   if (patch) await store.set('ui', ui);
+  setLayout(ui.layout);
   document.documentElement.dataset.large = ui.largeText ? '1' : '';
   beginner = !!ui.beginner;
   document.documentElement.dataset.beginner = beginner ? '1' : '';
@@ -3307,7 +3510,7 @@ function bindEvents() {
       const was = state.query;
       state.query = e.target.value;
       renderBrowse({ animate: !was && !!state.query });
-      if (!was && state.query) {
+      if (!was && state.query && !isSide()) {
         const main = $('#main');
         const top = $('#browse').offsetTop - 8;
         if (main.scrollTop < top - 40) main.scrollTo({ top, behavior: 'smooth' });
@@ -3317,7 +3520,7 @@ function bindEvents() {
   $('#search').addEventListener('keydown', (e) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      $('#browseBody .card-hit')?.focus();
+      (isSide() ? $('#sideList .side-row') : $('#browseBody .card-hit'))?.focus();
     } else if (e.key === 'Enter') {
       e.preventDefault();
       clearTimeout(searchTimer);
@@ -3508,6 +3711,11 @@ function bindEvents() {
   $('#btnHelp').addEventListener('click', openHelp);
   $('#btnStartTour').addEventListener('click', openTour);
   $('#optLarge').addEventListener('change', (e) => applyUiPrefs({ largeText: e.target.checked }));
+  $('#btnLayout').addEventListener('click', () => applyUiPrefs({ layout: isSide() ? 'blocks' : 'side' }));
+  for (const b of document.querySelectorAll('#layoutPick [data-layout]')) {
+    b.addEventListener('click', () => applyUiPrefs({ layout: b.dataset.layout }));
+  }
+  bindSide();
   $('#optTips').addEventListener('change', (e) => applyUiPrefs({ tips: e.target.checked }));
   $('#optBeginner').addEventListener('change', (e) => applyUiPrefs({ beginner: e.target.checked }));
   // Proxy general
@@ -3574,6 +3782,7 @@ function bindEvents() {
       c: () => controls.toggleSubtitles(),
       n: () => openAddChannel(),
       g: () => toggleEpgView(),
+      v: () => applyUiPrefs({ layout: isSide() ? 'blocks' : 'side' }),
       '?': () => openHelp(),
       ArrowLeft: () => (onButton ? false : controls.seekBy(-10)),
       ArrowRight: () => (onButton ? false : controls.seekBy(10)),
@@ -3608,6 +3817,7 @@ async function main() {
   updateNowPlayingEpg();
   setInterval(() => {
     updateNowPlayingEpg();
+    if (isSide()) refreshSideEpg();
     if (state.view === 'epg') updateEpgNowLine();
   }, 30000);
 
@@ -3622,6 +3832,7 @@ async function main() {
     renderBrowse();
   }
   initMiniPlayer();
+  if (isSide() && !state.current) showIdle();
 
   // Parámetros desde el menú contextual
   const params = new URLSearchParams(location.search);

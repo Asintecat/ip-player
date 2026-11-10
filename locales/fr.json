@@ -542,5 +542,20 @@
   "El receptor pide usuario y contraseña para el stream (HTTP {code}).\nRevisa las credenciales del receptor en «Tus listas».": "Le récepteur demande un utilisateur et un mot de passe pour le flux (HTTP {code}).\nVérifiez les identifiants du récepteur dans « Vos listes ».",
   "El servidor rechazó el stream MPEG-TS.": "Le serveur a refusé le flux MPEG-TS.",
   "No se pudo conectar con el stream MPEG-TS.\n¿Está encendido el receptor y sintonizado el canal? Un receptor con un solo sintonizador no puede emitir dos canales de distinto transpondedor a la vez.": "Impossible de se connecter au flux MPEG-TS.\nLe récepteur est-il allumé et la chaîne captée ? Un récepteur à un seul tuner ne peut pas diffuser deux chaînes de transpondeurs différents en même temps.",
-  "El navegador no puede decodificar este canal. En receptores de satélite o TDT suele ser un canal SD en MPEG-2 (vídeo) o MP2/AC-3 (audio), que Chrome no reproduce.\nSolución: activa «Transcodificar a H.264 (puerto 8002)» en el receptor, si lo permite, o mira la versión HD del canal.": "Le navigateur ne peut pas décoder cette chaîne. Sur les récepteurs satellite ou TNT, il s'agit souvent d'une chaîne SD en MPEG-2 (vidéo) ou MP2/AC-3 (audio), que Chrome ne lit pas.\nSolution : activez « Transcoder en H.264 (port 8002) » pour le récepteur, s'il le permet, ou regardez la version HD de la chaîne."
+  "El navegador no puede decodificar este canal. En receptores de satélite o TDT suele ser un canal SD en MPEG-2 (vídeo) o MP2/AC-3 (audio), que Chrome no reproduce.\nSolución: activa «Transcodificar a H.264 (puerto 8002)» en el receptor, si lo permite, o mira la versión HD del canal.": "Le navigateur ne peut pas décoder cette chaîne. Sur les récepteurs satellite ou TNT, il s'agit souvent d'une chaîne SD en MPEG-2 (vidéo) ou MP2/AC-3 (audio), que Chrome ne lit pas.\nSolution : activez « Transcoder en H.264 (port 8002) » pour le récepteur, s'il le permet, ou regardez la version HD de la chaîne.",
+  "Cambiar de vista: bloques o lista lateral": "Changer de vue : blocs ou liste latérale",
+  "Cambiar de vista": "Changer de vue",
+  "Filtrar por categoría": "Filtrer par catégorie",
+  "Vista": "Vue",
+  "Bloques": "Blocs",
+  "Portada con filas de canales por categoría": "Accueil avec des rangées de chaînes par catégorie",
+  "Lista lateral": "Liste latérale",
+  "Canales en una columna y el vídeo siempre a la vista": "Chaînes dans une colonne et la vidéo toujours visible",
+  "Cambiar de vista (bloques o lista lateral)": "Changer de vue (blocs ou liste latérale)",
+  "Vista de bloques": "Vue en blocs",
+  "Vista con lista lateral": "Vue avec liste latérale",
+  "Añade una lista M3U o un receptor con el botón «Añadir».": "Ajoutez une liste M3U ou un récepteur avec le bouton « Ajouter ».",
+  "Elige un canal en la lista de la izquierda.": "Choisissez une chaîne dans la liste de gauche.",
+  "Todas las categorías": "Toutes les catégories",
+  "Todavía no tienes favoritos": "Vous n'avez pas encore de favoris"
 }

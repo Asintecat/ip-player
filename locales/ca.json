@@ -542,5 +542,20 @@
   "El receptor pide usuario y contraseña para el stream (HTTP {code}).\nRevisa las credenciales del receptor en «Tus listas».": "El receptor demana usuari i contrasenya per al stream (HTTP {code}).\nRevisa les credencials del receptor a «Les teves llistes».",
   "El servidor rechazó el stream MPEG-TS.": "El servidor ha rebutjat el stream MPEG-TS.",
   "No se pudo conectar con el stream MPEG-TS.\n¿Está encendido el receptor y sintonizado el canal? Un receptor con un solo sintonizador no puede emitir dos canales de distinto transpondedor a la vez.": "No s'ha pogut connectar amb el stream MPEG-TS.\nEstà encès el receptor i sintonitzat el canal? Un receptor amb un sol sintonitzador no pot emetre dos canals de transponedors diferents alhora.",
-  "El navegador no puede decodificar este canal. En receptores de satélite o TDT suele ser un canal SD en MPEG-2 (vídeo) o MP2/AC-3 (audio), que Chrome no reproduce.\nSolución: activa «Transcodificar a H.264 (puerto 8002)» en el receptor, si lo permite, o mira la versión HD del canal.": "El navegador no pot descodificar aquest canal. En receptors de satèl·lit o TDT sol ser un canal SD en MPEG-2 (vídeo) o MP2/AC-3 (àudio), que Chrome no reprodueix.\nSolució: activa «Transcodifica a H.264 (port 8002)» al receptor, si ho permet, o mira la versió HD del canal."
+  "El navegador no puede decodificar este canal. En receptores de satélite o TDT suele ser un canal SD en MPEG-2 (vídeo) o MP2/AC-3 (audio), que Chrome no reproduce.\nSolución: activa «Transcodificar a H.264 (puerto 8002)» en el receptor, si lo permite, o mira la versión HD del canal.": "El navegador no pot descodificar aquest canal. En receptors de satèl·lit o TDT sol ser un canal SD en MPEG-2 (vídeo) o MP2/AC-3 (àudio), que Chrome no reprodueix.\nSolució: activa «Transcodifica a H.264 (port 8002)» al receptor, si ho permet, o mira la versió HD del canal.",
+  "Cambiar de vista: bloques o lista lateral": "Canvia de vista: blocs o llista lateral",
+  "Cambiar de vista": "Canvia de vista",
+  "Filtrar por categoría": "Filtra per categoria",
+  "Vista": "Vista",
+  "Bloques": "Blocs",
+  "Portada con filas de canales por categoría": "Portada amb files de canals per categoria",
+  "Lista lateral": "Llista lateral",
+  "Canales en una columna y el vídeo siempre a la vista": "Canals en una columna i el vídeo sempre a la vista",
+  "Cambiar de vista (bloques o lista lateral)": "Canvia de vista (blocs o llista lateral)",
+  "Vista de bloques": "Vista de blocs",
+  "Vista con lista lateral": "Vista amb llista lateral",
+  "Añade una lista M3U o un receptor con el botón «Añadir».": "Afegeix una llista M3U o un receptor amb el botó «Afegeix».",
+  "Elige un canal en la lista de la izquierda.": "Tria un canal a la llista de l'esquerra.",
+  "Todas las categorías": "Totes les categories",
+  "Todavía no tienes favoritos": "Encara no tens preferits"
 }

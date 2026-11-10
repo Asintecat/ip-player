@@ -542,5 +542,20 @@
   "El receptor pide usuario y contraseña para el stream (HTTP {code}).\nRevisa las credenciales del receptor en «Tus listas».": "The receiver requires a user and password for the stream (HTTP {code}).\nCheck the receiver credentials in “Your lists”.",
   "El servidor rechazó el stream MPEG-TS.": "The server rejected the MPEG-TS stream.",
   "No se pudo conectar con el stream MPEG-TS.\n¿Está encendido el receptor y sintonizado el canal? Un receptor con un solo sintonizador no puede emitir dos canales de distinto transpondedor a la vez.": "Could not connect to the MPEG-TS stream.\nIs the receiver on and the channel tuned? A single-tuner receiver cannot stream two channels from different transponders at once.",
-  "El navegador no puede decodificar este canal. En receptores de satélite o TDT suele ser un canal SD en MPEG-2 (vídeo) o MP2/AC-3 (audio), que Chrome no reproduce.\nSolución: activa «Transcodificar a H.264 (puerto 8002)» en el receptor, si lo permite, o mira la versión HD del canal.": "The browser cannot decode this channel. On satellite or terrestrial receivers it is usually an SD channel in MPEG-2 (video) or MP2/AC-3 (audio), which Chrome does not play.\nFix: enable “Transcode to H.264 (port 8002)” for the receiver, if supported, or watch the HD version of the channel."
+  "El navegador no puede decodificar este canal. En receptores de satélite o TDT suele ser un canal SD en MPEG-2 (vídeo) o MP2/AC-3 (audio), que Chrome no reproduce.\nSolución: activa «Transcodificar a H.264 (puerto 8002)» en el receptor, si lo permite, o mira la versión HD del canal.": "The browser cannot decode this channel. On satellite or terrestrial receivers it is usually an SD channel in MPEG-2 (video) or MP2/AC-3 (audio), which Chrome does not play.\nFix: enable “Transcode to H.264 (port 8002)” for the receiver, if supported, or watch the HD version of the channel.",
+  "Cambiar de vista: bloques o lista lateral": "Switch view: blocks or side list",
+  "Cambiar de vista": "Switch view",
+  "Filtrar por categoría": "Filter by category",
+  "Vista": "View",
+  "Bloques": "Blocks",
+  "Portada con filas de canales por categoría": "Home with rows of channels by category",
+  "Lista lateral": "Side list",
+  "Canales en una columna y el vídeo siempre a la vista": "Channels in a column and the video always in view",
+  "Cambiar de vista (bloques o lista lateral)": "Switch view (blocks or side list)",
+  "Vista de bloques": "Blocks view",
+  "Vista con lista lateral": "Side list view",
+  "Añade una lista M3U o un receptor con el botón «Añadir».": "Add an M3U list or a receiver with the “Add” button.",
+  "Elige un canal en la lista de la izquierda.": "Pick a channel from the list on the left.",
+  "Todas las categorías": "All categories",
+  "Todavía no tienes favoritos": "You don't have favorites yet"
 }

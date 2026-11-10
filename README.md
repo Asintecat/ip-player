@@ -22,6 +22,9 @@ Reproductor de listas M3U con soporte para **DASH**, **HLS** y **Smooth Streamin
 - **Ayuda integrada**: guía rápida la primera vez (y desde el botón ?), etiquetas emergentes con su atajo en todos los botones (mantén pulsado en móvil), mensajes de error con «Reintentar» y «Revisar el stream», y opción de texto más grande.
 - **Idiomas y subtítulos**: si el stream trae varias pistas, ⚙ → *Audio* y ⚙ → *Subtítulos* las listan con su idioma y detalles (5.1, audiodescripción, CC, forzados). El botón **CC** activa o desactiva los subtítulos. El idioma elegido se recuerda para los siguientes canales, y por defecto se usa el del navegador. Funciona con WebVTT, TTML y CEA-608 en DASH, HLS y Smooth Streaming, con los dos motores.
 - **Reproductor arriba y canales en bloques debajo**: una fila por categoría (más Favoritos y Vistos recientemente), chips para filtrar por categoría, búsqueda y mini reproductor flotante al bajar por la página.
+- **Dos vistas** (botón de vista de la barra superior, atajo `V`, o ? → *Opciones* → *Vista*):
+  - **Bloques**: la portada descrita arriba.
+  - **Lista lateral**: los canales en una columna a la izquierda, con logo, programa en curso y barra de progreso, un desplegable de categorías y navegación con las flechas; el vídeo ocupa el resto y queda siempre a la vista. En móvil la lista pasa debajo del vídeo. La vista elegida se recuerda.
 - **Añadir** desde un único botón: canal (con lista y categoría en el mismo formulario), categoría, lista M3U (enlace, archivo o texto) o lista propia.
 - **Listas propias editables en la propia vista**: renombrar lista y categorías haciendo clic en el título, reordenar categorías, arrastrar canales entre categorías y menú ⋯ por canal (editar, mover, guardar en otra lista, eliminar).
 - **Idiomas**: castellano, inglés, catalán, euskera, francés y portugués (Portugal y Brasil, en un submenú). Cada idioma es un archivo `locales/<código>.json` con la forma `{ "texto en castellano": "traducción" }`; para añadir uno nuevo basta con crear su JSON y registrarlo en `LANGS` (`js/i18n.js`).
@@ -44,6 +47,7 @@ Reproductor de listas M3U con soporte para **DASH**, **HLS** y **Smooth Streamin
 | `RePág` / `AvPág` | Canal anterior / siguiente |
 | `/` | Buscar canal |
 | `G` | Guía TV (EPG) |
+| `V` | Cambiar de vista (bloques o lista lateral) |
 | `N` | Añadir un canal |
 | `?` | Ayuda y atajos |
 

@@ -542,5 +542,20 @@
   "El receptor pide usuario y contraseña para el stream (HTTP {code}).\nRevisa las credenciales del receptor en «Tus listas».": "Hargailuak erabiltzailea eta pasahitza eskatzen ditu streamerako (HTTP {code}).\nBerrikusi hargailuaren kredentzialak «Zure zerrendak» atalean.",
   "El servidor rechazó el stream MPEG-TS.": "Zerbitzariak MPEG-TS streama baztertu du.",
   "No se pudo conectar con el stream MPEG-TS.\n¿Está encendido el receptor y sintonizado el canal? Un receptor con un solo sintonizador no puede emitir dos canales de distinto transpondedor a la vez.": "Ezin izan da MPEG-TS streamera konektatu.\nPiztuta al dago hargailua eta kanala sintonizatuta? Sintonizadore bakarreko hargailuak ezin ditu aldi berean transponder desberdinetako bi kanal igorri.",
-  "El navegador no puede decodificar este canal. En receptores de satélite o TDT suele ser un canal SD en MPEG-2 (vídeo) o MP2/AC-3 (audio), que Chrome no reproduce.\nSolución: activa «Transcodificar a H.264 (puerto 8002)» en el receptor, si lo permite, o mira la versión HD del canal.": "Nabigatzaileak ezin du kanal hau deskodetu. Satelite edo TDT hargailuetan MPEG-2 (bideoa) edo MP2/AC-3 (audioa) SD kanala izan ohi da, eta Chromek ez du erreproduzitzen.\nKonponbidea: aktibatu «Transkodetu H.264ra (8002 ataka)» hargailuan, onartzen badu, edo ikusi kanalaren HD bertsioa."
+  "El navegador no puede decodificar este canal. En receptores de satélite o TDT suele ser un canal SD en MPEG-2 (vídeo) o MP2/AC-3 (audio), que Chrome no reproduce.\nSolución: activa «Transcodificar a H.264 (puerto 8002)» en el receptor, si lo permite, o mira la versión HD del canal.": "Nabigatzaileak ezin du kanal hau deskodetu. Satelite edo TDT hargailuetan MPEG-2 (bideoa) edo MP2/AC-3 (audioa) SD kanala izan ohi da, eta Chromek ez du erreproduzitzen.\nKonponbidea: aktibatu «Transkodetu H.264ra (8002 ataka)» hargailuan, onartzen badu, edo ikusi kanalaren HD bertsioa.",
+  "Cambiar de vista: bloques o lista lateral": "Aldatu ikuspegia: blokeak edo alboko zerrenda",
+  "Cambiar de vista": "Aldatu ikuspegia",
+  "Filtrar por categoría": "Iragazi kategoriaren arabera",
+  "Vista": "Ikuspegia",
+  "Bloques": "Blokeak",
+  "Portada con filas de canales por categoría": "Hasiera kanal-errenkadekin kategoriaka",
+  "Lista lateral": "Alboko zerrenda",
+  "Canales en una columna y el vídeo siempre a la vista": "Kanalak zutabe batean eta bideoa beti ikusgai",
+  "Cambiar de vista (bloques o lista lateral)": "Aldatu ikuspegia (blokeak edo alboko zerrenda)",
+  "Vista de bloques": "Bloke-ikuspegia",
+  "Vista con lista lateral": "Alboko zerrendadun ikuspegia",
+  "Añade una lista M3U o un receptor con el botón «Añadir».": "Gehitu M3U zerrenda bat edo hargailu bat «Gehitu» botoiarekin.",
+  "Elige un canal en la lista de la izquierda.": "Aukeratu kanal bat ezkerreko zerrendan.",
+  "Todas las categorías": "Kategoria guztiak",
+  "Todavía no tienes favoritos": "Oraindik ez duzu gogokorik"
 }
