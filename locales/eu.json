@@ -573,5 +573,16 @@
   "Ver desde el principio": "Ikusi hasieratik",
   "Después, a las {time}: {title}": "Ondoren, {time}(e)tan: {title}",
   "Desde el inicio": "Hasieratik",
-  "Ver «{title}» en diferido": "Ikusi «{title}» diferituan"
+  "Ver «{title}» en diferido": "Ikusi «{title}» diferituan",
+  "Tema": "Gaia",
+  "Decoración de temporada": "Sasoiko apaingarria",
+  "Automático (Navidad del 30 de noviembre al 6 de enero)": "Automatikoa (Gabonak azaroaren 30etik urtarrilaren 6ra)",
+  "Ninguno": "Bat ere ez",
+  "Navidad": "Gabonak",
+  "Especial 29-N": "29-N berezia",
+  "Nieve en el tema de Navidad": "Elurra Gabonetako gaian",
+  "Especial 29-N: la banda del Peugeot vuelve a la carretera. Abróchense los cinturones.": "29-N berezia: Peugeot-eko taldea errepidera itzuli da. Lotu segurtasun-uhalak.",
+  "La banda del Peugeot (broma del 29-N)": "Peugeot-eko taldea (29-Ko txantxa)",
+  "¡Mec, mec! La banda del Peugeot": "Mek, mek! Peugeot-eko taldea",
+  "¡Mec, mec! Todos al Peugeot.": "Mek, mek! Denok Peugeot-era."
 }

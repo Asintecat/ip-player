@@ -3004,3 +3004,174 @@ html[data-large="1"] .toast { zoom: 1.15; }
 @media (prefers-reduced-motion: reduce) {
   .gl-desc, .gn-bar span { transition: none; }
 }
+
+/* =====================================================================
+   Temas de temporada (js/themes.js)
+   ===================================================================== */
+
+/* ---------- Navidad ---------- */
+:root[data-season="xmas"] {
+  --accent: #d93a40;
+  --accent-2: #ff9b9e;
+  --accent-soft: rgba(217, 58, 64, 0.16);
+  --xmas-green: #2f9e5b;
+  --xmas-gold: #f5c451;
+}
+:root[data-season="xmas"] .btn.primary { background: linear-gradient(180deg, #e0464c, #c4313a); }
+:root[data-season="xmas"] .card:hover .card-art { box-shadow: 0 0 0 1px rgba(245, 196, 81, 0.35), 0 8px 24px -12px rgba(217, 58, 64, 0.6); }
+:root[data-season="xmas"] .side-row.playing { box-shadow: inset 3px 0 0 var(--xmas-green); }
+
+.xmas-hat {
+  position: absolute;
+  left: -9px;
+  top: -13px;
+  width: 30px;
+  height: 24px;
+  pointer-events: none;
+  transform: rotate(-18deg);
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.35));
+}
+.xmas-hat svg { width: 100%; height: 100%; }
+
+.xmas-lights {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -7px;
+  height: 14px;
+  display: flex;
+  justify-content: space-around;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 1;
+}
+.xmas-lights::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 2px;
+  height: 8px;
+  border-bottom: 1.5px solid rgba(255, 255, 255, 0.14);
+  border-radius: 0 0 50% 50% / 0 0 100% 100%;
+}
+.xmas-lights i {
+  position: relative;
+  top: 6px;
+  width: 6px;
+  height: 9px;
+  border-radius: 50% 50% 45% 45%;
+  background: var(--accent);
+  box-shadow: 0 0 8px 1px currentColor;
+  color: var(--accent);
+  animation: xmas-twinkle 2.4s ease-in-out infinite;
+}
+.xmas-lights i:nth-child(4n + 2) { background: var(--xmas-green); color: var(--xmas-green); animation-delay: 0.6s; }
+.xmas-lights i:nth-child(4n + 3) { background: var(--xmas-gold); color: var(--xmas-gold); animation-delay: 1.2s; }
+.xmas-lights i:nth-child(4n) { background: #5ab0ff; color: #5ab0ff; animation-delay: 1.8s; }
+@keyframes xmas-twinkle { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+.season-snow {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0.75;
+}
+
+/* ---------- Especial 29-N ---------- */
+:root[data-season="29n"] {
+  --accent: #c8102e;
+  --accent-2: #ffb3bd;
+  --accent-soft: rgba(200, 16, 46, 0.16);
+}
+:root[data-season="29n"] .topbar { box-shadow: inset 0 -3px 0 #c8102e, inset 0 -6px 0 #f1bf00; }
+
+.n29-banner {
+  position: fixed;
+  top: calc(var(--topbar-h) + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 65;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  padding: 6px 44px 6px 6px;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.6);
+  background: linear-gradient(90deg, #c8102e 0 12%, #f1bf00 12% 88%, #c8102e 88%);
+  animation: n29-in 420ms var(--ease-out) both;
+  color: #1b1b1f;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  text-wrap: balance;
+}
+.n29-banner span { padding: 2px 10px; border-radius: 6px; background: rgba(241, 191, 0, 0.92); }
+.n29-close {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.18);
+  color: #fff;
+  font-size: 18px;
+  line-height: 1;
+}
+@keyframes n29-in { from { opacity: 0; transform: translate(-50%, -8px); } }
+
+.n29-car {
+  position: fixed;
+  left: 0;
+  bottom: 14px;
+  z-index: 70;
+  width: 260px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  animation: n29-drive 26s linear infinite;
+  filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.45));
+}
+.n29-car svg { width: 100%; height: auto; display: block; }
+.n29-names {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  margin-top: -4px;
+}
+.n29-names b {
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+.n29-heads { animation: n29-bounce 0.5s ease-in-out infinite alternate; }
+.n29-wheel { animation: n29-spin 0.6s linear infinite; }
+@keyframes n29-drive {
+  0% { transform: translateX(-240px); }
+  45% { transform: translateX(calc(100vw + 20px)); }
+  100% { transform: translateX(calc(100vw + 20px)); }
+}
+@keyframes n29-bounce { to { transform: translateY(-2px); } }
+@keyframes n29-spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 640px) {
+  .n29-car { width: 150px; }
+  .n29-banner { top: calc(var(--topbar-h) + 56px); font-size: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .xmas-lights i, .n29-heads, .n29-wheel { animation: none; }
+  .n29-car { animation: none; left: 12px; }
+}

@@ -573,5 +573,16 @@
   "Ver desde el principio": "Mira des del principi",
   "Después, a las {time}: {title}": "Després, a les {time}: {title}",
   "Desde el inicio": "Des de l'inici",
-  "Ver «{title}» en diferido": "Mira «{title}» en diferit"
+  "Ver «{title}» en diferido": "Mira «{title}» en diferit",
+  "Tema": "Tema",
+  "Decoración de temporada": "Decoració de temporada",
+  "Automático (Navidad del 30 de noviembre al 6 de enero)": "Automàtic (Nadal del 30 de novembre al 6 de gener)",
+  "Ninguno": "Cap",
+  "Navidad": "Nadal",
+  "Especial 29-N": "Especial 29-N",
+  "Nieve en el tema de Navidad": "Neu al tema de Nadal",
+  "Especial 29-N: la banda del Peugeot vuelve a la carretera. Abróchense los cinturones.": "Especial 29-N: la banda del Peugeot torna a la carretera. Corduin-se els cinturons.",
+  "La banda del Peugeot (broma del 29-N)": "La banda del Peugeot (broma del 29-N)",
+  "¡Mec, mec! La banda del Peugeot": "Mec, mec! La banda del Peugeot",
+  "¡Mec, mec! Todos al Peugeot.": "Mec, mec! Tothom al Peugeot."
 }

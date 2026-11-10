@@ -13,6 +13,7 @@ import { DashEngine } from './dash-engine.js';
 import { HlsEngine } from './hls-engine.js';
 import { TsEngine } from './ts-engine.js';
 import { catchupInfo, canCatchup, catchupUrl } from './catchup.js';
+import { applyTheme, resolveTheme } from './themes.js';
 import { parseBoxAddress, aboutBox, buildBoxPlaylist, fetchBoxEpg, listBouquets } from './openwebif.js';
 import { Controls, langName } from './controls.js';
 import { initTooltips, setTooltipsEnabled, hideTooltip } from './tooltip.js';
@@ -3744,11 +3745,22 @@ function openHelp() {
   segSelect('#helpTabs', 'start');
 }
 
+// Tema de temporada (ver themes.js); se revisa también al cambiar de día.
+let uiTheme = { theme: 'auto', snow: true };
+function syncTheme() {
+  applyTheme(resolveTheme(uiTheme.theme), { snow: uiTheme.snow, onHonk: () => toast(t('¡Mec, mec! Todos al Peugeot.')) });
+}
+
 async function applyUiPrefs(patch) {
   const ui = { largeText: false, tips: true, beginner: false, layout: 'blocks', ...(await store.get('ui', {})), ...(patch || {}) };
   if (patch) await store.set('ui', ui);
   setSideCollapsed(!!ui.sideCollapsed);
   setLayout(ui.layout);
+  uiTheme = { theme: ui.theme || 'auto', snow: ui.snow !== false };
+  syncTheme();
+  if ($('#optTheme').value !== uiTheme.theme) $('#optTheme').value = uiTheme.theme;
+  $('#optSnow').checked = uiTheme.snow;
+  $('#optSnowWrap').hidden = resolveTheme(uiTheme.theme) !== 'xmas';
   document.documentElement.dataset.large = ui.largeText ? '1' : '';
   beginner = !!ui.beginner;
   document.documentElement.dataset.beginner = beginner ? '1' : '';
@@ -4012,6 +4024,8 @@ function bindEvents() {
   $('#btnHelp').addEventListener('click', openHelp);
   $('#btnStartTour').addEventListener('click', openTour);
   $('#optLarge').addEventListener('change', (e) => applyUiPrefs({ largeText: e.target.checked }));
+  $('#optTheme').addEventListener('change', (e) => applyUiPrefs({ theme: e.target.value }));
+  $('#optSnow').addEventListener('change', (e) => applyUiPrefs({ snow: e.target.checked }));
   $('#btnLayout').addEventListener('click', () => applyUiPrefs({ layout: isSide() ? 'blocks' : 'side' }));
   for (const b of document.querySelectorAll('#layoutPick [data-layout]')) {
     b.addEventListener('click', () => applyUiPrefs({ layout: b.dataset.layout }));
@@ -4121,6 +4135,7 @@ async function main() {
   setInterval(() => {
     updateNowPlayingEpg();
     if (isSide()) refreshSideEpg();
+    syncTheme();
     if (state.view === 'epg') updateEpgNowLine();
   }, 30000);
 
