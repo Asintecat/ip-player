@@ -34,6 +34,10 @@ Reproductor de listas M3U con soporte para **DASH**, **HLS** y **Smooth Streamin
   - **En reproducción**: muestra el programa actual con barra de progreso en vivo, hora de emisión y el programa siguiente.
   - **Página interactiva de Guía TV** (botón «Guía TV» o atajo `G`): vista dedicada con selector de fechas, categorías, buscador, escala temporal de 24 horas con línea roja «Ahora», detalle modal de cada emisión y botón de reproducción directa.
   - **Persistencia en IndexedDB**: la guía se guarda localmente para una carga inmediata en cada inicio.
+  - **Guía del canal en la vista lateral**: bajo el vídeo, el programa en emisión (título, episodio, categoría, imagen, descripción, tiempo restante y lo siguiente) y la parrilla completa del canal por días, con la descripción de cada programa al pulsarlo.
+- **Catch-up (TV a la carta)**: si el canal lo admite, en la parrilla aparece «Ver» en los programas ya emitidos y «Ver desde el principio» en el actual; se reproduce en diferido con un aviso y el botón «Volver al directo». Se leen los atributos de Kodi/TiviMate en `#EXTINF` o, para toda la lista, en `#EXTM3U`:
+  - `catchup="default|append|shift|flussonic|xc"`, `catchup-source="…"`, `catchup-days="7"` (también `timeshift` y `tvg-rec` como días de archivo; con `tvg-rec` y una URL de Xtream Codes se usa el formato `xc`).
+  - Marcadores de `catchup-source`: `{utc}`/`${start}`, `{utcend}`/`${end}`, `{lutc}`/`${timestamp}`, `{duration}`, `{offset}` (con divisor, p. ej. `{duration:60}`), `{Y}{m}{d}{H}{M}{S}` y formatos como `{utc:Y-m-d-H-M-S}` o `${start:yyyy-MM-dd-HH-mm-ss}`.
 
 ### Atajos de teclado
 

@@ -210,6 +210,26 @@
             <button class="icon-btn" id="btnClosePlayer" data-tip="Detener y cerrar el reproductor" aria-label="Cerrar reproductor"><svg><use href="#i-close"/></svg></button>
           </div>
         </section>
+
+        <!-- Guía del canal en reproducción (vista lateral): ahora, parrilla del día y catch-up -->
+        <section class="guide" id="guide" aria-labelledby="guideTitle" hidden>
+          <div class="guide-archive" id="guideArchive" hidden>
+            <span class="guide-archive-dot" aria-hidden="true"></span>
+            <span class="guide-archive-text" id="guideArchiveText"></span>
+            <button type="button" class="btn sm" id="btnGuideLive"><svg><use href="#i-tv"/></svg>Volver al directo</button>
+          </div>
+          <div class="guide-grid">
+            <article class="guide-now" id="guideNow"></article>
+            <div class="guide-schedule">
+              <div class="guide-head">
+                <h3 class="guide-title" id="guideTitle">Programación</h3>
+                <span class="guide-cu" id="guideCu" hidden></span>
+              </div>
+              <div class="guide-days" id="guideDays" role="tablist" aria-label="Días"></div>
+              <ol class="guide-list" id="guideList"></ol>
+            </div>
+          </div>
+        </section>
       </section>
 
       <!-- ============ Canales en bloques ============ -->

@@ -52,7 +52,27 @@ function resolveUrl(url, base) {
   try { return new URL(url, base).href; } catch (_) { return url; }
 }
 
-function buildChannel(p, rawUrl, index, baseUrl) {
+/** Atributos clave="valor" de una línea (sin cortar por comas: sirve para #EXTM3U). */
+function lineAttrs(line) {
+  const attrs = {};
+  const re = /([\w-]+)\s*=\s*("([^"]*)"|'([^']*)'|([^\s"']+))/g;
+  let m;
+  while ((m = re.exec(line))) attrs[m[1].toLowerCase()] = m[3] ?? m[4] ?? m[5] ?? '';
+  return attrs;
+}
+
+/** Catch-up del canal (o el de la lista entera si el canal no lo declara). */
+function catchupOf(a, defaults = {}) {
+  // tvg-rec sin catchup propio: el formato se deduce de la URL (p. ej. Xtream Codes)
+  const own = a['catchup'] || a['catchup-type'] || '';
+  const mode = own || (a['tvg-rec'] && !a['catchup-source'] ? '' : defaults.mode || '');
+  const source = a['catchup-source'] || defaults.source || '';
+  const days = a['catchup-days'] || a['timeshift'] || a['tvg-rec'] || defaults.days || '';
+  if (!mode && !source && !(Number(days) > 0)) return undefined;
+  return { mode, source, days: Number(days) || 0 };
+}
+
+function buildChannel(p, rawUrl, index, baseUrl, defaults) {
   let url = rawUrl.trim();
   const headers = { ...p.headers };
 
@@ -111,6 +131,7 @@ function buildChannel(p, rawUrl, index, baseUrl) {
     proxy: p.proxy ? { mode: 'custom', url: p.proxy } : undefined,
     headers,
     drm,
+    catchup: catchupOf(a, defaults),
     errors
   };
 }
@@ -180,6 +201,7 @@ export function parseM3U(text, baseUrl) {
   const lines = String(text || '').replace(/^﻿/, '').split(/\r?\n/);
   const channels = [];
   let epg = '';
+  let catchupDefaults = {};
   let p = freshPending();
 
   for (const rawLine of lines) {
@@ -192,6 +214,12 @@ export function parseM3U(text, baseUrl) {
         const raw = (m[1] ?? m[2] ?? m[3] ?? '').split(',')[0].trim();
         if (raw) epg = resolveUrl(raw, baseUrl);
       }
+      const h = lineAttrs(line);
+      catchupDefaults = {
+        mode: h['catchup'] || h['catchup-type'] || '',
+        source: h['catchup-source'] || '',
+        days: h['catchup-days'] || h['timeshift'] || ''
+      };
       continue;
     }
     if (line.startsWith('#EXTINF')) {
@@ -247,7 +275,7 @@ export function parseM3U(text, baseUrl) {
     if (line.startsWith('#')) continue;
 
     // Línea de URL → cierra el canal
-    channels.push(buildChannel(p, line, channels.length, baseUrl));
+    channels.push(buildChannel(p, line, channels.length, baseUrl, catchupDefaults));
     p = freshPending();
   }
 

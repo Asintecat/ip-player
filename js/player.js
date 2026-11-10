@@ -12,6 +12,7 @@ import * as store from './storage.js';
 import { DashEngine } from './dash-engine.js';
 import { HlsEngine } from './hls-engine.js';
 import { TsEngine } from './ts-engine.js';
+import { catchupInfo, canCatchup, catchupUrl } from './catchup.js';
 import { parseBoxAddress, aboutBox, buildBoxPlaylist, fetchBoxEpg, listBouquets } from './openwebif.js';
 import { Controls, langName } from './controls.js';
 import { initTooltips, setTooltipsEnabled, hideTooltip } from './tooltip.js';
@@ -302,7 +303,7 @@ async function play(channel) {
   showPlayer();
   renderNowPlaying();
   markPlaying();
-  pushRecent(channel);
+  if (!channel.catchupBase) pushRecent(channel);
   hideOverlay();
   controls.wake();
   controls.setEnabled(false);
@@ -812,6 +813,8 @@ function computeFiltered() {
 }
 
 const favKey = (c) => `${c.url}|${c.name}`;
+/** Canal original de una reproducción en diferido (catch-up), o el propio canal. */
+const baseChannel = (c) => c?.catchupBase || c;
 /** Claves de los favoritos: comprobar si un canal es favorito es inmediato. */
 let favSet = new Set();
 const syncFavSet = () => { favSet = new Set(state.favorites.map(favKey)); };
@@ -944,11 +947,12 @@ function renderNowPlaying() {
   const badge = (text, cls) => meta.appendChild(el('span', `badge ${cls || ''}`, text));
   const type = detectType(c.url, c.type);
   badge(typeLabel(type), 'type');
+  if (c.archive) badge(t('En diferido'), 'archive');
   if (drmLabel(c.drm)) badge(drmLabel(c.drm), 'drm');
   try { if (channelProxy(c)) badge(t('Proxy'), 'proxy'); } catch (_) { /* proxy no válido */ }
   if (c.group && c.group !== drmLabel(c.drm) && c.group !== TYPE_LABEL[type]) badge(c.group);
-  $('#btnFav').classList.toggle('on', isFav(c));
-  $('#btnFav').dataset.tip = t(isFav(c) ? 'Quitar de favoritos' : 'Añadir a favoritos');
+  $('#btnFav').classList.toggle('on', isFav(baseChannel(c)));
+  $('#btnFav').dataset.tip = t(isFav(baseChannel(c)) ? 'Quitar de favoritos' : 'Añadir a favoritos');
   updateNowPlayingEpg();
 }
 
@@ -959,7 +963,7 @@ function markPlaying() {
     if (c.classList.contains('side-row')) c.setAttribute('aria-selected', 'false');
   }
   if (!state.current) return;
-  const key = CSS.escape(favKey(state.current));
+  const key = CSS.escape(favKey(baseChannel(state.current)));
   for (const c of document.querySelectorAll(`.card[data-key="${key}"], .side-row[data-key="${key}"]`)) {
     c.classList.add('playing');
     if (c.classList.contains('side-row')) c.setAttribute('aria-selected', 'true');
@@ -969,7 +973,7 @@ function markPlaying() {
 function step(delta) {
   const items = state.filtered;
   if (!items.length) return;
-  let idx = state.current ? items.findIndex((c) => favKey(c) === favKey(state.current)) : -1;
+  let idx = state.current ? items.findIndex((c) => favKey(c) === favKey(baseChannel(state.current))) : -1;
   idx = idx < 0 ? 0 : (idx + delta + items.length) % items.length;
   play(items[idx]);
 }
@@ -1335,6 +1339,7 @@ function setLayout(name) {
   if (side && !state.current) showIdle();
   if (!side && !state.current) hideOverlay();
   if (side) requestAnimationFrame(() => $('#sideList .side-row.playing')?.scrollIntoView({ block: 'center' }));
+  renderGuide();
 }
 
 /** Mensaje del reproductor vacío en la vista lateral. */
@@ -1382,7 +1387,7 @@ function renderSide() {
     );
     return;
   }
-  const playingKey = state.current ? favKey(state.current) : '';
+  const playingKey = state.current ? favKey(baseChannel(state.current)) : '';
   let done = 0;
   const more = () => {
     const frag = document.createDocumentFragment();
@@ -1496,6 +1501,202 @@ function bindSide() {
     next.focus();
     next.scrollIntoView({ block: 'nearest' });
   });
+}
+
+// ---------- Guía del canal en la vista lateral (y catch-up) ----------
+
+const DAY_MS = 86400000;
+let guideDay = 0;
+let guideFor = '';
+const guideOpen = new Set();
+
+const startOfDay = (ms) => { const d = new Date(ms); d.setHours(0, 0, 0, 0); return d.getTime(); };
+const timeRange = (p) => `${formatTime(new Date(p.start))} – ${formatTime(new Date(p.stop))}`;
+
+function guideDayLabel(offset, ms) {
+  if (offset === 0) return t('Hoy');
+  if (offset === -1) return t('Ayer');
+  if (offset === 1) return t('Mañana');
+  return new Date(ms).toLocaleDateString(locale(), { weekday: 'short', day: 'numeric' });
+}
+
+function minutesLeft(p, now) {
+  const m = Math.max(0, Math.round((p.stop - now) / 60000));
+  return m >= 60 ? t('quedan {h} h {m} min', { h: Math.floor(m / 60), m: m % 60 }) : t('quedan {m} min', { m });
+}
+
+/** Reproduce un programa ya emitido (o el actual desde el principio) con el catch-up del canal. */
+function playCatchup(base, prog) {
+  const url = catchupUrl(base, prog);
+  if (!url) return;
+  const info = catchupInfo(base);
+  const now = Date.now();
+  play({
+    ...base,
+    url,
+    // shift/append mantienen el formato del canal; el resto cambia de URL y se detecta solo
+    type: info && (info.mode === 'shift' || info.mode === 'append') ? base.type : '',
+    catchupBase: base,
+    archive: { title: prog.title, start: prog.start, stop: prog.stop, live: prog.start <= now && prog.stop > now }
+  });
+}
+
+function renderGuide() {
+  const box = $('#guide');
+  const cur = state.current;
+  const base = baseChannel(cur);
+  if (!box || !isSide() || !base || !hasEpg()) { if (box) box.hidden = true; return; }
+
+  const key = favKey(base);
+  const fresh = key !== guideFor;
+  if (fresh) { guideFor = key; guideDay = 0; guideOpen.clear(); }
+  const now = Date.now();
+  const today = startOfDay(now);
+  const cu = catchupInfo(base);
+
+  // Días con programación: los del archivo (o ayer) hasta 3 días vista
+  const back = cu ? Math.min(cu.days, 7) : 1;
+  const days = [];
+  for (let o = -back; o <= 3; o++) {
+    const from = today + o * DAY_MS;
+    if (getChannelSchedule(base, from, from + DAY_MS).length) days.push(o);
+  }
+  if (!days.length) { box.hidden = true; return; }
+  box.hidden = false;
+  if (!days.includes(guideDay)) guideDay = days.includes(0) ? 0 : days[0];
+
+  const archive = cur.archive;
+  $('#guideArchive').hidden = !archive;
+  if (archive) {
+    $('#guideArchiveText').textContent = t('En diferido: {title} · {time}', { title: archive.title, time: timeRange(archive) });
+  }
+
+  const cuEl = $('#guideCu');
+  cuEl.hidden = !cu;
+  if (cu) cuEl.textContent = t('Catch-up · {n} días', { n: cu.days });
+
+  renderGuideNow(base, archive, cu, now);
+
+  const tabs = $('#guideDays');
+  tabs.replaceChildren(...days.map((o) => {
+    const b = el('button', 'guide-day', guideDayLabel(o, today + o * DAY_MS));
+    b.type = 'button';
+    b.setAttribute('role', 'tab');
+    b.setAttribute('aria-selected', String(o === guideDay));
+    b.addEventListener('click', () => { guideDay = o; guideOpen.clear(); renderGuide(); scrollGuideToNow(true); });
+    return b;
+  }));
+
+  const list = $('#guideList');
+  const keep = fresh ? 0 : list.scrollTop;
+  const from = today + guideDay * DAY_MS;
+  const progs = getChannelSchedule(base, from, from + DAY_MS);
+  list.replaceChildren(...progs.map((p) => guideRow(base, p, archive, now)));
+  if (fresh) scrollGuideToNow(false);
+  else list.scrollTop = keep;
+}
+
+function renderGuideNow(base, archive, cu, now) {
+  const box = $('#guideNow');
+  const info = getNowAndNext(base, now);
+  const focus = archive
+    ? getChannelSchedule(base, archive.start, archive.start + 1).find((p) => p.start === archive.start) || archive
+    : info.now || info.next;
+  box.replaceChildren();
+  if (!focus) { box.hidden = true; return; }
+  box.hidden = false;
+  const live = !archive && focus.start <= now && focus.stop > now;
+
+  const kicker = el('div', 'gn-kicker');
+  const tag = el('span', `gn-tag ${archive ? 'archive' : live ? 'live' : ''}`, archive ? t('En diferido') : live ? t('En directo') : t('A continuación'));
+  kicker.append(tag, el('span', 'gn-time', timeRange(focus)));
+  box.appendChild(kicker);
+
+  const head = el('div', 'gn-head');
+  if (focus.icon) {
+    const img = document.createElement('img');
+    img.className = 'gn-img';
+    img.alt = '';
+    img.loading = 'lazy';
+    img.referrerPolicy = 'no-referrer';
+    img.src = focus.icon;
+    img.onerror = () => img.remove();
+    head.appendChild(img);
+  }
+  const titles = el('div', 'gn-titles');
+  titles.appendChild(el('h3', 'gn-title', focus.title));
+  const sub = [focus.subTitle, focus.category].filter(Boolean).join(' · ');
+  if (sub) titles.appendChild(el('div', 'gn-sub', sub));
+  head.appendChild(titles);
+  box.appendChild(head);
+
+  if (live) {
+    const bar = el('div', 'gn-bar');
+    const fill = el('span');
+    fill.style.width = `${info.progress}%`;
+    bar.appendChild(fill);
+    box.append(bar, el('div', 'gn-left', minutesLeft(focus, now)));
+  }
+  if (focus.desc) box.appendChild(el('p', 'gn-desc', focus.desc));
+
+  const actions = el('div', 'gn-actions');
+  if (live && cu && canCatchup(base, focus, now)) {
+    const restart = el('button', 'btn sm');
+    restart.type = 'button';
+    restart.append(iconEl('i-prev'), document.createTextNode(t('Ver desde el principio')));
+    restart.addEventListener('click', () => playCatchup(base, focus));
+    actions.appendChild(restart);
+  }
+  if (actions.childElementCount) box.appendChild(actions);
+
+  const next = !archive && live ? info.next : null;
+  if (next) box.appendChild(el('div', 'gn-next', t('Después, a las {time}: {title}', { time: formatTime(new Date(next.start)), title: next.title })));
+}
+
+function guideRow(base, p, archive, now) {
+  const past = p.stop <= now;
+  const live = p.start <= now && p.stop > now;
+  const watching = !!archive && archive.start === p.start;
+  const li = el('li', `gl-row${past ? ' past' : ''}${live ? ' live' : ''}${watching ? ' watching' : ''}`);
+  const open = guideOpen.has(p.start);
+  const main = el('button', 'gl-main');
+  main.type = 'button';
+  main.setAttribute('aria-expanded', String(open));
+  main.appendChild(el('span', 'gl-time', formatTime(new Date(p.start))));
+  const body = el('span', 'gl-body');
+  body.appendChild(el('span', 'gl-title', p.title));
+  const sub = [p.subTitle, p.category].filter(Boolean).join(' · ');
+  if (sub) body.appendChild(el('span', 'gl-sub', sub));
+  main.appendChild(body);
+  if (watching) main.appendChild(el('span', 'gl-badge archive', t('Viendo')));
+  else if (live) main.appendChild(el('span', 'gl-badge', t('Ahora')));
+  main.addEventListener('click', () => {
+    if (guideOpen.has(p.start)) guideOpen.delete(p.start); else guideOpen.add(p.start);
+    const on = guideOpen.has(p.start);
+    main.setAttribute('aria-expanded', String(on));
+    li.classList.toggle('open', on);
+  });
+  li.appendChild(main);
+  li.classList.toggle('open', open);
+
+  if ((past || live) && canCatchup(base, p, now)) {
+    const watch = el('button', 'gl-play');
+    watch.type = 'button';
+    watch.append(iconEl('i-play'), el('span', '', live ? t('Desde el inicio') : t('Ver')));
+    watch.dataset.tip = t('Ver «{title}» en diferido', { title: p.title });
+    watch.addEventListener('click', () => playCatchup(base, p));
+    li.appendChild(watch);
+  }
+  li.appendChild(el('p', 'gl-desc', p.desc || t('Sin descripción.')));
+  return li;
+}
+
+/** Lleva la parrilla al programa en emisión (sin mover la página). */
+function scrollGuideToNow(smooth) {
+  const list = $('#guideList');
+  const row = list.querySelector('.gl-row.watching') || list.querySelector('.gl-row.live') || list.querySelector('.gl-row:not(.past)');
+  const top = row ? Math.max(0, row.offsetTop - 8) : 0;
+  list.scrollTo({ top, behavior: smooth && !reduceMotion() ? 'smooth' : 'auto' });
 }
 
 // ---------- Explorador: cabecera, chips y bloques ----------
@@ -3022,6 +3223,7 @@ function formatDateLabel(d) {
 }
 
 function updateNowPlayingEpg() {
+  renderGuide();
   const npEpg = $('#npEpg');
   const fsEpg = $('#fsEpg');
   const c = state.current;
@@ -3839,7 +4041,8 @@ function bindEvents() {
   $('#btnFixStream').addEventListener('click', () => $('#btnEdit').click());
 
   // Barra «en reproducción»
-  $('#btnFav').addEventListener('click', () => state.current && toggleFavorite(state.current));
+  $('#btnFav').addEventListener('click', () => state.current && toggleFavorite(baseChannel(state.current)));
+  $('#btnGuideLive').addEventListener('click', () => state.current && play(baseChannel(state.current)));
   $('#btnAddTo').addEventListener('click', () => {
     if (!state.current) { toast(t('Primero reproduce o abre un canal')); return; }
     openSaveDialog(state.current);

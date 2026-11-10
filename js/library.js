@@ -26,6 +26,7 @@ export function cleanChannel(c) {
     type: c.type || '',
     engine: c.engine || '',
     headers: { ...(c.headers || {}) },
+    catchup: c.catchup && (c.catchup.mode || c.catchup.source || c.catchup.days) ? { mode: c.catchup.mode || '', source: c.catchup.source || '', days: Number(c.catchup.days) || 0 } : undefined,
     proxy: c.proxy && c.proxy.mode && c.proxy.mode !== 'global' ? { mode: c.proxy.mode, url: String(c.proxy.url || '') } : undefined,
     drm: {
       system: drm.system || 'none',
@@ -65,6 +66,9 @@ export function toM3U(list) {
     if (c.logo) a.push(`tvg-logo="${attr(c.logo)}"`);
     if (c.chno) a.push(`tvg-chno="${attr(c.chno)}"`);
     if (c.group) a.push(`group-title="${attr(c.group)}"`);
+    if (c.catchup?.mode) a.push(`catchup="${attr(c.catchup.mode)}"`);
+    if (c.catchup?.source) a.push(`catchup-source="${attr(c.catchup.source)}"`);
+    if (c.catchup?.days) a.push(`catchup-days="${c.catchup.days}"`);
     lines.push(`#EXTINF:-1 ${a.join(' ')},${c.name.replace(/[\r\n]+/g, ' ')}`);
 
     if (MANIFEST[c.type]) lines.push(`#KODIPROP:inputstream.adaptive.manifest_type=${MANIFEST[c.type]}`);

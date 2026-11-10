@@ -559,5 +559,19 @@
   "Todas las categorías": "Kategoria guztiak",
   "Todavía no tienes favoritos": "Oraindik ez duzu gogokorik",
   "Plegar la lista": "Tolestu zerrenda",
-  "Desplegar la lista": "Zabaldu zerrenda"
+  "Desplegar la lista": "Zabaldu zerrenda",
+  "Programación": "Programazioa",
+  "En diferido": "Diferituan",
+  "A continuación": "Jarraian",
+  "Ver": "Ikusi",
+  "Viendo": "Ikusten",
+  "Sin descripción.": "Deskribapenik ez.",
+  "quedan {h} h {m} min": "{h} h {m} min falta dira",
+  "quedan {m} min": "{m} min falta dira",
+  "En diferido: {title} · {time}": "Diferituan: {title} · {time}",
+  "Catch-up · {n} días": "Catch-up · {n} egun",
+  "Ver desde el principio": "Ikusi hasieratik",
+  "Después, a las {time}: {title}": "Ondoren, {time}(e)tan: {title}",
+  "Desde el inicio": "Hasieratik",
+  "Ver «{title}» en diferido": "Ikusi «{title}» diferituan"
 }

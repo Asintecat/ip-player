@@ -559,5 +559,19 @@
   "Todas las categorías": "Toutes les catégories",
   "Todavía no tienes favoritos": "Vous n'avez pas encore de favoris",
   "Plegar la lista": "Replier la liste",
-  "Desplegar la lista": "Déplier la liste"
+  "Desplegar la lista": "Déplier la liste",
+  "Programación": "Programme",
+  "En diferido": "En différé",
+  "A continuación": "Ensuite",
+  "Ver": "Voir",
+  "Viendo": "En cours",
+  "Sin descripción.": "Pas de description.",
+  "quedan {h} h {m} min": "reste {h} h {m} min",
+  "quedan {m} min": "reste {m} min",
+  "En diferido: {title} · {time}": "En différé : {title} · {time}",
+  "Catch-up · {n} días": "Replay · {n} jours",
+  "Ver desde el principio": "Voir depuis le début",
+  "Después, a las {time}: {title}": "Ensuite, à {time} : {title}",
+  "Desde el inicio": "Depuis le début",
+  "Ver «{title}» en diferido": "Voir « {title} » en différé"
 }

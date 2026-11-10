@@ -1,8 +1,9 @@
-#EXTM3U url-tvg="sample/guia.xml.gz"
+#EXTM3U url-tvg="guia.xml.gz"
 #EXTINF:-1 tvg-id="angel-dash" group-title="Sin DRM",Angel One (DASH)
 https://storage.googleapis.com/shaka-demo-assets/angel-one/dash.mpd
 
-#EXTINF:-1 tvg-id="angel-hls" group-title="Sin DRM",Angel One (HLS)
+# Catch-up de ejemplo (shift): añade ?utc=…&lutc=… a la URL; este servidor lo ignora y sirve el mismo vídeo
+#EXTINF:-1 tvg-id="angel-hls" group-title="Sin DRM" catchup="shift" catchup-days="3",Angel One (HLS)
 https://storage.googleapis.com/shaka-demo-assets/angel-one-hls/hls.m3u8
 
 #EXTINF:-1 tvg-id="bbb-hls" group-title="Sin DRM",Big Buck Bunny (HLS TS)

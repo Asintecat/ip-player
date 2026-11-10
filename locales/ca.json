@@ -559,5 +559,19 @@
   "Todas las categorías": "Totes les categories",
   "Todavía no tienes favoritos": "Encara no tens preferits",
   "Plegar la lista": "Plega la llista",
-  "Desplegar la lista": "Desplega la llista"
+  "Desplegar la lista": "Desplega la llista",
+  "Programación": "Programació",
+  "En diferido": "En diferit",
+  "A continuación": "A continuació",
+  "Ver": "Mira",
+  "Viendo": "Mirant",
+  "Sin descripción.": "Sense descripció.",
+  "quedan {h} h {m} min": "queden {h} h {m} min",
+  "quedan {m} min": "queden {m} min",
+  "En diferido: {title} · {time}": "En diferit: {title} · {time}",
+  "Catch-up · {n} días": "Catch-up · {n} dies",
+  "Ver desde el principio": "Mira des del principi",
+  "Después, a las {time}: {title}": "Després, a les {time}: {title}",
+  "Desde el inicio": "Des de l'inici",
+  "Ver «{title}» en diferido": "Mira «{title}» en diferit"
 }

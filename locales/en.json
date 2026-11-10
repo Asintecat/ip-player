@@ -559,5 +559,19 @@
   "Todas las categorías": "All categories",
   "Todavía no tienes favoritos": "You don't have favorites yet",
   "Plegar la lista": "Collapse the list",
-  "Desplegar la lista": "Expand the list"
+  "Desplegar la lista": "Expand the list",
+  "Programación": "Schedule",
+  "En diferido": "Catch-up",
+  "A continuación": "Up next",
+  "Ver": "Watch",
+  "Viendo": "Watching",
+  "Sin descripción.": "No description.",
+  "quedan {h} h {m} min": "{h} h {m} min left",
+  "quedan {m} min": "{m} min left",
+  "En diferido: {title} · {time}": "Catch-up: {title} · {time}",
+  "Catch-up · {n} días": "Catch-up · {n} days",
+  "Ver desde el principio": "Watch from the start",
+  "Después, a las {time}: {title}": "Next, at {time}: {title}",
+  "Desde el inicio": "From the start",
+  "Ver «{title}» en diferido": "Watch “{title}” on catch-up"
 }
