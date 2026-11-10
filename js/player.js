@@ -1554,8 +1554,8 @@ function renderGuide() {
   const today = startOfDay(now);
   const cu = catchupInfo(base);
 
-  // Días con programación: los del archivo (o ayer) hasta 3 días vista
-  const back = cu ? Math.min(cu.days, 7) : 1;
+  // Días con programación: los del archivo (hasta 14 atrás, o ayer) hasta 3 días vista
+  const back = cu ? Math.min(cu.days, 14) : 1; // pestañas solo de los días que trae la EPG
   const days = [];
   for (let o = -back; o <= 3; o++) {
     const from = today + o * DAY_MS;

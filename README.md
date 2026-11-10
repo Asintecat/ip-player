@@ -38,6 +38,11 @@ Reproductor de listas M3U con soporte para **DASH**, **HLS** y **Smooth Streamin
 - **Catch-up (TV a la carta)**: si el canal lo admite, en la parrilla aparece «Ver» en los programas ya emitidos y «Ver desde el principio» en el actual; se reproduce en diferido con un aviso y el botón «Volver al directo». Se leen los atributos de Kodi/TiviMate en `#EXTINF` o, para toda la lista, en `#EXTM3U`:
   - `catchup="default|append|shift|flussonic|xc"`, `catchup-source="…"`, `catchup-days="7"` (también `timeshift` y `tvg-rec` como días de archivo; con `tvg-rec` y una URL de Xtream Codes se usa el formato `xc`).
   - Marcadores de `catchup-source`: `{utc}`/`${start}`, `{utcend}`/`${end}`, `{lutc}`/`${timestamp}`, `{duration}`, `{offset}` (con divisor, p. ej. `{duration:60}`), `{Y}{m}{d}{H}{M}{S}` y formatos como `{utc:Y-m-d-H-M-S}` o `${start:yyyy-MM-dd-HH-mm-ss}`.
+  - Ejemplo con plantilla completa (`default`) y fechas UTC en ISO 8601:
+    ```
+    #EXTINF:-1 catchup-type="default" catchup-days="150" catchup-source="http://servidor/canal.mpd?start={utc:Y-m-dTH:M:S}Z&end={utcend:Y-m-dTH:M:S}Z",Canal
+    ```
+    El archivo de un programa de 18:00 a 19:30 (UTC) se pide como `…?start=2026-11-10T18:00:00Z&end=2026-11-10T19:30:00Z`, con el mismo DRM y cabeceras que el canal.
 
 ### Atajos de teclado
 
