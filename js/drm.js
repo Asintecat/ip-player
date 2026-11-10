@@ -29,6 +29,7 @@ export const TYPE_LABEL = {
   hls: 'HLS',
   mss: 'Smooth Streaming',
   progressive: 'Progresivo',
+  ts: 'MPEG-TS',
   auto: 'Auto'
 };
 
@@ -56,7 +57,21 @@ export function normalizeType(value) {
   if (['hls', 'm3u8'].includes(v)) return 'hls';
   if (['ism', 'isml', 'mss', 'smooth', 'smoothstreaming'].includes(v)) return 'mss';
   if (['mp4', 'progressive', 'file'].includes(v)) return 'progressive';
+  if (['ts', 'mpegts', 'mpeg-ts', 'mp2t', 'enigma2'].includes(v)) return 'ts';
   return '';
+}
+
+/** ¿Es un stream de un receptor Enigma2 (http://box:8001/1:0:19:…) o un .ts en directo? */
+export function isTsUrl(url) {
+  const s = String(url || '').split('#')[0];
+  const [base, query = ''] = s.split('?');
+  if (/\.(ts|mts|m2ts|trp)$/i.test(base)) return true;
+  // Ruta con referencia de servicio Enigma2: /1:0:19:7C6:C:1:C00000:0:0:0:
+  if (/^[a-z]+:\/\/[^/]+\/(?:[0-9a-f]+:){9}/i.test(base)) return true;
+  // OpenWebIF: /web/stream?ref=…, /file?file=…ts
+  if (/\/web\/stream$/i.test(base) && /(^|&)ref=/i.test(query)) return true;
+  if (/\/file$/i.test(base) && /file=[^&]*\.ts/i.test(decodeURIComponent(query))) return true;
+  return false;
 }
 
 /** Detecta el tipo de stream por la URL (o usa la pista explícita). */
@@ -69,6 +84,7 @@ export function detectType(url, hint) {
   if (/\.m3u8?$/.test(base) || /(format|type)=(m3u8|hls)/.test(query)) return 'hls';
   if (/\.isml?(\/manifest(\(.*\))?)?$/.test(base) || /\/manifest(\(.*\))?$/.test(base)) return 'mss';
   if (/\.(mp4|m4v|webm|mov|mp3|m4a|aac|ogg|oga|opus|wav|flac)$/.test(base)) return 'progressive';
+  if (isTsUrl(url)) return 'ts';
   return 'auto';
 }
 

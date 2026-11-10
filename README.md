@@ -4,7 +4,7 @@
 
 ---
 
-Reproductor de listas M3U con soporte para **DASH**, **HLS** y **Smooth Streaming (ISM/ISML)**, con DRM **ClearKey**, **Widevine** y servidores de licencias. Usa [Shaka Player](https://github.com/shaka-project/shaka-player) 4.16, [dash.js](https://github.com/Dash-Industry-Forum/dash.js) 5.3 para MSS en directo y [hls.js](https://github.com/video-dev/hls.js) 1.5 para HLS FairPlay/SAMPLE-AES con clave, todos incluidos en `lib/` sin dependencias remotas.
+Reproductor de listas M3U con soporte para **DASH**, **HLS** y **Smooth Streaming (ISM/ISML)**, con DRM **ClearKey**, **Widevine** y servidores de licencias. Usa [Shaka Player](https://github.com/shaka-project/shaka-player) 4.16, [dash.js](https://github.com/Dash-Industry-Forum/dash.js) 5.3 para MSS en directo [hls.js](https://github.com/video-dev/hls.js) 1.5 para HLS FairPlay/SAMPLE-AES con clave y [mpegts.js](https://github.com/xqq/mpegts.js) 1.7 para MPEG-TS en directo (receptores Enigma2/OpenWebIF), todos incluidos en `lib/` sin dependencias remotas.
 
 ## Instalación
 
@@ -98,6 +98,17 @@ Plantillas: cuerpo `R{SSM}` (binario), `b{SSM}` (base64) o `B{SSM}` (base64 URL-
 https://ejemplo.com/stream.m3u8
 ```
 
+## Receptores Enigma2 (OpenWebIF)
+
+Añadir → *Lista M3U* → pestaña **Receptor**: escribe la IP del receptor (Vu+, Dreambox, Zgemma, Octagon, GigaBlue…) y, si la tiene, el usuario y la contraseña de OpenWebIF.
+
+- Cada bouquet se convierte en una categoría; los marcadores del bouquet, en subcategorías.
+- Los logos salen de los picons del receptor (`/picon/…png`) y la Guía TV se pide a su API (`/api/epgmulti`); no hace falta XMLTV.
+- Los canales DVB se ven por el puerto de streaming 8001 (o 8002 con «Transcodificar a H.264»). Los streams IPTV metidos en los bouquets se reproducen directamente desde su URL.
+- La lista se actualiza desde el receptor con el botón ⟳, como cualquier lista por enlace.
+- También funcionan los M3U que genera OpenWebIF (`/web/services.m3u?bRef=…`) y los bouquets de Enigma2 (`userbouquet.*.tv`, líneas `#SERVICE` / `#DESCRIPTION`). Si pegas en «Enlace» la dirección web del receptor, se detecta y se añade como receptor.
+- Un receptor con un solo sintonizador no puede emitir a la vez dos canales de transpondedores distintos.
+
 ## Notas
 
 - Cabeceras como `User-Agent`, `Referer`, `Origin` y `Cookie` se aplican con `declarativeNetRequest`, solo a peticiones de la propia extensión.
@@ -105,7 +116,7 @@ https://ejemplo.com/stream.m3u8
 - **Smooth Streaming en directo**: Shaka Player solo soporta MSS bajo demanda (VOD). Si un MSS es en directo (error 4047), el reproductor cambia automáticamente a **dash.js**. Ese motor admite contenido sin DRM o con ClearKey (claves locales o servidor de licencias ClearKey). También se puede forzar el motor desde «Abrir stream / Editar» → *Motor*.
 - **HLS FairPlay / SAMPLE-AES en TS**: Chrome no tiene CDM FairPlay, así que Shaka falla (error 4040, o 6001). Si el canal trae claves ClearKey (o un proxy de claves), el reproductor cambia automáticamente a **hls.js** (`lib/hls.min.js`, 1.5.20), sustituye las claves `skd://` del manifiesto por esas claves y descifra los segmentos. FairPlay suele entregar el IV en la licencia y no en el manifiesto; en ese caso indica `*:KEY:IV`. El proxy puede devolver la clave (16 bytes) o la clave + IV (32 bytes) en binario, hex, base64 o JSON `{"key","iv"}`. No se pide licencia a servidores FairPlay reales: hace falta la clave de contenido.
 - **PlayReady** solo funciona en Microsoft Edge (Chrome no tiene CDM de PlayReady). En Chrome, usa Widevine o ClearKey.
-- Los streams MPEG-TS directos (`.ts` sin manifiesto) no están soportados; HLS con segmentos TS sí.
+- **MPEG-TS en directo** (`.ts` sin manifiesto y streams de receptores `http://IP:8001/1:0:19:…`): se reproducen con **mpegts.js** (`lib/mpegts.js`, 1.7.3), que remultiplexa el TS a MP4 en MSE. Solo se oye la primera pista de audio. Chrome no decodifica vídeo MPEG-2 ni audio MP2/AC-3: los canales SD de satélite o TDT necesitan la transcodificación a H.264 del receptor (puerto 8002), si la tiene.
 - `sample/ejemplos.m3u` contiene streams públicos de prueba para cada formato (botón «Lista de ejemplo»).
 
 ## Licencia

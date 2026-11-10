@@ -115,12 +115,68 @@ function buildChannel(p, rawUrl, index, baseUrl) {
   };
 }
 
+/** ¿Es un bouquet de Enigma2 (userbouquet.*.tv) en vez de un M3U? */
+export function looksLikeEnigmaBouquet(text) {
+  return /^#SERVICE\s/m.test(text) && !/^#EXTINF/m.test(text);
+}
+
+/**
+ * Bouquet de Enigma2: «#SERVICE <sref>» + «#DESCRIPTION <nombre>» opcional.
+ * - Los streams IPTV llevan la URL codificada en el campo 11 de la sref.
+ * - Los canales DVB solo se pueden ver si el bouquet viene del propio receptor
+ *   (se usa su IP con el puerto de streaming 8001).
+ * - Los marcadores (1:64:…) pasan a ser categorías.
+ */
+function parseEnigmaBouquet(text, baseUrl) {
+  const channels = [];
+  let boxHost = '';
+  try { if (baseUrl && /^https?:/i.test(baseUrl)) boxHost = new URL(baseUrl).hostname; } catch (_) { /* sin receptor */ }
+  let group = '';
+  let pending = null;
+  let skipped = 0;
+  const flush = () => {
+    if (!pending) return;
+    const { sref, name } = pending;
+    pending = null;
+    const f = sref.split(':');
+    const flags = parseInt(f[1], 10) || 0;
+    if (flags & 0x40) { if (name && !/^[-=_.\s]*$/.test(name)) group = name.replace(/^[-=_.\s]+|[-=_.\s]+$/g, ''); return; }
+    if (flags & 0x201) return;
+    let url = '';
+    if (f.length > 10 && /^https?%3a/i.test(f[10])) {
+      try { url = decodeURIComponent(f[10]); } catch (_) { url = ''; }
+    } else if (boxHost && f.length >= 10) {
+      url = `http://${boxHost}:8001/${f.slice(0, 10).join(':')}:`;
+    }
+    if (!url) { skipped++; return; }
+    const p = freshPending();
+    p.name = name || (f.length > 11 ? f.slice(11).join(':') : '') || f.slice(0, 10).join(':');
+    p.group = group;
+    p.attrs = { 'tvg-id': f.slice(0, 10).join(':').toUpperCase() };
+    channels.push(buildChannel(p, url, channels.length, baseUrl));
+  };
+  for (const raw of String(text || '').split(/\r?\n/)) {
+    const line = raw.trim();
+    if (line.startsWith('#SERVICE')) {
+      flush();
+      const sref = line.slice(8).trim();
+      const f = sref.split(':');
+      pending = { sref, name: f.length > 11 ? f.slice(11).join(':').trim() : '' };
+    } else if (line.startsWith('#DESCRIPTION') && pending) {
+      pending.name = line.slice(12).replace(/^[:\s]+/, '').trim() || pending.name;
+    }
+  }
+  flush();
+  return { channels, epg: '', skipped };
+}
+
 /**
  * Parsea el texto M3U y devuelve { channels, epg }.
  * @param {string} text
  * @param {string} [baseUrl] URL de la lista para resolver rutas relativas
  */
 export function parseM3U(text, baseUrl) {
+  if (looksLikeEnigmaBouquet(String(text || ''))) return parseEnigmaBouquet(text, baseUrl);
   const lines = String(text || '').replace(/^﻿/, '').split(/\r?\n/);
   const channels = [];
   let epg = '';
@@ -144,6 +200,11 @@ export function parseM3U(text, baseUrl) {
       p.attrs = attrs;
       continue;
     }
+    // OpenWebIF / Enigma2 añade «#DESCRIPTION Nombre» a algunos M3U
+    if (line.startsWith('#DESCRIPTION')) {
+      if (!p.name) p.name = line.slice(12).replace(/^[:\s]+/, '').trim();
+      continue;
+    }
     if (line.startsWith('#EXTGRP:')) {
       p.group = line.slice(8).trim();
       continue;
@@ -157,7 +218,7 @@ export function parseM3U(text, baseUrl) {
         case 'drm_legacy': p.drmLegacy = v; break;
         case 'drm': p.drmJson = v; break;
         case 'manifest_type': p.type = normalizeType(v); break;
-        case 'ipplayer.engine': p.engine = ['dashjs', 'shaka', 'hlsjs'].includes(v) ? v : ''; break;
+        case 'ipplayer.engine': p.engine = ['dashjs', 'shaka', 'hlsjs', 'mpegts'].includes(v) ? v : ''; break;
         case 'stream_headers':
         case 'manifest_headers':
           Object.assign(p.headers, parseQueryHeaders(v)); break;

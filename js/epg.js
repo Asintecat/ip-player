@@ -492,6 +492,26 @@ export async function loadEpgFromFile(file) {
 }
 
 /**
+ * Carga un EPG ya analizado (p. ej. el de un receptor OpenWebIF).
+ * @param {{channels: Map, programs: Map, categories: Set}} parsed
+ * @param {{url: string, name?: string}} meta
+ */
+export async function loadEpgData(parsed, { url, name = '' }) {
+  if (!parsed?.programs?.size) throw new Error(t('El receptor no devolvió programación.'));
+  memoryEpg = {
+    url,
+    name: name || url,
+    updatedAt: new Date().toISOString(),
+    channels: parsed.channels,
+    programs: parsed.programs,
+    categories: parsed.categories || new Set(),
+    matchCache: new Map()
+  };
+  await persistToDb(memoryEpg);
+  return getEpgStats();
+}
+
+/**
  * Información de estado del EPG cargado.
  */
 export function getEpgStats() {

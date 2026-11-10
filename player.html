@@ -57,6 +57,7 @@
   <div class="app" id="app" data-player="">
     <!-- ============ Barra superior ============ -->
     <header class="topbar">
+      <div class="topbar-start">
       <div class="brand">
         <img src="icons/icon48.png" alt="" width="26" height="26">
         <span class="brand-name">IP Player</span>
@@ -65,6 +66,7 @@
         <span class="lp-text"><span class="lp-kicker">Lista</span><span class="lp-value" id="listPickerValue">Favoritos</span></span>
         <svg class="lp-caret"><use href="#i-down"/></svg>
       </button>
+      </div>
       <label class="search">
         <svg><use href="#i-search"/></svg>
         <input id="search" type="search" placeholder="Buscar canal" autocomplete="off" spellcheck="false" aria-label="Buscar canal" aria-controls="browseBody" aria-describedby="searchHint">
@@ -347,6 +349,7 @@
               <option value="hls">HLS (M3U8)</option>
               <option value="mss">Smooth Streaming (ISM)</option>
               <option value="progressive">Progresivo (MP4…)</option>
+              <option value="ts">MPEG-TS en directo (receptor, .ts)</option>
             </select>
           </label>
           <label class="field">Motor
@@ -355,6 +358,7 @@
               <option value="shaka">Shaka Player</option>
               <option value="dashjs">dash.js (MSS en directo)</option>
               <option value="hlsjs">hls.js (HLS SAMPLE-AES)</option>
+              <option value="mpegts">mpegts.js (MPEG-TS en directo)</option>
             </select>
           </label>
         </div>
@@ -472,6 +476,7 @@
           <button type="button" role="tab" data-tab="url"><svg><use href="#i-link"/></svg>Enlace</button>
           <button type="button" role="tab" data-tab="file"><svg><use href="#i-download"/></svg>Archivo</button>
           <button type="button" role="tab" data-tab="text"><svg><use href="#i-copy"/></svg>Pegar texto</button>
+          <button type="button" role="tab" data-tab="box"><svg><use href="#i-tv"/></svg>Receptor</button>
         </div>
         <label class="field" data-panel="url">Enlace de la lista
           <input id="pUrl" type="url" placeholder="https://…/lista.m3u">
@@ -489,10 +494,27 @@
         <label class="field" data-panel="text" hidden>Contenido de la lista
           <textarea id="pText" rows="6" spellcheck="false" placeholder="#EXTM3U&#10;#EXTINF:-1 tvg-logo=&quot;…&quot; group-title=&quot;…&quot;,Canal&#10;https://…"></textarea>
         </label>
+        <div class="panel-stack" data-panel="box" hidden>
+          <p class="section-intro">Receptores Enigma2 con OpenWebIF (Vu+, Dreambox, Zgemma, Octagon, GigaBlue…). Se cargan sus bouquets como categorías, con picons y Guía TV.</p>
+          <label class="field">Dirección del receptor
+            <input id="bHost" type="text" inputmode="url" placeholder="192.168.1.10" autocomplete="off" spellcheck="false">
+            <small>La IP o el nombre con el que abres su web. Añade el puerto si no es el 80 (p. ej. 192.168.1.10:8080).</small>
+          </label>
+          <div class="form-row">
+            <label class="field">Usuario
+              <input id="bUser" type="text" placeholder="Opcional (p. ej. root)" autocomplete="off" spellcheck="false">
+            </label>
+            <label class="field">Contraseña
+              <input id="bPass" type="password" placeholder="Opcional" autocomplete="new-password">
+            </label>
+          </div>
+          <label class="switch"><input type="checkbox" id="bTranscode"><span class="switch-track"></span><span>Transcodificar a H.264 (puerto 8002). Necesario para ver canales SD en MPEG-2, si tu receptor lo permite.</span></label>
+          <label class="switch"><input type="checkbox" id="bRadio"><span class="switch-track"></span><span>Bouquets de radio en vez de TV</span></label>
+        </div>
         <label class="field">Nombre
           <input id="pName" type="text" placeholder="Opcional (se toma del enlace o del archivo)">
         </label>
-        <label class="field">Guía TV (EPG)
+        <label class="field" data-panel-not="box">Guía TV (EPG)
           <input id="pEpg" type="url" placeholder="Opcional: https://…/epg.xml.gz o .xml">
           <small>Si la lista incluye url-tvg, se detectará automáticamente.</small>
         </label>

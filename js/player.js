@@ -11,6 +11,8 @@ import { applyHeaderRules } from './headers.js';
 import * as store from './storage.js';
 import { DashEngine } from './dash-engine.js';
 import { HlsEngine } from './hls-engine.js';
+import { TsEngine } from './ts-engine.js';
+import { parseBoxAddress, aboutBox, buildBoxPlaylist, fetchBoxEpg, listBouquets } from './openwebif.js';
 import { Controls, langName } from './controls.js';
 import { initTooltips, setTooltipsEnabled, hideTooltip } from './tooltip.js';
 import { startTour, isTourOpen } from './tour.js';
@@ -20,7 +22,7 @@ import { enhanceSelects, refreshSelects } from './select.js';
 import { parseProxy, setProxy, ensureUrl, clearProxy, describeProxy, proxyControl, isProxyAvailable, activeProxy } from './proxy.js';
 import {
   loadCachedEpg, loadEpgFromUrl, loadEpgFromFile, clearEpg,
-  getNowAndNext, getChannelSchedule, getEpgStats, hasEpg
+  getNowAndNext, getChannelSchedule, getEpgStats, hasEpg, loadEpgData
 } from './epg.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -54,9 +56,11 @@ let controls = null;
 let loadToken = 0;
 let dashEngine = null;
 let hlsEngine = null;
-let engine = 'shaka'; // motor activo: 'shaka' | 'dashjs' | 'hlsjs'
+let tsEngine = null;
+let engine = 'shaka'; // motor activo: 'shaka' | 'dashjs' | 'hlsjs' | 'mpegts'
+const ALT_ENGINES = () => ({ dashjs: dashEngine, hlsjs: hlsEngine, mpegts: tsEngine });
 /** Adaptador de pistas del motor activo (ver controls.js). */
-const activeAdapter = () => (engine === 'dashjs' ? dashEngine : engine === 'hlsjs' ? hlsEngine : shakaAdapter);
+const activeAdapter = () => ALT_ENGINES()[engine] || shakaAdapter;
 // Idiomas preferidos (se recuerdan entre canales y sesiones).
 let prefs = { audioLang: '', textLang: '', textOn: false };
 const browserLang = (navigator.language || 'es').split('-')[0];
@@ -133,6 +137,7 @@ async function initPlayer() {
   };
   dashEngine = new DashEngine(video, altHandlers);
   hlsEngine = new HlsEngine(video, altHandlers);
+  tsEngine = new TsEngine(video, altHandlers);
 
   const refresh = () => controls.refreshTracks();
   player.addEventListener('error', (e) => showError(e.detail));
@@ -325,6 +330,7 @@ async function play(channel) {
 
   if (channel.engine === 'dashjs') return playWithDash(channel, token, type, drmText);
   if (channel.engine === 'hlsjs') return playWithHls(channel, token, drmText);
+  if (channel.engine === 'mpegts' || type === 'ts') return playWithTs(channel, token);
   await useShaka();
   if (token !== loadToken) return;
 
@@ -346,6 +352,11 @@ async function play(channel) {
     if (err?.code === MSS_LIVE_NOT_SUPPORTED && channel.engine !== 'shaka') {
       setStatus(t('Smooth Streaming en directo: cambiando al motor dash.js…'), 'warn');
       return playWithDash(channel, token, 'mss', drmText);
+    }
+    // Sin manifiesto reconocible: puede ser un MPEG-TS en directo (Xtream, receptores…)
+    if (err?.code === shaka.util.Error.Code.UNABLE_TO_GUESS_MANIFEST_TYPE && type === 'auto' && channel.engine !== 'shaka') {
+      setStatus(t('Sin manifiesto: probando como MPEG-TS en directo…'), 'warn');
+      return playWithTs(channel, token);
     }
     // HLS con TS cifrado SAMPLE-AES (FairPlay) → hls.js, si hay clave o proxy de claves
     const fairplay = err?.code === HLS_ENCRYPTED_TS || (err?.code === KEY_SYSTEM_UNAVAILABLE && type === 'hls');
@@ -396,6 +407,7 @@ async function useShaka() {
   engine = 'shaka';
   await dashEngine.destroy();
   await hlsEngine.destroy();
+  await tsEngine.destroy();
   clearCaptions();
   const video = $('#video');
   video.autoplay = true; // dash.js lo desactiva al destruirse
@@ -407,7 +419,7 @@ async function useShaka() {
 async function useAlt(name) {
   if (engine === name) return;
   if (engine === 'shaka') await player.detach();
-  else await (engine === 'dashjs' ? dashEngine : hlsEngine).destroy();
+  else await ALT_ENGINES()[engine].destroy();
   engine = name;
   clearCaptions();
 }
@@ -455,6 +467,60 @@ async function playWithHls(channel, token, drmText) {
     });
     if (token === loadToken) controls.setEnabled(true);
   } catch (err) {
+    if (token === loadToken) showError(err);
+  }
+}
+
+const TS_START_TIMEOUT = 15000;
+
+/** MPEG-TS en directo (receptores Enigma2/OpenWebIF, .ts de Xtream…) con mpegts.js. */
+async function playWithTs(channel, token) {
+  if (!(await TsEngine.ensureLoaded())) {
+    showError(new Error(t('{name} no está disponible.', { name: 'mpegts.js' })));
+    return;
+  }
+  await useAlt('mpegts');
+  if (token !== loadToken) return;
+  setStatus(t('Cargando {what}…', { what: 'MPEG-TS (mpegts.js)' }));
+  const video = $('#video');
+  const fail = (title, text) => {
+    if (token !== loadToken) return;
+    tsEngine.destroy();
+    controls.setEnabled(false);
+    controls.setBusy(false);
+    showOverlay(title, text, true);
+    setStatus(`${title}: ${text.split('\n')[0]}`, 'err');
+  };
+  const watchdog = setTimeout(() => {
+    if (token !== loadToken || engine !== 'mpegts' || tsEngine.failed || !video.paused || video.currentTime > 0) return;
+    const issue = tsEngine.lastIssue || {
+      title: t('El stream no arranca'),
+      text: t('No ha llegado vídeo en {s} s.\nSi es un receptor: comprueba que está encendido, que el canal se puede sintonizar y que no está grabando en otro transpondedor.', { s: TS_START_TIMEOUT / 1000 })
+    };
+    fail(issue.title, issue.text);
+  }, TS_START_TIMEOUT);
+  tsEngine.onInfo = (info) => {
+    if (token !== loadToken) return;
+    // Los canales SD de satélite/TDT suelen ir en MPEG-2, que ningún navegador decodifica.
+    if (info && info.hasVideo === false && info.hasAudio) {
+      setStatus(t('Solo se oye el audio: el vídeo está en MPEG-2 y el navegador no lo decodifica. Activa la transcodificación del receptor (puerto 8002) si la tiene.'), 'warn');
+    }
+  };
+  video.addEventListener('playing', () => {
+    clearTimeout(watchdog);
+    if (token === loadToken) {
+      const mi = tsEngine.mediaInfo;
+      const vc = mi?.videoCodec ? ` · ${String(mi.videoCodec).split('.')[0].replace('avc1', 'H.264').replace(/hvc1|hev1/, 'H.265')}` : '';
+      if (mi?.hasVideo !== false) setStatus(`${t('Reproduciendo')} · MPEG-TS${vc}`, 'ok');
+      controls.refreshTracks();
+      store.patchState({ channelUrl: channel.url });
+    }
+  }, { once: true });
+  try {
+    await tsEngine.load(channel);
+    if (token === loadToken) controls.setEnabled(true);
+  } catch (err) {
+    clearTimeout(watchdog);
     if (token === loadToken) showError(err);
   }
 }
@@ -626,7 +692,7 @@ async function selectPlaylist(id, { refresh = false, keepGroup = false } = {}) {
     }
     // Auto-carga de EPG si la lista lo incluye y no está cargado ya
     if (pl.epg && getEpgStats().url !== pl.epg) {
-      loadEpgFromUrl(pl.epg, { name: pl.name }).then(() => {
+      (pl.box ? loadBoxEpg(pl) : loadEpgFromUrl(pl.epg, { name: pl.name })).then(() => {
         updateNowPlayingEpg();
         if (state.view === 'epg') renderEpgView();
         if (state.view === 'browse') renderBrowse();
@@ -644,6 +710,16 @@ async function selectPlaylist(id, { refresh = false, keepGroup = false } = {}) {
 
 async function fetchPlaylist(pl) {
   if (pl.source !== 'url') return;
+  if (pl.box) {
+    setStatus(t('Leyendo los bouquets de «{name}»…', { name: pl.name }));
+    const res = await buildBoxPlaylist(pl.box, pl.box);
+    pl.text = res.text;
+    pl.boxBouquets = res.bouquets.map((b) => b.ref);
+    pl.updatedAt = new Date().toISOString();
+    await store.savePlaylists(state.playlists);
+    setStatus(t('«{name}» actualizada', { name: pl.name }), 'ok');
+    return;
+  }
   setStatus(t('Descargando «{name}»…', { name: pl.name }));
   const general = generalProxy();
   const viaProxy = !!general && (!activeProxy() || activeProxy().pac === general.pac);
@@ -659,6 +735,14 @@ async function fetchPlaylist(pl) {
   pl.updatedAt = new Date().toISOString();
   await store.savePlaylists(state.playlists);
   setStatus(t('«{name}» actualizada', { name: pl.name }), 'ok');
+}
+
+/** Guía TV de un receptor OpenWebIF (se pide a su API, no hay XMLTV). */
+async function loadBoxEpg(pl) {
+  let refs = pl.boxBouquets;
+  if (!refs?.length) refs = (await listBouquets(pl.box, pl.box)).map((b) => b.ref);
+  const parsed = await fetchBoxEpg(pl.box, refs);
+  return loadEpgData(parsed, { url: pl.epg, name: pl.name });
 }
 
 /** Canales de una lista M3U ya analizados (no se vuelve a parsear al cambiar de lista). */
@@ -1143,11 +1227,13 @@ function playlistTodo() {
   const byTab = {
     url: { label: t('Pega el enlace de la lista (http:// o https://)'), done: isHttpUrl($('#pUrl').value), focus: '#pUrl' },
     file: { label: t('Elige un archivo .m3u, .m3u8 o .json.'), done: !!$('#pFile').files?.length, focus: '#pFile' },
-    text: { label: t('Pega el contenido de la lista.'), done: !!$('#pText').value.trim(), focus: '#pText' }
+    text: { label: t('Pega el contenido de la lista.'), done: !!$('#pText').value.trim(), focus: '#pText' },
+    box: { label: t('Escribe la dirección del receptor (p. ej. 192.168.1.10).'), done: !!$('#bHost').value.trim(), focus: '#bHost' }
   };
+  const box = addTab === 'box';
   const items = [
-    { ...byTab[addTab], tip: t('Te lo da tu proveedor. Las listas por enlace se pueden actualizar después.') },
-    { label: t('Ponle un nombre (si no, se usa el del enlace o del archivo)'), done: !!$('#pName').value.trim(), optional: true, focus: '#pName' }
+    { ...byTab[addTab], tip: box ? t('La misma dirección con la que abres la web del receptor.') : t('Te lo da tu proveedor. Las listas por enlace se pueden actualizar después.') },
+    { label: box ? t('Ponle un nombre (si no, se usa el modelo del receptor)') : t('Ponle un nombre (si no, se usa el del enlace o del archivo)'), done: !!$('#pName').value.trim(), optional: true, focus: '#pName' }
   ];
   const ready = renderTodo($('#pTodo'), items);
   $('#btnAddPlaylist').disabled = beginner && !ready;
@@ -2411,7 +2497,9 @@ async function onCategorySubmit(e) {
 let addTab = 'url';
 
 function resetAddPlaylist() {
-  for (const id of ['pUrl', 'pText', 'pName', 'pEpg']) $('#' + id).value = '';
+  for (const id of ['pUrl', 'pText', 'pName', 'pEpg', 'bHost', 'bUser', 'bPass']) $('#' + id).value = '';
+  $('#bTranscode').checked = false;
+  $('#bRadio').checked = false;
   $('#pFile').value = '';
   $('#pFileName').textContent = '';
   showFormError('playlistError', '');
@@ -2447,6 +2535,8 @@ function segSelect(sel, tab) {
 function setAddTab(tab) {
   addTab = tab;
   for (const p of document.querySelectorAll('#playlistForm [data-panel]')) p.hidden = p.dataset.panel !== tab;
+  for (const p of document.querySelectorAll('#playlistForm [data-panel-not]')) p.hidden = p.dataset.panelNot === tab;
+  $('#pName').placeholder = tab === 'box' ? t('Opcional (se toma del modelo del receptor)') : t('Opcional (se toma del enlace o del archivo)');
   segSelect('#addTabs', tab);
   playlistTodo();
 }
@@ -2480,6 +2570,39 @@ async function addPlaylist({ name, url, text, epg }) {
   return pl;
 }
 
+/** Añade un receptor Enigma2 con OpenWebIF como lista (se actualiza desde su API). */
+async function addReceiver({ name, host, user, pass, transcode, radio }) {
+  const addr = parseBoxAddress(host, user, pass);
+  setStatus(t('Conectando con {host}…', { host: addr.host }));
+  const about = await aboutBox(addr);
+  const box = { base: addr.base, host: addr.host, protocol: addr.protocol, user: addr.user, pass: addr.pass, transcode: !!transcode, radio: !!radio };
+  const pl = {
+    id: store.newId(),
+    name: name || `${about.name}${radio ? ' · Radio' : ''}`,
+    source: 'url',
+    url: addr.base,
+    box,
+    text: '',
+    updatedAt: '',
+    epg: `openwebif:${addr.base}${radio ? '#radio' : ''}`
+  };
+  await fetchPlaylist(pl);
+  const count = parseM3U(pl.text, pl.url).channels.length;
+  state.playlists.push(pl);
+  await store.savePlaylists(state.playlists);
+  await selectPlaylist(pl.id);
+  toast(t('«{name}» añadido: {n} canales', { name: pl.name, n: count }));
+  return pl;
+}
+
+/** Si un enlace devuelve la web de un receptor (HTML), se prueba su API OpenWebIF. */
+async function tryReceiverFromUrl(url, name) {
+  let addr;
+  try { addr = parseBoxAddress(url); } catch (_) { return null; }
+  try { await aboutBox(addr); } catch (_) { return null; }
+  return addReceiver({ name, host: url });
+}
+
 function nameFromUrl(url) {
   if (!url) return '';
   try {
@@ -2501,6 +2624,15 @@ async function onAddPlaylistClick() {
       if (!file) throw new Error(t('Elige un archivo .m3u, .m3u8 o .json.'));
       const text = await file.text();
       await addPlaylist({ name: name || (parseLibraryJSON(text) ? '' : file.name.replace(/\.(m3u8?|txt|json)$/i, '')), text, epg });
+    } else if (addTab === 'box') {
+      await addReceiver({
+        name,
+        host: $('#bHost').value,
+        user: $('#bUser').value.trim(),
+        pass: $('#bPass').value,
+        transcode: $('#bTranscode').checked,
+        radio: $('#bRadio').checked
+      });
     } else if (addTab === 'text') {
       const text = $('#pText').value.trim();
       if (!text) throw new Error(t('Pega el contenido de la lista.'));
@@ -2508,7 +2640,12 @@ async function onAddPlaylistClick() {
     } else {
       const url = $('#pUrl').value.trim();
       if (!url) throw new Error(t('Pega el enlace de la lista.'));
-      await addPlaylist({ name, url, epg });
+      try {
+        await addPlaylist({ name, url, epg });
+      } catch (err) {
+        // ¿Es la dirección de un receptor (web OpenWebIF) en vez de una lista?
+        if (!(await tryReceiverFromUrl(url, name))) throw err;
+      }
     }
     $('#manageDialog').close();
   } catch (err) {
