@@ -3746,9 +3746,53 @@ function openHelp() {
 }
 
 // Tema de temporada (ver themes.js); se revisa también al cambiar de día.
-let uiTheme = { theme: 'auto', snow: true };
+let uiTheme = { theme: 'auto', snow: true, faces: {} };
 function syncTheme() {
-  applyTheme(resolveTheme(uiTheme.theme), { snow: uiTheme.snow, onHonk: () => toast(t('¡Mec, mec! Todos al Peugeot.')) });
+  applyTheme(resolveTheme(uiTheme.theme), { snow: uiTheme.snow, faces: uiTheme.faces, onHonk: () => toast(t('¡Mec, mec! Todos al Peugeot.')) });
+}
+
+/** Foto → cuadrado de 160 px recortado al centro, en JPEG (data: URL pequeña para guardarla). */
+async function faceDataUrl(file) {
+  if (!file?.type?.startsWith('image/')) throw new Error(t('Elige una imagen.'));
+  const bmp = await createImageBitmap(file);
+  const side = Math.min(bmp.width, bmp.height);
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 160;
+  canvas.getContext('2d').drawImage(bmp, (bmp.width - side) / 2, (bmp.height - side) * 0.35, side, side, 0, 0, 160, 160);
+  bmp.close?.();
+  return canvas.toDataURL('image/jpeg', 0.85);
+}
+
+function renderFaceSlots() {
+  for (const slot of document.querySelectorAll('#optFacesWrap .face-slot')) {
+    const url = uiTheme.faces[slot.dataset.face] || '';
+    slot.querySelector('.face-img').style.backgroundImage = url ? `url("${url}")` : '';
+    slot.classList.toggle('has', !!url);
+    slot.querySelector('.face-del').hidden = !url;
+  }
+}
+
+function bindFaces() {
+  let target = '';
+  const input = $('#optFaceFile');
+  for (const slot of document.querySelectorAll('#optFacesWrap .face-slot')) {
+    slot.querySelector('.face-btn').addEventListener('click', () => { target = slot.dataset.face; input.value = ''; input.click(); });
+    slot.querySelector('.face-del').addEventListener('click', () => {
+      const faces = { ...uiTheme.faces };
+      delete faces[slot.dataset.face];
+      applyUiPrefs({ faces });
+    });
+  }
+  input.addEventListener('change', async () => {
+    const file = input.files?.[0];
+    if (!file || !target) return;
+    try {
+      const url = await faceDataUrl(file);
+      await applyUiPrefs({ faces: { ...uiTheme.faces, [target]: url } });
+    } catch (err) {
+      toast(err.message || t('No se pudo leer la imagen.'));
+    }
+  });
 }
 
 async function applyUiPrefs(patch) {
@@ -3756,8 +3800,10 @@ async function applyUiPrefs(patch) {
   if (patch) await store.set('ui', ui);
   setSideCollapsed(!!ui.sideCollapsed);
   setLayout(ui.layout);
-  uiTheme = { theme: ui.theme || 'auto', snow: ui.snow !== false };
+  uiTheme = { theme: ui.theme || 'auto', snow: ui.snow !== false, faces: { ...(ui.faces || {}) } };
   syncTheme();
+  renderFaceSlots();
+  $('#optFacesWrap').hidden = resolveTheme(uiTheme.theme) !== '29n';
   if ($('#optTheme').value !== uiTheme.theme) $('#optTheme').value = uiTheme.theme;
   $('#optSnow').checked = uiTheme.snow;
   $('#optSnowWrap').hidden = resolveTheme(uiTheme.theme) !== 'xmas';
@@ -4026,6 +4072,7 @@ function bindEvents() {
   $('#optLarge').addEventListener('change', (e) => applyUiPrefs({ largeText: e.target.checked }));
   $('#optTheme').addEventListener('change', (e) => applyUiPrefs({ theme: e.target.value }));
   $('#optSnow').addEventListener('change', (e) => applyUiPrefs({ snow: e.target.checked }));
+  bindFaces();
   $('#btnLayout').addEventListener('click', () => applyUiPrefs({ layout: isSide() ? 'blocks' : 'side' }));
   for (const b of document.querySelectorAll('#layoutPick [data-layout]')) {
     b.addEventListener('click', () => applyUiPrefs({ layout: b.dataset.layout }));

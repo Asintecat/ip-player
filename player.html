@@ -719,6 +719,16 @@
             <option value="29n">Especial 29-N</option>
           </select>
         </label>
+        <div class="faces-pick" id="optFacesWrap" hidden>
+          <span class="faces-title">Caras del especial 29-N</span>
+          <div class="faces-row">
+            <div class="face-slot" data-face="abalos"><button type="button" class="face-btn" aria-label="Elegir foto de Ábalos"><span class="face-img"></span></button><span class="face-name">Ábalos</span><button type="button" class="face-del" hidden>Quitar</button></div>
+            <div class="face-slot" data-face="koldo"><button type="button" class="face-btn" aria-label="Elegir foto de Koldo"><span class="face-img"></span></button><span class="face-name">Koldo</span><button type="button" class="face-del" hidden>Quitar</button></div>
+            <div class="face-slot" data-face="cerdan"><button type="button" class="face-btn" aria-label="Elegir foto de Cerdán"><span class="face-img"></span></button><span class="face-name">Cerdán</span><button type="button" class="face-del" hidden>Quitar</button></div>
+          </div>
+          <input type="file" id="optFaceFile" accept="image/*" hidden>
+          <small>Usa fotos que tengas derecho a usar. Se recortan en círculo y se guardan solo en este navegador.</small>
+        </div>
         <label class="switch" id="optSnowWrap"><input type="checkbox" id="optSnow" checked><span class="switch-track"></span><span>Nieve en el tema de Navidad</span></label>
         <h3 class="section-title">Accesibilidad</h3>
         <label class="switch"><input type="checkbox" id="optLarge"><span class="switch-track"></span><span>Texto y botones más grandes</span></label>

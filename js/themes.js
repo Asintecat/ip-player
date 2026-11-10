@@ -33,11 +33,13 @@ let snow = null;
  * @param {{ snow?: boolean, onHonk?: () => void }} opts
  */
 export function applyTheme(name, opts = {}) {
-  const key = `${name}|${opts.snow !== false}`;
+  const faces = opts.faces || {};
+  const key = `${name}|${opts.snow !== false}|${FACES.map((f) => (faces[f] || '').length).join(',')}`;
   if (key === current) return;
   current = key;
   document.documentElement.dataset.season = name || '';
   stopSnow();
+  clearInterval(bubbleTimer);
   for (const n of document.querySelectorAll('[data-season-deco]')) n.remove();
   if (name === 'xmas') mountXmas(opts);
   if (name === '29n') mount29n(opts);
@@ -128,8 +130,23 @@ function stopSnow() {
 
 // ---------- Especial 29-N ----------
 
-/** Cabeza caricaturesca (muñeco), sin rasgos realistas: solo pelo, gafas y barba de dibujo. */
-function head(cx, { hair, glasses = false, beard = '', bald = false, skin = '#f1c7a1' }) {
+// Caras: fotos que sube el usuario en Opciones (se guardan solo en su navegador).
+// Sin foto, se dibuja un muñeco con pelo, gafas o barba de dibujo.
+export const FACES = ['abalos', 'koldo', 'cerdan'];
+const QUOTES = ['Soy feminista porque soy socialista', '¡Amar no es delito!'];
+let bubbleTimer = 0;
+
+/** Cabeza: la foto en un círculo (muñeco cabezón) o el muñeco dibujado. */
+function head(cx, style, photo) {
+  if (photo) {
+    return `
+    <g transform="translate(${cx} 0)">
+      <defs><clipPath id="n29-clip-${cx}"><circle cx="0" cy="28" r="26"/></clipPath></defs>
+      <circle cx="0" cy="28" r="27.5" fill="#fff"/>
+      <image data-face="${style.face}" x="-26" y="2" width="52" height="52" preserveAspectRatio="xMidYMid slice" clip-path="url(#n29-clip-${cx})"/>
+    </g>`;
+  }
+  const { hair, glasses = false, beard = '', bald = false, skin = '#f1c7a1' } = style;
   return `
     <g transform="translate(${cx} 0)">
       <circle cx="0" cy="24" r="13" fill="${skin}"/>
@@ -169,9 +186,9 @@ function mount29n(opts) {
   car.innerHTML = `
     <svg viewBox="0 0 300 120" aria-hidden="true">
       <g class="n29-heads">
-        ${head(92, { hair: '#9ca3af', beard: '#9ca3af' })}
-        ${head(150, { hair: '#3f3f46', beard: '#27272a', bald: true, skin: '#e8b48c' })}
-        ${head(208, { hair: '#27272a', glasses: true })}
+        ${head(92, { face: 'abalos', hair: '#9ca3af', beard: '#9ca3af' }, opts.faces?.abalos)}
+        ${head(150, { face: 'koldo', hair: '#3f3f46', beard: '#27272a', bald: true, skin: '#e8b48c' }, opts.faces?.koldo)}
+        ${head(208, { face: 'cerdan', hair: '#27272a', glasses: true }, opts.faces?.cerdan)}
       </g>
       <path d="M40 70q8-28 40-30h120q30 2 52 30l26 4q10 2 10 12v10H22V84q0-12 18-14z" fill="#2f5dd8"/>
       <path d="M70 70l14-24h52v24zM144 70V46h52q20 4 34 24z" fill="#cfe3ff" opacity=".35"/>
@@ -182,6 +199,23 @@ function mount29n(opts) {
       <text x="150" y="84" text-anchor="middle" font-size="12" font-weight="700" fill="#fff" font-family="system-ui, sans-serif">407</text>
     </svg>
     <span class="n29-names"><b>Ábalos</b><b>Koldo</b><b>Cerdán</b></span>`;
+  // Las fotos (data: URL hechas en Opciones) se asignan como atributo, no dentro del HTML
+  for (const img of car.querySelectorAll('image[data-face]')) {
+    img.setAttribute('href', opts.faces[img.dataset.face]);
+  }
+  // Bocadillo de Ábalos (citas de broma, se alternan)
+  const bubble = document.createElement('span');
+  bubble.className = 'n29-bubble';
+  let q = 0;
+  bubble.textContent = QUOTES[0];
+  bubbleTimer = setInterval(() => {
+    q = (q + 1) % QUOTES.length;
+    bubble.classList.remove('is-new');
+    void bubble.offsetWidth; // reinicia la animación
+    bubble.textContent = QUOTES[q];
+    bubble.classList.add('is-new');
+  }, 4000);
+  car.appendChild(bubble);
   car.addEventListener('click', () => opts.onHonk?.());
   document.body.appendChild(car);
 }
